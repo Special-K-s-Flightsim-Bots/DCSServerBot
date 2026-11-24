@@ -291,6 +291,18 @@ def load_config_text(text: str, *, path: str | os.PathLike | None = None) -> Any
             line=line, column=column)
 
 
+def load_config_form_text(text: str, *, path: str | os.PathLike | None = None) -> Any:
+    """Parse text a BROWSER FORM posted, exactly as :func:`load_config_text` does.
+
+    A form submits its textarea with CRLF line endings whatever the file on disk holds, and the
+    round-trip loader keeps a comment's line ending as it found it — so a save straight from the
+    expert editor rewrites every comment line with a stray CR and leaves the file with mixed
+    endings. The conversion belongs to THIS door: a file read from disk keeps its own endings, so a
+    Windows install's CRLF file is never silently converted by a save.
+    """
+    return load_config_text(text.replace("\r\n", "\n").replace("\r", "\n"), path=path)
+
+
 def load_config_file(path: str | os.PathLike) -> Any | None:
     """Load the file with the round-trip loader, or ``None`` when it does not exist."""
     data = _read_bytes(path)

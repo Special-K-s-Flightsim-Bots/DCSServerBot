@@ -63,6 +63,7 @@ from core.services.registry import ServiceRegistry
 from core.utils import configwrite
 from core.utils.configwrite import ConfigWriteError
 from core.utils.helper import YAMLError, cache_with_expiration
+from core.utils.os import read_version_marker
 
 from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
@@ -95,6 +96,17 @@ def _discard_own_file(path: str, log: Any) -> None:
 
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
+#: The branch an installation that came from an ARCHIVE follows - the same one ``update.py``
+#: installs. A checkout follows the branch it sits on instead, and asks git about it.
+MAIN_BRANCH = 'master'
+BRANCH_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/branches/{}"
+#: The main branch's own ``version.py``, read raw: it is the version such an installation would move
+#: to, and a release tag cannot answer that (the branch moves without one).
+BRANCH_VERSION_URL = f"https://raw.githubusercontent.com/Special-K-s-Flightsim-Bots/DCSServerBot/{MAIN_BRANCH}/version.py"
+
+#: How long GitHub gets to answer an update check on a RUNNING node. A check that hangs must not
+#: stall a boot, a console poll or a lifecycle command.
+GITHUB_CHECK_TIMEOUT = 15.0
 LOGIN_URL = 'https://api.digitalcombatsimulator.com/gameapi/login/'
 LOGOUT_URL = 'https://api.digitalcombatsimulator.com/gameapi/logout/'
 UPDATER_URL = 'https://api.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
@@ -111,6 +123,26 @@ UPDATE = -3
 #: above this is CLAMPED to it. 1 MiB is 16x the console's window — room for a larger viewer — and
 #: still small enough that the read can never pull a multi-megabyte log into one response.
 NODE_READ_WINDOW_MAX_BYTES = 1024 * 1024
+
+#: HOW LONG ``NodeImpl.__aexit__`` waits for an in-flight DCS update before the database pools close under it. The
+#: installer runs in a thread and cannot be stopped, so the update task keeps stepping servers down and restoring
+#: them long after the shutdown flag is set; closing the pools first makes that cleanup fail on a closed pool. The
+#: wait is bounded: a shutdown must still finish when the update cannot.
+DCS_UPDATE_SHUTDOWN_WAIT = 30.0
+
+
+def update_done_event(node) -> asyncio.Event:
+    """This node's in-flight record for a DCS update: CLEARED while one runs, SET when none does.
+
+    Created SET, so a node that never updated reads idle. Created on first use rather than in ``__init__`` alone,
+    because ``dcs_update`` and ``__aexit__`` are also driven against light doubles that carry no such field.
+    """
+    event = getattr(node, 'dcs_update_done', None)
+    if event is None:
+        event = asyncio.Event()
+        event.set()
+        node.dcs_update_done = event
+    return event
 
 
 def file_identity(st: os.stat_result) -> int | float:
@@ -268,6 +300,9 @@ class NodeImpl(Node):
         #: whether a DCS installer is running right now. A shared installation's window must NOT be given back while
         #: it is: the window is what keeps the other clusters' servers down for the duration of the install.
         self.installer_running = False
+        #: the in-flight record of a WHOLE update: cleared before the window is taken, set after the servers it stepped
+        #: down are restored. What ``__aexit__`` waits on before it closes the pools.
+        self.dcs_update_done = update_done_event(self)
         self.pool: ConnectionPool | None = None
         self.apool: AsyncConnectionPool | None = None
         self.cpool: AsyncConnectionPool | None = None
@@ -376,8 +411,27 @@ class NodeImpl(Node):
     async def __aexit__(self, _type, _value, _traceback):
         await utils.safe_cancel(self.heartbeat_loop)
         await utils.safe_cancel(self.federation_loop)
+        await self._await_in_flight_update()
         await self.release_windows()
         await self.close_db()
+
+    async def _await_in_flight_update(self) -> None:
+        """Wait, bounded, for a DCS update that is still running to finish before the database pools close.
+
+        The installer runs in a thread, so cancelling the update task does not stop it: it keeps stepping servers
+        down and restoring them, and every one of those steps reads the cluster pool. Waiting here is what keeps that
+        cleanup from landing on a closed pool; the timeout is what keeps a stuck update from hanging the shutdown.
+        """
+        event = update_done_event(self)
+        if event.is_set():
+            return
+        self.log.warning(f'- A DCS update is still in flight on node {self.name}: waiting up to '
+                         f'{DCS_UPDATE_SHUTDOWN_WAIT:g}s for it to finish before the database closes.')
+        try:
+            await asyncio.wait_for(event.wait(), DCS_UPDATE_SHUTDOWN_WAIT)
+        except asyncio.TimeoutError:
+            self.log.warning(f'- The DCS update on node {self.name} did not finish in time, closing the database '
+                             f'under it.')
 
     async def release_own_windows(self) -> None:
         """Clear the window rows a PREVIOUS session of this node left behind, and say so.
@@ -904,14 +958,14 @@ class NodeImpl(Node):
                     # has to be able to see it, because ``/node upgrade`` is what offers to move back
                     # onto the update stream. The version check needs no git at all, so it answers
                     # this case too.
-                    return await self._upgrade_pending_non_git()
+                    return await self._upgrade_pending_release()
                 origin = repo.remotes.origin
                 origin.fetch()
                 state = _read_git_state(repo)     # the fetch moved the remote refs, not HEAD
                 if state.target and state.target != state.current:
                     return True
         except git.InvalidGitRepositoryError:
-            return await self._upgrade_pending_non_git()
+            return await self._upgrade_pending_zip()
         except git.GitCommandError as ex:
             self.log.error('  => Autoupdate failed!')
             changed_files = set()
@@ -931,24 +985,71 @@ class NodeImpl(Node):
             self.log.error(ex)
         return False
 
-    async def _upgrade_pending_non_git(self) -> bool:
+    async def _github_json(self, url: str, what: str) -> Any | None:
+        """GET *url* as JSON, or ``None`` when it could not be read — SAYING WHY in the log.
+
+        ``None`` is "unknown", never "nothing to do". An update check that was refused or that timed
+        out has to be visible as a failed check: reported as an installation with nothing waiting, a
+        rate-limited node looks exactly like a current one and never updates again.
+        """
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(REPO_URL, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                async with session.get(url, proxy=self.proxy, proxy_auth=self.proxy_auth,
+                                       timeout=aiohttp.ClientTimeout(total=GITHUB_CHECK_TIMEOUT)) as response:
+                    if response.status == 403:
+                        self.log.warning(f'- GitHub refused the check for {what} (anonymous rate limit '
+                                         f'exhausted): whether an update is available is UNKNOWN.')
+                        return None
                     response.raise_for_status()
-                    result = await response.json()
-                    current_version = re.sub('^v', '', __version__)
-                    latest_version = re.sub('^v', '', result[0]["tag_name"])
+                    return await response.json(content_type=None)
+        except Exception as ex:
+            self.log.warning(f'- Could not check {what}: {ex}')
+            return None
 
-                    if parse(latest_version) > parse(current_version):
-                        return True
-        except aiohttp.ClientResponseError as ex:
-            # ignore rate limits
-            if ex.status != 403:
-                raise
-        except IndexError:
+    async def _upgrade_pending_release(self) -> bool:
+        """Whether a RELEASE newer than this installation exists.
+
+        The question a PINNED checkout has to ask: it follows no branch, so a tag is the only thing it
+        could move to — and leaving the pin is the operator's decision, not this check's.
+        """
+        result = await self._github_json(REPO_URL, 'the release list')
+        if not isinstance(result, list) or not result:
+            if result is not None:
+                self.log.error(f"Corrupt response from GitHub: {repr(result)}")
+            return False
+        try:
+            latest_version = re.sub('^v', '', result[0]["tag_name"])
+        except (KeyError, TypeError):
             self.log.error(f"Corrupt response from GitHub: {repr(result)}")
-        return False
+            return False
+        current_version = re.sub('^v', '', __version__)
+        return parse(latest_version) > parse(current_version)
+
+    async def _main_branch_commit(self) -> str | None:
+        """The commit the MAIN branch is on, or ``None`` when GitHub could not be read."""
+        result = await self._github_json(BRANCH_URL.format(MAIN_BRANCH), f'the {MAIN_BRANCH} branch')
+        if not isinstance(result, dict):
+            if result is not None:
+                self.log.warning(f'- GitHub answered the {MAIN_BRANCH} branch check without a commit.')
+            return None
+        try:
+            return result['commit']['sha']
+        except (KeyError, TypeError):
+            self.log.warning(f'- GitHub answered the {MAIN_BRANCH} branch check without a commit.')
+            return None
+
+    async def _upgrade_pending_zip(self) -> bool:
+        """Whether an installation that came from an ARCHIVE has a newer commit to move to.
+
+        It follows the MAIN branch — the one ``update.py`` installs — and it has no history of its own,
+        so the comparison is that branch's tip against the commit the last SUCCESSFUL update recorded
+        (``version.sha``). No marker means no update has ever completed, so an update IS pending: that
+        is the answer ``update.py`` gives for the same installation, and the two must not disagree.
+        """
+        target = await self._main_branch_commit()
+        if not target:
+            return False
+        return target != read_version_marker()
 
     async def _latest_version(self) -> str | None:
         """The version number of the revision this install would move to, or ``None`` when it cannot be read.
@@ -957,8 +1058,9 @@ class NodeImpl(Node):
 
         * a checkout updates from its **branch**, so the number is the branch tip's own ``version.py`` — a branch
           carries no release tags, so the tag would answer a different question entirely;
-        * an install that came from a release (no checkout) updates to the newest **release**, and that tag is
-          exactly the number it would move to.
+        * an install that came from an **archive** (no checkout) follows the MAIN branch too, so the number is
+          that branch's ``version.py``. Its release tag is NOT the answer: the branch moves between releases
+          without moving the tag, and a feature release read as the old tag would be applied unattended.
 
         ``None`` means "could not be read", never "no update": the caller then keeps the previous behaviour and lets
         the update through — the safe direction, because a guess here could hold an update back for a version the
@@ -967,12 +1069,12 @@ class NodeImpl(Node):
         try:
             import git  # type: ignore[import-not-found]
         except ImportError:
-            return await self._latest_version_release()
+            return await self._latest_version_main()
         try:
             repo = git.Repo('.')
         except git.InvalidGitRepositoryError:
-            # no checkout at all: the install came from a release, and that tag is what it would move to
-            return await self._latest_version_release()
+            # no checkout at all: this install came from an archive and follows the main branch
+            return await self._latest_version_main()
         try:
             with closing(repo) as repo:
                 branch = repo.active_branch.name
@@ -986,21 +1088,23 @@ class NodeImpl(Node):
             self.log.debug(f"Could not read the version of the remote branch: {ex}")
             return None
 
-    async def _latest_version_release(self) -> str | None:
-        """The newest release tag GitHub reports, read the way ``_upgrade_pending_non_git`` reads it.
+    async def _latest_version_main(self) -> str | None:
+        """The version an ARCHIVE installation would move to: the MAIN branch's own ``version.py``.
 
-        Deliberately its own request instead of a refactor of that check: that one answers a yes/no and this one
-        needs the number, and editing a working update path for six duplicated lines is the worse trade.
+        The branch is read raw because that file is the only place its version number lives — a
+        branch publishes no tag, so there is nothing else to ask.
         """
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(REPO_URL, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                async with session.get(BRANCH_VERSION_URL, proxy=self.proxy, proxy_auth=self.proxy_auth,
+                                       timeout=aiohttp.ClientTimeout(total=GITHUB_CHECK_TIMEOUT)) as response:
                     response.raise_for_status()
-                    result = await response.json()
-                    return re.sub('^v', '', result[0]["tag_name"])
+                    blob = await response.text()
         except Exception as ex:
-            self.log.debug(f"Could not read the latest release tag: {ex}")
+            self.log.warning(f"Could not read the version of the {MAIN_BRANCH} branch: {ex}")
             return None
+        match = re.search(r'^__version__\s*=\s*[\'"]([^\'"]+)', blob, re.MULTILINE)
+        return match.group(1) if match else None
 
     async def upgrade_versions(self) -> tuple[str, str] | None:
         """``(installed, latest)`` when an upgrade is pending AND both numbers could be read, else ``None``.
@@ -1033,7 +1137,7 @@ class NodeImpl(Node):
             try:
                 rc = await self._upgrade_pending_git()
             except ImportError:
-                rc = await self._upgrade_pending_non_git()
+                rc = await self._upgrade_pending_zip()
         except Exception as ex:
             self.log.exception(ex)
             raise
@@ -2184,9 +2288,16 @@ class NodeImpl(Node):
             return await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
         finally:
             # Released in this order on purpose: the window goes first, so followers can come back while this node
-            # restores its own — and both happen even when the update raised.
-            await protocol.windows.release(resource_id)
-            await protocol.restore(resource_id)
+            # restores its own — and both happen even when the update raised. Each is BEST-EFFORT: at shutdown the
+            # cluster pool may already be closed, and a cleanup failure must never replace the exception in flight.
+            try:
+                await protocol.windows.release(resource_id)
+            except Exception as ex:
+                self.log.warning(f"- Could not release the window on {resource_id}: {ex}")
+            try:
+                await protocol.restore(resource_id)
+            except Exception as ex:
+                self.log.warning(f"- Could not restore the servers on {resource_id} after the window: {ex}")
 
     @override
     async def dcs_update(self, *, branch: str | None = None, version: str | None = None,
@@ -2194,77 +2305,87 @@ class NodeImpl(Node):
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
-        self.log.info('A new version of DCS World is available. Auto-updating ...')
-        resource_id = self.resource_of_installation()
-        if resource_id:
-            rc = await self.federated_update(resource_id, branch=branch, version=version, warn_times=warn_times)
-        else:
-            # no registered installation: nothing to coordinate, so the pre-federation behaviour is kept intact
-            rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
-        if rc == 0:
-            bus = ServiceRegistry.get(ServiceBus)
-            await bus.send_to_node({
-                "command": "rpc",
-                "service": BotService.__name__,
-                "method": "audit",
-                "params": {
-                    "message": f"DCS World updated to version {version} on node {self.node.name}."
-                }
-            })
-            config = self.locals.get('DCS', {}).get('announce')
-            if config and announce:
-                embed = discord.Embed(
-                    colour=discord.Colour.blue(),
-                    title=config.get(
-                        'title', 'DCS has been updated to version {}!').format(version),
-                    url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{version}/")
-                embed.description = config.get('description', 'The following servers have been updated:')
-                embed.set_thumbnail(url="https://forum.dcs.world/uploads/monthly_2023_10/"
-                                        "icons_4.png.f3290f2c17710d5ab3d0ec5f1bf99064.png")
-                embed.add_field(name=_('Server'),
-                                value='\n'.join([
-                                    f'- {x.display_name}' for x in bus.servers.values() if not x.is_remote
-                                ]), inline=False)
-                embed.set_footer(
-                    text=config.get('footer', 'Please make sure you update your DCS client to join!'))
-                params = {
-                    "channel": config['channel'],
-                    "embed": embed.to_dict()
-                }
-                if 'mention' in config:
-                    params['mention'] = config['mention']
+        # from here until the finally, an update owns this node — the federated and the plain path both pass through
+        done = update_done_event(self)
+        done.clear()
+        try:
+            self.log.info('A new version of DCS World is available. Auto-updating ...')
+            resource_id = self.resource_of_installation()
+            if resource_id:
+                rc = await self.federated_update(resource_id, branch=branch, version=version, warn_times=warn_times)
+            else:
+                # no registered installation: nothing to coordinate, so the pre-federation behaviour is kept intact
+                rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
+            if rc == 0:
+                bus = ServiceRegistry.get(ServiceBus)
                 await bus.send_to_node({
                     "command": "rpc",
                     "service": BotService.__name__,
-                    "method": "send_message",
-                    "params": params
+                    "method": "audit",
+                    "params": {
+                        "message": f"DCS World updated to version {version} on node {self.node.name}."
+                    }
                 })
-        else:
-            if rc == UPDATE_STOOD_BY:
-                message = (f"DCS World update on node {self.name} did not run: another cluster is updating "
-                           f"the shared DCS installation.")
-            elif rc == UPDATE_SERVERS_UP:
-                message = (f"DCS World update on node {self.name} did not run: servers were still up on the "
-                           f"shared DCS installation.")
-            elif rc == 2:
-                message = f"DCS World update on node {self.name} was aborted (check disk space)!"
-            elif rc in [3, 350]:
-                message = (f"DCS World has been updated to version {version} on node {self.name}.\n"
-                           f"The updater has requested a **reboot** of the system!")
+                config = self.locals.get('DCS', {}).get('announce')
+                if config and announce:
+                    embed = discord.Embed(
+                        colour=discord.Colour.blue(),
+                        title=config.get(
+                            'title', 'DCS has been updated to version {}!').format(version),
+                        url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{version}/")
+                    embed.description = config.get('description', 'The following servers have been updated:')
+                    embed.set_thumbnail(url="https://forum.dcs.world/uploads/monthly_2023_10/"
+                                            "icons_4.png.f3290f2c17710d5ab3d0ec5f1bf99064.png")
+                    embed.add_field(name=_('Server'),
+                                    value='\n'.join([
+                                        f'- {x.display_name}' for x in bus.servers.values() if not x.is_remote
+                                    ]), inline=False)
+                    embed.set_footer(
+                        text=config.get('footer', 'Please make sure you update your DCS client to join!'))
+                    params = {
+                        "channel": config['channel'],
+                        "embed": embed.to_dict()
+                    }
+                    if 'mention' in config:
+                        params['mention'] = config['mention']
+                    await bus.send_to_node({
+                        "command": "rpc",
+                        "service": BotService.__name__,
+                        "method": "send_message",
+                        "params": params
+                    })
             else:
-                message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
-                           f"{utils.get_win32_error_message(rc)}!")
-            self.log.error(message)
-            await ServiceRegistry.get(ServiceBus).send_to_node({
-                "command": "rpc",
-                "service": BotService.__name__,
-                "method": "alert",
-                "params": {
-                    "title": "DCS Update Issue",
-                    "message": message
-                }
-            })
-        return rc
+                if rc == UPDATE_STOOD_BY:
+                    message = (f"DCS World update on node {self.name} did not run: another cluster is updating "
+                               f"the shared DCS installation.")
+                elif rc == UPDATE_SERVERS_UP:
+                    message = (f"DCS World update on node {self.name} did not run: servers were still up on the "
+                               f"shared DCS installation.")
+                elif rc == 2:
+                    message = f"DCS World update on node {self.name} was aborted (check disk space)!"
+                elif rc in [3, 350]:
+                    message = (f"DCS World has been updated to version {version} on node {self.name}.\n"
+                               f"The updater has requested a **reboot** of the system!")
+                else:
+                    message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
+                               f"{utils.get_win32_error_message(rc)}!")
+                self.log.error(message)
+                await ServiceRegistry.get(ServiceBus).send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "alert",
+                    "params": {
+                        "title": "DCS Update Issue",
+                        "message": message
+                    }
+                })
+            return rc
+        finally:
+            done.set()
+
+    @override
+    async def dcs_update_in_progress(self) -> bool:
+        return not update_done_event(self).is_set()
 
     async def follow_resources(self) -> dict[str, str]:
         """One follower cycle over every resource this node uses, as ``{resource_id: what it did}``.

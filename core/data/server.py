@@ -367,7 +367,13 @@ class Server(DataObject, ABC):
         on) and each targeted line reaches the owning node through :meth:`send_to_dcs`.
         """
         if coalition == Coalition.ALL:
-            for msg in message.split('\n'):
+            # ``splitlines()``, not ``split('\n')``: a line typed into the web console arrives with
+            # CRLF breaks, and splitting on '\n' alone leaves the '\r' at the end of every line,
+            # which DCS prints as a visible character after the text. A blank line carries no
+            # message and is dropped.
+            for msg in message.splitlines():
+                if not msg.strip():
+                    continue
                 await self.send_to_dcs({
                     "command": "sendChatMessage",
                     "from": sender,
@@ -582,7 +588,7 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def render_extensions(self) -> list[dict]:
+    async def render_extensions(self, *, public: bool = False) -> list[dict]:
         raise NotImplementedError()
 
     @abstractmethod

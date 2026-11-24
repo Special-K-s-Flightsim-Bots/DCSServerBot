@@ -6,10 +6,13 @@
   list pages render, so a column or a chip cannot land here and miss them. Everything the component
   draws is DATA from `pages/players.py`; nothing is computed here.
 
-  MODERATION STRIP: a row's last cell carries the four writes that key on the UCID and need no live
-  session (Ban / Lift ban, Watch / Unwatch); they are `pages/actions` records built from the same
-  scoped rows, and a control the caller may not use is absent. Message / Popup / Kick / Screenshot
-  need a slot, so they live on the player's page — which a row's name opens.
+  STRIP: a row's last cell carries the player strip. Every row gets the writes that key on the UCID and
+  need no live session (Ban / Lift ban, Watch / Unwatch); a row whose player is ONLINE also carries the
+  session strip the dashboard draws (kick, ban, chat, popup, mute), aimed at the server the roster names.
+  The Ban is one glyph — live while online, the bare ban ADD while offline, the LIFT on a banned row —
+  and the watchlist pair moves behind the `⋮` trigger when the strip is full. They are `pages/actions`
+  records built from the same scoped rows, and a control the caller may not use is absent. Screenshot
+  needs the slot facts the player's page reads, so it stays there, which a row's name opens.
 
   THE ONE-SHOT NOTICE of a write is included ABOVE the table: a row write, and every write on a
   player's page, 303s back to THIS page, so this is where the outcome is read. It renders nothing

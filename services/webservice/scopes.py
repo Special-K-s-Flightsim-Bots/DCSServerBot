@@ -45,6 +45,7 @@ the block it names through the same primitive (see ``pages.settings``).
 """
 from __future__ import annotations
 
+import functools
 from dataclasses import replace
 
 from . import configgen
@@ -369,7 +370,16 @@ def extension_schema_parts(name: str):
     block's ``<name>`` rule and the instance block's ``<name>`` rule each carry the ``include`` partial
     the shape comes from. Either is ``None`` when the extension is not declared in that block (a
     node-only or instance-only extension).
+
+    MEMOISED per process: the schema files are not edited while a console runs, and a page asks this
+    once per extension it renders.
     """
+    return _extension_schema_parts(name)
+
+
+@functools.lru_cache(maxsize=None)
+def _extension_schema_parts(name: str):
+    """The schema and its two partial names for *name* — see :func:`extension_schema_parts`."""
     from . import catalog
     files = [str(catalog.EXTENSIONS_SCHEMA)]
     root = _repo_root() / "extensions"
@@ -460,12 +470,19 @@ def extension_blocks(document, name: str) -> list[dict]:
     return blocks
 
 
-def build_extension_scopes(document, name: str, node_names=()):
+def build_extension_scopes(document, name: str, node_names=(), node=None):
     """The TABS for extension *name* plus the tree its save resolves against.
 
     Returns ``(scopes, save_tree)``. A node block's tab is the node's own name and renders the NODE
     partial; an instance block's tab is ``<node> + <instance>`` (or the plain instance name when the
     install has one node) and renders the INSTANCE partial.
+
+    WHEN *node* IS GIVEN, the scopes THAT NODE can configure but does not carry yet are added too, with
+    ``present`` FALSE — the node's own scope first (when its schema declares the extension there), then
+    one per instance the node's block declares, in the node page's own tab order. Their ``fields`` are
+    the same schema controls at that scope's path, so the page can render a form for a block that does
+    not exist and its save CREATES it. Without *node* the list stays a READING of the file (a scope per
+    block that exists), which is what a caller that edits existing blocks only wants.
 
     THE SHAPE FALLS BACK to the OTHER partial when the name is declared in only one of the two schema
     blocks. An instance-scoped-only extension (``LogAnalyser``) configured on the NODE — the operator
@@ -477,24 +494,76 @@ def build_extension_scopes(document, name: str, node_names=()):
     scoping gap that left the central override fillable only through Expert Mode YAML. The reverse
     (a node-scoped-only name on an instance) falls back the same way, so neither direction can render
     an empty block again.
+
+    A scope is offered whether the schema DECLARES the name there or the file already CARRIES a block
+    for it: an existing block of a name the other partial declares must stay editable (that is the
+    fallback above), and an absent one is offered wherever the NODE PAGE offers the name — the node's
+    own scope ALWAYS (that page's node-wide card set is the UNION of both schema blocks, so any name it
+    offers as a ``+ Add`` choice must have a page that can create it), and one per instance of the node
+    whose schema declares the name there. A form whose scope's schema would refuse the block would be a
+    door that cannot save; the fallback shape is what keeps the node scope saveable for an
+    instance-scoped name.
     """
     schema, node_partial, instance_partial = extension_schema_parts(name)
     node_fields = _frame_fields(schema, node_partial or instance_partial)
     instance_fields = _frame_fields(schema, instance_partial or node_partial)
     multiple = len({str(item) for item in (node_names or ())}) > 1
+    if node is None:
+        blocks = extension_blocks(document, name)
+        wanted: list[tuple[str, str | None]] = [(block["kind"], block["instance"])
+                                                for block in blocks]
+    else:
+        node_name = str(node)
+        blocks = [block for block in extension_blocks(document, name)
+                  if block["node"] == node_name]
+        present = {(block["kind"], block["instance"]) for block in blocks}
+        wanted = [("node", None)]
+        for instance in _declared_instances(document, node_name):
+            if instance_partial or ("instance", instance) in present:
+                wanted.append(("instance", instance))
+    found = {(block["kind"], block["instance"]): block for block in blocks}
     scopes = []
-    for block in extension_blocks(document, name):
-        if block["kind"] == "node":
-            fields = [rebase(field, block["base"]) for field in node_fields]
-            label = str(block["node"])
+    for kind, instance in wanted:
+        block = found.get((kind, instance))
+        node_name = str(block["node"]) if block is not None else str(node)
+        base = (block["base"] if block is not None
+                else (node_name, "extensions", name) if kind == "node"
+                else (node_name, "instances", instance, "extensions", name))
+        if kind == "node":
+            fields = [rebase(field, base) for field in node_fields]
+            label = node_name
         else:
-            fields = [rebase(field, block["base"]) for field in instance_fields]
-            label = (f'{block["node"]} + {block["instance"]}' if multiple
-                     else str(block["instance"]))
-        scopes.append({"label": label, "kind": block["kind"], "node": block["node"],
-                       "instance": block["instance"], "base": block["base"], "present": True,
+            fields = [rebase(field, base) for field in instance_fields]
+            label = f"{node_name} + {instance}" if multiple else str(instance)
+        scopes.append({"label": label, "kind": kind, "node": node_name,
+                       "instance": instance, "base": base, "present": block is not None,
                        "fields": fields})
     return scopes, extension_save_tree(schema, name, node_partial, instance_partial)
+
+
+def _declared_instances(document, node: str) -> list[str]:
+    """The instance names *node*'s block declares, in file order — a reading, never a guess."""
+    if not isinstance(document, dict):
+        return []
+    block = document.get(node)
+    instances = block.get("instances") if isinstance(block, dict) else None
+    if not isinstance(instances, dict):
+        return []
+    return [str(name) for name in instances]
+
+
+def scope_tab_index(scopes, kind: str, instance=None) -> int:
+    """The INDEX of the tab a ``(kind, instance)`` scope renders as — 0 when it is not in the list.
+
+    The tab strip is server-side ``?tab=<n>`` links, so a caller that has to ADDRESS a scope (the node
+    page's ``+ Add`` link into an extension's own page) reads its position from THIS list, the one the
+    page renders its tabs from — never from a second copy of the ordering rule.
+    """
+    for index, scope in enumerate(scopes):
+        if scope.get("kind") == kind and (scope.get("instance") or None) == (instance or None):
+            return index
+    return 0
+
 
 
 # --------------------------------------------------- the NODE selector and the per-node SLICE

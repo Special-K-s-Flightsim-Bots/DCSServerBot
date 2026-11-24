@@ -2,6 +2,11 @@ schema;node_olympus_schema:
   type: map
   nullable: false
   mapping:
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether this extension is enabled on this node.
+      example: "true"
     name:
       type: str
       nullable: false

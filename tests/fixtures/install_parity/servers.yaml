@@ -1,0 +1,5 @@
+Server X:
+  channels:
+    status: 300000000000000003
+    chat: -1
+    admin: 500000000000000005

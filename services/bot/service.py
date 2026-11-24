@@ -235,7 +235,10 @@ class BotService(Service):
                     else:
                         zip_buffer = BytesIO()
                         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
-                            zip_file.writestr(filename, file)
+                            # The entry is named by the FILE, never by its path: an absolute
+                            # Windows path in the archive opens as a folder chain (C:\ -> Users
+                            # -> ...) and reads as an empty zip to anyone who looks at the root.
+                            zip_file.writestr(os.path.basename(filename), file)
                         file = zip_buffer.getvalue()
                         filename += '.zip'
                         attachment = discord.File(fp=BytesIO(file), filename=os.path.basename(filename))

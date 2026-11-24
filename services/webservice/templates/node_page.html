@@ -27,7 +27,7 @@
 <div class="st-head">
   <div>
     <div class="t1">
-      <a class="st-back" href="/nodes">&larr; {{ _('Nodes') }}</a>
+      <a class="st-back" href="{{ console_url('/nodes') }}">&larr; {{ _('Nodes') }}</a>
       <span class="st-crumb">&rsaquo; {{ node }}</span>
     </div>
     <div class="t1" style="margin-top:6px">
@@ -100,7 +100,7 @@
         {% endif %}
       </div>
     </div>
-    <aside class="st-aside" data-cfg-yaml data-validate-url="{{ validate_path }}">
+    <aside class="st-aside" data-cfg-yaml data-validate-url="{{ validate_path }}" data-hints-url="{{ hints_path }}">
       <div class="hd"><h3>{% trans %}The file, as YAML{% endtrans %}</h3><span class="sp"></span>
         <span class="st-badge" data-cfg-yaml-badge>{% trans %}read-only{% endtrans %}</span>
         {% if not readonly %}
@@ -125,11 +125,9 @@
   <div class="st-grid">
     {% for ext in extensions %}
     {% set ext_scope %}{% if ext.default %}<span class="st-badge default">{{ _(extension_default_badge) }}</span>{% else %}<span class="st-badge">{{ _(ext.scope_label) }}</span>{% endif %}{% endset %}
-    {% set ext_warn_body %}{% if ext.confirm %}<pre class="st-warn-yaml">{{ ext.discard }}</pre>{% endif %}{% endset %}
     {{ tile_card('ext', ext.kind_label, ext.name, ext.description, ext.switch,
                  cog_url=ext.cog_url, scope=ext_scope, extra=(' is-default' if ext.default else ''),
-                 off=(not ext.enabled),
-                 warn=(extension_remove_warning if ext.confirm else ''), warn_body=ext_warn_body,
+                 off=(not ext.enabled), warn=ext.warn,
                  trash_url=ext.trash_url, trash_title=ext.trash_title) }}
     {% endfor %}
     {#- THE "+ ADD" TILE IS ALWAYS DRAWN: when nothing is left to add it
@@ -142,12 +140,14 @@
 
 {% block head %}
 <link rel="stylesheet" href="/static/settings-scope.css">
-<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/static/vendor/codemirror/addon/hint/show-hint.css?v={{ asset_version }}">
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
-<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
+<script src="/static/vendor/codemirror/codemirror.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/addon/hint/show-hint.js?v={{ asset_version }}" defer></script>
 <script src="/static/configgen.js" defer></script>
-<script src="/static/settings-yaml.js" defer></script>
+<script src="/static/settings-yaml.js?v={{ asset_version }}" defer></script>
 {% endblock %}

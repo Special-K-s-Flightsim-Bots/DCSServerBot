@@ -1,0 +1,177 @@
+{#-
+  The public site's one-server page — the embed's inventory, block by block.
+
+  Every figure is a value `pages/site_servers.detail_view()` composed from `site_reads.server_detail`
+  (the fleet read plus the server's own inventory) and the cached live read
+  (`site_reads.live_read`). The template only reads.
+
+  THE LIVE BLOCKS SAY SO. Weather and extensions are cached reads from the game server, labelled
+  as such; a block with nothing to read states that in one sentence instead of drawing empty
+  instruments. The extension tiles print the value's own plain rows and the withheld count as a
+  chip — never a credential.
+
+  THE WEEKLY SCHEDULE is drawn as the mockup draws it: one row per period with its seven day cells,
+  and the legend under them. A state is never colour alone — every cell carries its word as a title
+  and each row repeats the week as its aria label. The whole block (heading, grid, legend) is
+  absent when there is no schedule to draw, and a failed read is one sentence with no grid.
+
+  A name this site does not carry renders this page's own not-found state, never another site's
+  server.
+-#}
+{% extends "site_base.html" %}
+{% block title %}{% if model.found %}{{ model.name }} — {% endif %}{% trans %}Servers{% endtrans %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+{% if not model.found %}
+<div class="stage-area"><div class="in">
+  <header class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}One server{% endtrans %}</div>
+      <h1>{% trans %}Not found{% endtrans %}</h1>
+      <p class="sub">{{ _(model.sentence) }}</p>
+      {% if model.name %}<div class="meta"><span class="mono">{{ model.name }}</span></div>{% endif %}
+    </div>
+  </header>
+</div></div>
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+<main class="in">
+  <a class="back" href="{{ back_href }}">{% trans %}All servers{% endtrans %}</a>
+</main>
+{% else %}
+<div class="stage-area"><div class="in">
+  <header class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}One server{% endtrans %}</div>
+      <h1>{{ model.name }}</h1>
+      <p class="sub">{% trans %}What this server reports right now: its mission, its weather, the limits it enforces and when it restarts.{% endtrans %}</p>
+      <div class="meta"><span class="live" data-live-board="{{ live_href }}" data-live-server="{{ model.name }}" data-live-state="{{ model.live_state }}"><span class="dot {{ model.dot }}" data-live="dot" aria-hidden="true"></span><b data-live="state">{{ _(model.state) }}</b></span></div>
+    </div>
+    {% if model.slots %}<div class="side"><div class="big">{{ model.slots.used }}<span> / {{ model.slots.total }} {% trans %}in slots{% endtrans %}</span></div></div>{% endif %}
+  </header>
+</div></div>
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  <a class="back" href="{{ model.back_href }}">{% trans %}All servers{% endtrans %}</a>
+  <section class="sect">
+    <div class="stack">
+      <section class="rail">
+        <div class="k"><span class="lbl">{% trans %}Connection{% endtrans %}</span><h2>{% trans %}How to join{% endtrans %}</h2></div>
+        <div>
+          <div class="facts two">
+            <div class="cell"><span class="k">{% trans %}Address{% endtrans %}</span><span class="v">{% if model.address %}{{ model.address }}{% else %}{% trans %}No address{% endtrans %}{% endif %}</span></div>
+            <div class="cell"><span class="k">{% trans %}Password{% endtrans %}</span><span class="v plain">{% if model.locked or model.password %}<span class="chip lock">{% trans %}Locked{% endtrans %}</span>{% else %}<span class="chip">{% trans %}Open{% endtrans %}</span>{% endif %}{% if model.password %} <span class="mono">{{ model.password }}</span>{% endif %}</span>
+              {% if model.password %}<span class="k">{% trans %}A password is required to join. This server publishes its value on the public site.{% endtrans %}</span>
+              {% elif model.locked %}<span class="k">{% trans %}A password is required to join. Its value is never shown on this site.{% endtrans %}</span>{% endif %}</div>
+            {% if model.coalitions %}
+            <div class="cell"><span class="k">{% trans %}Slots{% endtrans %}</span><span class="v plain">{% trans %}Coalitions — seats are assigned by role{% endtrans %}</span></div>
+            {% else %}
+            <div class="cell"><span class="k">{% trans %}Blue slots{% endtrans %}</span><span class="v">{% if model.blue.has_figure %}{{ model.blue.current }} {% trans %}of{% endtrans %} {{ model.blue.total }}{% else %}—{% endif %}</span></div>
+            <div class="cell"><span class="k">{% trans %}Red slots{% endtrans %}</span><span class="v">{% if model.red.has_figure %}{{ model.red.current }} {% trans %}of{% endtrans %} {{ model.red.total }}{% else %}—{% endif %}</span></div>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="rail">
+        <div class="k"><span class="lbl">{% trans %}Mission{% endtrans %}</span><h2>{% if model.mission %}{{ model.mission }}{% else %}{% trans %}No mission{% endtrans %}{% endif %}</h2><div class="sub">{% if model.map %}{{ model.map }}{% else %}{% trans %}no map{% endtrans %}{% endif %}</div></div>
+        <div>
+          <div class="facts">
+            <div class="cell"><span class="k">{% trans %}Date / time in mission{% endtrans %}</span><span class="v">{% if model.mission_date %}{{ model.mission_date }}<small>{{ model.mission_time }}</small>{% else %}—{% endif %}</span></div>
+            <div class="cell"><span class="k">{% trans %}Runtime{% endtrans %}</span><span class="v">{{ model.runtime }}</span></div>
+            <div class="cell"><span class="k">{% trans %}Restart in{% endtrans %}</span><span class="v">{{ model.restart }}</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rail">
+        <div class="k"><span class="lbl">{% trans %}Weather{% endtrans %}</span><h2>{% trans %}What the mission is flying in{% endtrans %}</h2><div class="sub"><span class="liveread">{% trans %}cached live read · 300 s{% endtrans %}</span></div></div>
+        <div>
+          {% if model.weather_sentence %}
+          <p class="note">{{ _(model.weather_sentence) }}</p>
+          {% elif model.weather.empty %}
+          <p class="note">{{ _(model.weather.sentence) }}</p>
+          {% else %}
+          <div class="instr">
+            {% for cell in model.weather.cells %}
+            <div class="cell"><span class="k">{{ _(cell.label) }}</span><span class="v">{{ cell.value }}{% if cell.note %}<small>{{ cell.note }}</small>{% endif %}</span></div>
+            {% endfor %}
+            <div class="cell"><span class="k">{% trans %}Wind{% endtrans %}</span><div class="wind">
+              {% for row in model.weather.wind %}<div class="l"><span>{{ _(row.label) }}</span><span>{{ row.value }}</span></div>{% endfor %}
+            </div></div>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="rail">
+        <div class="k"><span class="lbl">{% trans %}Client limits{% endtrans %}</span><h2>{% trans %}What the server enforces{% endtrans %}</h2><div class="sub">{% trans %}the switches in force{% endtrans %}</div></div>
+        <div>
+          {% if model.limits_in_force %}
+          <ul class="lines ticked">
+            {% for limit in model.limits_in_force %}<li><span class="nm">{{ _(limit.label) }}</span></li>{% endfor %}
+          </ul>
+          {% else %}
+          <p class="note">{% trans %}No client limit is in force.{% endtrans %}</p>
+          {% endif %}
+        </div>
+      </section>
+
+      {% if model.schedule.shown %}
+      <section class="rail">
+        <div class="k"><span class="lbl">{% trans %}The weekly schedule{% endtrans %}</span><h2>{% trans %}When it runs{% endtrans %}</h2>{% if model.schedule.timezone %}<div class="sub">{{ model.schedule.timezone }}</div>{% endif %}</div>
+        <div>
+          {% if model.schedule.failed %}
+          <p class="note">{{ _(model.schedule.sentence) }}</p>
+          {% else %}
+          <div class="schedweeks">
+            {% for row in model.schedule.rows %}
+            <div class="schedweek">
+              <span class="rng">{{ row.period }}</span>
+              <div class="sched" role="img" aria-label="{{ row.aria }}">
+                {% for cell in row.cells %}<div class="day {{ cell.state }}"><span class="d">{{ _(cell.day) }}</span><span class="c" aria-hidden="true" title="{{ _(cell.word) }}"></span></div>{% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="sched-legend">{% for item in model.schedule.legend %}<span><i class="{{ item.state }}"></i>{{ _(item.word) }}</span>{% endfor %}</div>
+          {% endif %}
+        </div>
+      </section>
+      {% endif %}
+
+      <section class="rail">
+        <div class="k"><span class="lbl">{% trans %}Extensions{% endtrans %}</span><h2>{% trans %}What is loaded{% endtrans %}</h2><div class="sub"><span class="liveread">{% trans %}cached live read · 300 s{% endtrans %}</span></div></div>
+        <div>
+          {% if model.extensions_sentence %}
+          <p class="note">{{ _(model.extensions_sentence) }}</p>
+          {% elif model.extensions.empty %}
+          <p class="note">{{ _(model.extensions.sentence) }}</p>
+          {% else %}
+          <ul class="xtiles">
+            {% for tile in model.extensions.tiles %}
+            <li class="xtile">
+              <span class="xh"><span class="xn">{{ tile.name }}</span>{% if tile.version %}<span class="xv">v{{ tile.version }}</span>{% endif %}</span>
+              <span class="xl">{% for line in tile.rows %}<span class="{{ 'xa' if line.mono else 'xd' }}">{{ line.text }}</span>{% endfor %}</span>
+              {% if tile.withheld %}<span class="chip hold">{% trans count=tile.withheld %}{{ count }} credential line(s) withheld{% endtrans %}</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="rail">
+        <div class="k"><span class="lbl">{% trans %}Version{% endtrans %}</span><h2>{% trans %}What it runs on{% endtrans %}</h2></div>
+        <div>
+          <div class="facts">
+            <div class="cell"><span class="k">{% trans %}DCS version{% endtrans %}</span><span class="v">{% if model.dcs_version %}{{ model.dcs_version }}{% else %}—{% endif %}</span></div>
+            <div class="cell"><span class="k">{% trans %}DCSServerBot{% endtrans %}</span><span class="v">{% if model.bot_version %}{{ model.bot_version }}{% else %}—{% endif %}</span></div>
+            <div class="cell"><span class="k">{% trans %}Last updated{% endtrans %}</span><span class="v plain">{{ model.updated }}</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+</main>
+{% endif %}
+{% endblock %}

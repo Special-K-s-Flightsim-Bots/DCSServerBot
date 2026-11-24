@@ -49,7 +49,7 @@ from fastapi.responses import HTMLResponse
 
 from core.actions import action_registry, read_action
 
-from .. import i18n, permissions, readmodels, session
+from .. import i18n, mount, permissions, readmodels, session
 from ..auth import routes as auth_routes
 from ..auth import safe_avatar_url
 from ..readmodels import logtail
@@ -84,6 +84,11 @@ log = logging.getLogger(__name__)
 #: the site root. Reserved by the registrar for the shell, which is the owner that registers this.
 DASHBOARD_PATH = "/"
 
+
+def _dash() -> str:
+    """The dashboard's address as the browser must use it — the console's mount included."""
+    return mount.url(DASHBOARD_PATH)
+
 #: the capability the route declares AND the nav item names — one string, so the two cannot drift.
 DASHBOARD_CAPABILITY = "dashboard.view"
 
@@ -105,6 +110,12 @@ NAV_GLYPH = "grid"
 
 #: rendered in the top bar's breadcrumb (chrome; the page name itself comes from DASHBOARD_TITLE)
 CRUMB_GROUP = i18n._("Cluster")
+
+#: THE PUBLIC SITE'S OWN DOOR, appended to the sidebar while a public site owns the root. The group
+#: heading and its one entry are chrome; ``public_site_href`` decides which installed site it opens.
+PUBLIC_SITE_GROUP = i18n._("Public site")
+PUBLIC_SITE_LINK = i18n._("Open the public site")
+PUBLIC_SITE_GLYPH = "layers"
 
 
 def crumb(*chrome: str, target: str | None = None) -> tuple[tuple[str, bool], ...]:
@@ -563,7 +574,7 @@ def tab_views(state: readmodels.Overview, tab: str, carry: dict | None = None,
             "active": key == tab,
             "problem": bool(problem),
             "problem_text": problem,
-            "link": f"{DASHBOARD_PATH}?{urlencode(query)}",
+            "link": f"{_dash()}?{urlencode(query)}",
         })
     return strip
 
@@ -831,7 +842,7 @@ def load_chips(scale: str, scope: dict, graph: str = LOAD_GRAPH_DEFAULT) -> list
         if graph != LOAD_GRAPH_DEFAULT:
             query[LOAD_GRAPH_PARAM] = graph
         chips.append({"label": label, "active": name == scale,
-                      "url": f"{DASHBOARD_PATH}?{urlencode(query)}"})
+                      "url": f"{_dash()}?{urlencode(query)}"})
     return chips
 
 
@@ -1161,7 +1172,7 @@ def _graph_url(scope: dict, window: Mapping, graph: str) -> str:
         query[LOAD_SCOPE_PARAM] = scope["token"]
     if graph != LOAD_GRAPH_DEFAULT:
         query[LOAD_GRAPH_PARAM] = graph
-    return f"{DASHBOARD_PATH}?{urlencode(query)}"
+    return f"{_dash()}?{urlencode(query)}"
 
 
 def load_minis(rows: list[Mapping], window: Mapping, key: str, scope: dict,
@@ -1208,7 +1219,7 @@ def load_view(payload: Mapping | None, *, scale: str, scope: dict, groups: list[
         row["master"] = row["name"] in masters
     return {
         "scale": scale,
-        "path": DASHBOARD_PATH,
+        "path": _dash(),
         "tab": LOAD_TAB,
         "scale_param": LOAD_SCALE_PARAM,
         "scope_param": LOAD_SCOPE_PARAM,
@@ -1294,6 +1305,7 @@ def log_view(state: readmodels.Overview, params, carry: dict | None = None,
     from the same carried pairs — no JavaScript, and the choice is linkable and survives the
     refresh. ``path`` is the page the controls live on (the dashboard's or the Logs page's).
     """
+    path = mount.url(path)
     carried = dict(carry or {})
     position = params.position
     levels = []
@@ -1308,7 +1320,7 @@ def log_view(state: readmodels.Overview, params, carry: dict | None = None,
         else:
             query.pop("log", None)
         links.append({"value": value, "label": label, "active": value == (position or ""),
-                      "href": f"{DASHBOARD_PATH}?{urlencode(query)}"})
+                      "href": f"{_dash()}?{urlencode(query)}"})
     return {
         "position": log_placement(state, position),
         "stated": position or "",
@@ -1371,8 +1383,8 @@ def console_context(state: readmodels.Overview, request: Request | None = None,
         "tabs": tab_views(state, tab, carry, roles=roles, manager=manager),
         "banner": attention(state),
         "empty": empty_messages(state),
-        "search_action": DASHBOARD_PATH,
-        "search_clear": f"{DASHBOARD_PATH}?tab=players",
+        "search_action": _dash(),
+        "search_clear": f"{_dash()}?tab=players",
         "search_hidden": hidden,
         "log": log_view(state, params, carry) if log_allowed else None,
     }
@@ -1403,7 +1415,7 @@ def row_controls_for(request: Request | None, tab: str) -> dict:
         return {}
     from . import actions as actions_page
 
-    return actions_page.controls_for(request, tab, DASHBOARD_PATH,
+    return actions_page.controls_for(request, tab, _dash(),
                                      tab="" if tab == DEFAULT_TAB else tab)
 
 
@@ -1679,7 +1691,7 @@ def view_state_for(request: Request, state: readmodels.Overview | None = None) -
     if state is None:
         state = readmodels.overview(request_source(request), level=log_level(request))
     return readmodels.view_state(
-        DASHBOARD_PATH,
+        _dash(),
         {"servers": state.servers, "nodes": state.nodes, "instances": state.instances,
          "players": state.players},
         params=view_params(request), carry=carry_params(request))
@@ -1755,6 +1767,8 @@ def nav_groups(registrar, roles, *, current: str, manager: bool = False) -> list
     :func:`services.webservice.permissions.manages_console`). It defaults to ``False``: a caller that
     cannot say who the viewer is gets the sidebar a roleless, scopeless viewer gets.
     """
+    # a page names its own declared path; the nav it is matched against carries the console's mount
+    current = mount.url(current)
     visible = permissions.visible_nav(getattr(registrar, "nav", ()) or (), roles, manager=manager)
     items = [item for item in visible if _nav_offered(item)]
     if not items:
@@ -1771,7 +1785,18 @@ def nav_groups(registrar, roles, *, current: str, manager: bool = False) -> list
             continue
         # `label` is the group's ENGLISH msgid: `base.html` translates it at render, exactly as it
         # translates an entry's label (the group names are chrome, and every catalog owns their words)
-        groups.append({"label": group.name, "glyph": group.glyph, "links": links})
+        groups.append({"label": group.name, "links": links})
+    # THE PUBLIC SITE'S OWN DOOR: a chrome link that leaves the console for the installed public
+    # site's root, in a NEW TAB — the same "open in a new tab" pattern the server detail's external
+    # link uses. It is shown only while a site is enabled: with none, the console itself serves ``/``
+    # and the link would open the page it already is. ``public_site_href`` owns which site that is.
+    from .. import site_pages
+    app = getattr(registrar, "app", None)
+    public_site = site_pages.public_site_href(app) if app is not None else None
+    if public_site:
+        groups.append({"label": PUBLIC_SITE_GROUP, "links": [
+            {"label": PUBLIC_SITE_LINK, "url": public_site, "glyph": PUBLIC_SITE_GLYPH,
+             "active": False, "new_tab": True}]})
     return groups
 
 

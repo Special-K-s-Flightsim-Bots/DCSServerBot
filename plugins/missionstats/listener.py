@@ -331,24 +331,29 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
 
         elif data['eventName'] == 'S_EVENT_REFUELING_STOP':
             player = server.get_player(name=data['initiator'].get('name'))
-            if player and data.get('target'):
-                tanker = data['target']['unit_type']
-                comment = json.loads(data.get('comment', {"lbs": 0, "secs": 0.0}))
+            if player and data.get('comment'):
+                comment = json.loads(data['comment'])
+                tanker = (data.get('target') or {}).get('unit_type')
                 async with self.apool.connection() as conn:
                     await conn.execute("""
                         UPDATE refuelingstats
                         SET fuel_taken = %s,
                             transfer_complete = %s,
                             transfer_time = %s
-                        WHERE mission_id = %s 
-                          AND init_id = %s 
-                          AND init_type = %s 
-                          AND tanker = %s
-                          AND transfer_time IS NULL
+                        WHERE id = (
+                            SELECT id
+                            FROM refuelingstats
+                            WHERE mission_id = %s
+                              AND init_id = %s
+                              AND init_type = %s
+                              AND transfer_time IS NULL
+                            ORDER BY id DESC
+                            LIMIT 1
+                        )
                     """, (comment['lbs'], comment.get('full'), comment['secs'],
-                          server.mission_id, player.ucid, player.unit_type, tanker))
+                          server.mission_id, player.ucid, player.unit_type))
                 events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
-                if events_channel:
+                if events_channel and tanker:
                     coalition = self.COALITION[data['initiator']['coalition']]
                     message = self.EVENT_TEXTS[coalition]['refueling'].format(
                         player.name, comment['lbs'], tanker

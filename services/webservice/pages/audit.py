@@ -34,7 +34,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from .. import i18n, readmodels
+from .. import i18n, mount, readmodels
 from ..readmodels import audit as audit_model
 from ..readmodels.views import DIRECTION_PARAM, PAGE_PARAM, SORT_PARAM, column_keys, \
     normalise_page, view_params
@@ -228,7 +228,7 @@ def _link(filters: audit_model.AuditFilters, *, page: int | None, sort: str,
     query[DIRECTION_PARAM] = direction
     if page is not None and page > 1:
         query[PAGE_PARAM] = str(page)
-    return f"{AUDIT_PATH}?{urlencode(query)}"
+    return f"{mount.url(AUDIT_PATH)}?{urlencode(query)}"
 
 
 def _paging(filters: audit_model.AuditFilters, view: audit_model.AuditView, *,
@@ -288,7 +288,7 @@ async def audit_context(request: Request) -> dict:
         "labels": FILTER_LABELS,
         "any_node": FILTER_ANY_NODE, "any_server": FILTER_ANY_SERVER,
         "apply": FILTER_APPLY, "clear_label": FILTER_CLEAR, "hint": FILTER_HINT,
-        "clear_link": AUDIT_PATH, "path": AUDIT_PATH,
+        "clear_link": mount.url(AUDIT_PATH), "path": mount.url(AUDIT_PATH),
         "summary": audit_model.range_sentence(view),
         # a read that failed says so in the page's own words, above the (empty) table
         "error": answer.get("error"),

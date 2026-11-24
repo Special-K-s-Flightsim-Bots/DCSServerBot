@@ -1,0 +1,71 @@
+{#-
+  The public site's fleet — one full-width strip per server of the site.
+
+  Every figure is a value `pages/site_servers.view()` composed from `site_reads.server_list`, the
+  one fleet read; the template only reads. The strip is the mockup's own anatomy: the state with its
+  live mark, the name with its lock chip, the mission and its map, the address, the
+  two coalitions' slot usage and the two clocks. The whole strip is the link to the server's page.
+
+  A server that is not running keeps its row (`is-off`) rather than disappearing: "off" is a state
+  a reader acts on. A site with no server at all states that in one sentence.
+-#}
+{% extends "site_base.html" %}
+{% block title %}{% trans %}Servers{% endtrans %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+<div class="stage-area"><div class="in">
+  <header class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}The fleet{% endtrans %}</div>
+      <h1>{% trans %}Servers{% endtrans %}</h1>
+      <p class="sub">{% trans %}Every server this community runs — its state, its mission and who is in the air, and one page per server with the rest of what it reports.{% endtrans %}</p>
+      <div class="meta">
+        <span data-live="up">{% trans up=model.up, total=model.total %}{{ up }} of {{ total }} up{% endtrans %}</span>
+        <span data-live="flying">{% trans count=model.flying %}{{ count }} pilots in the air{% endtrans %}</span>
+      </div>
+    </div>
+    <div class="side"><div class="big">{{ model.total }}<span> {% trans %}servers{% endtrans %}</span></div></div>
+  </header>
+</div></div>
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  <section class="sect">
+    <div class="sect-head"><span class="no">01</span><h2>{% trans %}All servers{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.total %}{{ count }} servers · address, slots and clocks on the list{% endtrans %}</span></div>
+    {% if model.empty %}
+    <p class="note">{% trans %}This site has no server of its own yet.{% endtrans %}</p>
+    {% else %}
+    <div class="board" data-live-board="{{ live_href }}">
+      {% for row in model.rows %}
+      <article class="srow{{ '' if row.online else ' is-off' }}" data-srv="{{ row.name }}">
+        <a href="{{ row.href }}">
+          <div class="st">
+            <span class="w"><span class="dot {{ row.dot }}" data-live="dot" aria-hidden="true"></span><b data-live="state">{{ _(row.state) }}</b></span>
+            {% if row.online %}<span class="live" data-live="live"><b data-live="players">{{ row.players }}</b> {% trans %}flying now{% endtrans %}</span>{% else %}<span class="live" data-live="live" style="display:none"><b data-live="players">{{ row.players }}</b> {% trans %}flying now{% endtrans %}</span>{% endif %}
+          </div>
+          <div class="id">
+            <h3>{{ row.name }}{% if row.locked %}<span class="chip lock">{% trans %}Locked{% endtrans %}</span>{% endif %}</h3>
+            <p class="m{{ '' if row.in_mission else ' quiet' }}" data-live="mission">{% if row.in_mission %}{{ row.mission }}{% else %}{% trans %}No mission{% endtrans %}{% endif %}</p>
+            <span class="map" data-live="map">{% if row.map %}{{ row.map }}{% else %}{% trans %}no map{% endtrans %}{% endif %}</span>
+          </div>
+          <div class="addr"><span class="v">{% if row.address %}{{ row.address }}{% else %}<span class="none">{% trans %}No address{% endtrans %}</span>{% endif %}</span><span class="k">{% trans %}address{% endtrans %}</span></div>
+          <div class="slots">
+            <span class="none" data-live="slots-coalitions"{% if not row.coalitions %} style="display:none"{% endif %}>{% trans %}Coalitions — seats are assigned by role{% endtrans %}</span>
+            <span class="none" data-live="slots-none"{% if row.coalitions or row.blue.has_figure or row.red.has_figure %} style="display:none"{% endif %}>{% trans %}No slots — not in a mission{% endtrans %}</span>
+            <div class="side blue" data-live="slots-sides"{% if row.coalitions or not (row.blue.has_figure or row.red.has_figure) %} style="display:none"{% endif %}><span class="nm">{% trans %}Blue{% endtrans %}</span><span class="vv" data-live="blue-text">{{ row.blue.text }}</span>
+              <span class="bar"><i data-live="blue-bar" style="width:{{ row.blue.share }}%"></i></span></div>
+            <div class="side red" data-live="slots-red"{% if row.coalitions or not (row.blue.has_figure or row.red.has_figure) %} style="display:none"{% endif %}><span class="nm">{% trans %}Red{% endtrans %}</span><span class="vv" data-live="red-text">{{ row.red.text }}</span>
+              <span class="bar"><i data-live="red-bar" style="width:{{ row.red.share }}%"></i></span></div>
+          </div>
+          <div class="figs">
+            <div><span class="k">{% trans %}Runtime{% endtrans %}</span><span class="v" data-live="runtime">{{ row.runtime }}</span></div>
+            <div><span class="k">{% trans %}Restart in{% endtrans %}</span><span class="v{{ ' hot' if row.restart_hot else '' }}" data-live="restart">{{ row.restart }}</span></div>
+          </div>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

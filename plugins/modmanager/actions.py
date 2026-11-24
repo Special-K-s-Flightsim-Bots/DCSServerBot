@@ -379,7 +379,7 @@ async def _installed_rows(service: Any, node_name: str, server_name: str) -> lis
     return rows
 
 
-@action
+@action(kind="read")
 async def list_installed_mods(ctx: Any, *, node_name: str, server_name: str = "") -> ModListResult:
     """List the mods installed for ONE node, and for ONE of its servers when one is named.
 
@@ -416,7 +416,7 @@ async def list_installed_mods(ctx: Any, *, node_name: str, server_name: str = ""
                     server_name=server_name, packages=rows)
 
 
-@action
+@action(kind="read")
 async def list_available_mods(ctx: Any, *, node_name: str, folder: str) -> ModListResult:
     """List the packages sitting in ONE package folder of ONE node — what an install can pick from.
 
@@ -453,7 +453,7 @@ async def list_available_mods(ctx: Any, *, node_name: str, folder: str) -> ModLi
                           f"'{label}'.", node_name=label, folder=folder, packages=entries)
 
 
-@action
+@action(kind="read")
 async def list_repo_versions(ctx: Any, *, node_name: str, url: str) -> ModVersionResult:
     """List the releases of a GitHub repository URL, newest first — what a version pick offers.
 
@@ -494,7 +494,7 @@ async def list_repo_versions(ctx: Any, *, node_name: str, url: str) -> ModVersio
                      versions=ordered)
 
 
-@action
+@action(kind="read")
 async def list_mod_versions(ctx: Any, *, node_name: str, folder: str,
                             packages: list[str]) -> ModAvailabilityResult:
     """Read the versions of SEVERAL packages of one folder — the installed table's update facts.

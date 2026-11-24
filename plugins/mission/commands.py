@@ -58,6 +58,20 @@ def _ban_targets(server: Server | None, servers: dict) -> list[str | None]:
             if (srv.locals.get('managed_by') or [])
             and not set(srv.locals['managed_by']).isdisjoint(managed_by)] or [None]
 
+
+async def answer_mission_refusal(interaction: discord.Interaction, ex: RuntimeError) -> None:
+    """Answer a refused mission-list write, ephemerally, with the writer's own sentence.
+
+    ``str(ex)`` is the whole message — the writer owns the wording — and it goes to whichever
+    surface the interaction still has, since each calling command defers before it writes.
+    """
+    content = str(ex)
+    if interaction.response.is_done():
+        await interaction.followup.send(content, ephemeral=True)
+    else:
+        await interaction.response.send_message(content, ephemeral=True)
+
+
 SHEET_TITLES = {
     "aircraft": "Aircraft",
     "weapon": "Weapons",
@@ -518,7 +532,11 @@ class Mission(Plugin[MissionEventListener]):
             name = os.path.basename(mission[:-4])
             if mission_id is not None and result == 'later':
                 # make sure we load that mission, independently of what happens to the server
-                await server.setStartIndex(mission_id + 1)
+                try:
+                    await server.setStartIndex(mission_id + 1)
+                except RuntimeError as ex:
+                    await answer_mission_refusal(interaction, ex)
+                    return
                 server.on_empty = {
                     "method": "load",
                     "mission_id": mission_id + 1,
@@ -598,7 +616,11 @@ class Mission(Plugin[MissionEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         path = os.path.normpath(os.path.join(await server.get_missions_dir(), path))
-        new_mission_list = await server.addMission(path, autostart=autostart)
+        try:
+            new_mission_list = await server.addMission(path, autostart=autostart)
+        except RuntimeError as ex:
+            await answer_mission_refusal(interaction, ex)
+            return
         mission_name = utils.escape_string(os.path.basename(path))
         await interaction.followup.send(_('Mission "{}" added.').format(mission_name), ephemeral=ephemeral)
         mission_id = new_mission_list.index(path)
@@ -633,7 +655,11 @@ class Mission(Plugin[MissionEventListener]):
                                    _('Delete mission "{}" from the mission list?').format(mission_name),
                                    ephemeral=ephemeral):
             try:
-                await server.deleteMission(mission_id + 1)
+                try:
+                    await server.deleteMission(mission_id + 1)
+                except RuntimeError as ex:
+                    await answer_mission_refusal(interaction, ex)
+                    return
                 await interaction.followup.send(_('Mission "{}" removed from list.').format(mission_name),
                                                 ephemeral=ephemeral)
                 if await utils.yn_question(interaction,
@@ -843,7 +869,11 @@ class Mission(Plugin[MissionEventListener]):
             if new_filename != filename:
                 self.log.info(f"  => {message}")
                 self.log.info(f"  => New mission written: {new_filename}")
-                await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
+                try:
+                    await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
+                except RuntimeError as ex:
+                    await answer_mission_refusal(interaction, ex)
+                    return
             else:
                 self.log.info(f"  => Mission {filename} overwritten.")
             if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
@@ -933,7 +963,11 @@ class Mission(Plugin[MissionEventListener]):
                                             ephemeral=True)
             return
         if new_file != filename:
-            await server.replaceMission(mission_id + 1, new_file)
+            try:
+                await server.replaceMission(mission_id + 1, new_file)
+            except RuntimeError as ex:
+                await answer_mission_refusal(interaction, ex)
+                return
         await interaction.followup.send(_("Mission {} has been rolled back.").format(os.path.basename(filename)[:-4]),
                                         ephemeral=ephemeral)
 
@@ -1063,7 +1097,11 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.followup.send(_('{} is currently in use. Aborted.').format(os.path.basename(new_file)),
                                             ephemeral=True)
             return
-        await server.replaceMission(mission_id + 1, new_file)
+        try:
+            await server.replaceMission(mission_id + 1, new_file)
+        except RuntimeError as ex:
+            await answer_mission_refusal(interaction, ex)
+            return
         await interaction.followup.send(
             _("Persistence for mission {} enabled.").format(os.path.basename(filename)[:-4]), ephemeral=ephemeral)
 

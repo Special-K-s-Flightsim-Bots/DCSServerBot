@@ -134,6 +134,10 @@ class DSMC(InstallableExtension):
         }
 
     @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        return await self.render(param)
+
+    @override
     def is_installed(self) -> bool:
         dcs_home = self.server.instance.home
         if not os.path.exists(os.path.join(dcs_home, 'DSMC')) or \

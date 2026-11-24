@@ -39,12 +39,15 @@ import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from .. import i18n, permissions, session
+from .. import i18n, mount, permissions, session
 from . import discord_oauth
 
-__all__ = ["LOGIN_PATH", "LOGOUT_PATH", "LOGIN_TEMPLATE", "FAILED_LOGIN_MESSAGE",
+__all__ = ["LOGIN_PATH", "LOGOUT_PATH", "LOGIN_ALIAS", "LOGOUT_ALIAS", "LOGIN_TEMPLATE",
+           "LOGIN_SIMPLE_TEMPLATE", "LOGIN_PAGE_STYLES", "login_page_style",
+           "FAILED_LOGIN_MESSAGE",
            "PASSWORD_DOOR_DISABLED_MESSAGE", "LoginDoors", "doors_for_manager", "login_doors",
-           "login_redirect", "capabilities", "add_routes", "discord_link", "render_login_page"]
+           "login_redirect", "discord_auto_start", "capabilities", "add_routes", "discord_link",
+           "render_login_page"]
 
 log = logging.getLogger(__name__)
 
@@ -70,8 +73,24 @@ def _password_check_limit() -> asyncio.Semaphore:
 LOGIN_PATH = "/auth/login"
 LOGOUT_PATH = "/auth/logout"
 
+#: bookmarkable aliases of the two doors, answered as redirects to the paths above. A bookmark, a
+#: document or a hand-typed address reaches these; the FORM's own action and its CSRF field stay on
+#: :data:`LOGIN_PATH`, so a redirect is the whole of what they need.
+LOGIN_ALIAS = "/login"
+LOGOUT_ALIAS = "/logout"
+
 #: the shell template that renders the form (read by the shell's ONE Jinja environment)
 LOGIN_TEMPLATE = "login.html"
+
+#: the plain variant of the same page: the same doors, form and controls on the shell's own ground,
+#: without the scene, the canvas or the script. Selected by ``auth.login_page: simple``; the fancy
+#: page stays the default, so an installation that never sets the key is unchanged.
+LOGIN_SIMPLE_TEMPLATE = "login_simple.html"
+
+#: the config values ``auth.login_page`` accepts. ``fancy`` is the shipped page; ``simple`` is the
+#: plain one. Anything else falls back to ``fancy`` here — the schema already refuses it at startup,
+#: so this is the second, defensive reading for a config handed straight to the app.
+LOGIN_PAGE_STYLES = ("fancy", "simple")
 
 #: the one sentence a refused login shows. It names no mechanism and no reason. Wrapped for
 #: translation (the marker is an identity, so the runtime value is still this English sentence).
@@ -82,6 +101,17 @@ FAILED_LOGIN_MESSAGE = i18n._("Sign-in failed. Check your username and password 
 THROTTLED_LOGIN_MESSAGE = i18n._(
     "Too many failed sign-in attempts. Wait {seconds} seconds and try again.")
 
+#: What the page says when the console is configured HTTPS-only but this request arrived over plain
+#: HTTP. Nothing was refused in that case: the sign-in succeeds, the cookie is marked Secure, and a
+#: browser then declines to send it back — so the next request lands here again and the page looks
+#: dead (dead language control, dead form). Naming the mismatch is the only observable difference.
+#: Behind a reverse proxy the scheme is the one the proxy forwards (uvicorn trusts X-Forwarded-Proto
+#: from a loopback peer), so a correctly terminated install does not see this.
+HTTPS_MISMATCH_MESSAGE = i18n._(
+    "This console is set to HTTPS-only (session.https_only), but it was opened over plain HTTP, so "
+    "the browser will not keep the sign-in cookie. Open it over https://, or set "
+    "session.https_only: false in config/services/webservice.yaml.")
+
 #: what a direct POST to the password door is refused with when no username/password backend is
 #: enabled. A REFUSAL, not a login attempt: the door is off, so the request never reaches a
 #: credential check. (It flows through the ONE refusal handler, so a non-browser caller keeps the
@@ -89,9 +119,8 @@ THROTTLED_LOGIN_MESSAGE = i18n._(
 PASSWORD_DOOR_DISABLED_MESSAGE = ("This console does not accept a username and password sign-in "
                                   "(no username/password backend is enabled).")
 
-#: where the site root is (logout lands here, never back on the login page -- except
-#: in a Discord-only install, where the root would bounce the visitor straight back into the flow;
-#: see the logout route)
+#: where the site root is (logout lands here; ``auth.discord.auto_start`` is the one case where it
+#: lands on the login page instead — see the logout route)
 SITE_ROOT = "/"
 
 _STATE_ATTR = "webui_auth"
@@ -170,27 +199,45 @@ def login_redirect(request: Request) -> RedirectResponse | None:
     ``None`` means no identity layer is installed, so there is no door to send anyone to (the
     caller renders a page instead of redirecting into a 404).
 
-    Two destinations, and the choice is the whole point of the doors value:
-
-    * Discord is the ONLY door (``auth.discord.enabled: true``, no username/password backend): the
-      visitor is sent STRAIGHT INTO THE SIGN-IN FLOW, through the existing start route, carrying the
-      path they were headed for. The start route is what mints the single-use ``state`` and its
-      session cookie — a hand-built authorize URL here would be a second, divergent path. Nobody
-      gets a page with a button they would have to click;
-    * otherwise: the login page, carrying the path (local-only shows the form; with both doors the
-      visitor picks — the console never auto-picks a door for them).
+    The visitor gets the LOGIN PAGE — the one page that renders every door this installation has —
+    carrying the path and the surface they were refused on. ``auth.discord.auto_start: true`` is the
+    one exception: it sends them STRAIGHT INTO THE SIGN-IN FLOW instead, through the existing start
+    route, because a deployment that offers Discord and nothing else may prefer to skip the click.
+    A hand-built authorize URL here would be a second, divergent path: the start route is what mints
+    the single-use ``state`` and its session cookie.
     """
     manager = getattr(getattr(request.app, "state", None), _STATE_ATTR, None)
     if manager is None:
         return None
-    doors = doors_for_manager(manager)
     # the path only: the query string is attacker-controlled and is never reflected
     path = request.scope.get("path", "/") or "/"
     landing = quote(path, safe="/")
-    if doors.discord and not doors.password:
+    if discord_auto_start(manager):
+        # the OAuth flow carries only its target: the surface is the target's own (``discord_start``
+        # validates it with the same rule), so the flow keeps its one callback route and its one
+        # redirect URI built from ``auth.public_base_url``
         return RedirectResponse(f"{discord_oauth.START_PATH}?next={landing}", status_code=302)
-    return RedirectResponse(f"{LOGIN_PATH}?next={landing}", status_code=303)
+    # the surface the visitor was refused on travels beside the target, so the door returns them
+    # into THAT surface and never into another one (a console login lands in the console, a site
+    # login lands in the site)
+    surface = quote(mount.surface_of(path, app=request.app), safe="/")
+    return RedirectResponse(f"{LOGIN_PATH}?next={landing}&surface={surface}", status_code=303)
 
+
+def discord_auto_start(manager) -> bool:
+    """Whether a refused page jumps straight into the Discord flow instead of the login page.
+
+    True only when Discord is the ONLY door and ``auth.discord.auto_start`` is exactly ``true``:
+    with a password door present the login page is where the visitor picks, and the console never
+    auto-picks a door for them. The value is read from the RESOLVED backend (the settings the
+    backend was built with), never from the YAML a second time.
+    """
+    doors = doors_for_manager(manager)
+    if not doors.discord or doors.password:
+        return False
+    lookup = getattr(manager, "backend", None)
+    backend = lookup(discord_oauth.BACKEND_NAME) if callable(lookup) else None
+    return bool(getattr(backend, "auto_start", False))
 
 
 def capabilities() -> dict[str, str]:
@@ -200,7 +247,8 @@ def capabilities() -> dict[str, str]:
     part of the same door: the start path and the callback are PUBLIC by decision (the gate is deny
     by default, so a forgotten declaration would lock the login flow out rather than open it).
     """
-    declared = {LOGIN_PATH: permissions.PUBLIC, LOGOUT_PATH: permissions.PUBLIC}
+    declared = {LOGIN_PATH: permissions.PUBLIC, LOGOUT_PATH: permissions.PUBLIC,
+                LOGIN_ALIAS: permissions.PUBLIC, LOGOUT_ALIAS: permissions.PUBLIC}
     declared.update(discord_oauth.capabilities())
     return declared
 
@@ -214,9 +262,31 @@ def add_routes(router: APIRouter) -> APIRouter:
     one source of truth the CSRF pin and the nav/route tests read. Flat is what keeps them visible.
     """
 
+    @router.get(LOGIN_ALIAS)
+    async def login_alias(request: Request):
+        """``GET /login`` — a ``303`` to :data:`LOGIN_PATH`, query string carried through.
+
+        The value handed on is not re-validated here: the form's own route sanitises ``next`` and
+        ``surface`` (``_safe_next``), and this address only ever redirects into it. Re-validating
+        would give the open-redirect rule a second spelling, one of which would eventually drop it.
+        """
+        query = request.url.query
+        return RedirectResponse(f"{LOGIN_PATH}?{query}" if query else LOGIN_PATH,
+                                status_code=303)
+
+    @router.get(LOGOUT_ALIAS)
+    async def logout_alias(request: Request):
+        """``GET /logout`` — a ``303`` to :data:`LOGOUT_PATH`.
+
+        The door is POST-only (a POST is what a token protects), so a ``GET`` here is not the
+        sign-out itself: it points the caller at the address that is, which then answers ``405``
+        rather than the ``404`` a bookmark used to get.
+        """
+        return RedirectResponse(LOGOUT_PATH, status_code=303)
+
     @router.get(LOGIN_PATH, response_class=HTMLResponse)
-    async def login_form(request: Request, next: str = SITE_ROOT):
-        return _render_login(request, next_url=_safe_next(next))
+    async def login_form(request: Request, next: str = SITE_ROOT, surface: str = ""):
+        return _render_login(request, next_url=_safe_next(next, surface=surface, app=request.app))
 
     @router.post(LOGIN_PATH, response_class=HTMLResponse, dependencies=[Depends(session.csrf_protect)])
     async def login_submit(request: Request):
@@ -234,7 +304,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         form = await request.form()
         username = str(form.get("username") or "").strip()
         password = str(form.get("password") or "")
-        next_url = _safe_next(form.get("next"))
+        next_url = _safe_next(form.get("next"), surface=form.get("surface"), app=request.app)
 
         # THE THROTTLE ANSWERS BEFORE A CREDENTIAL IS LOOKED AT. The password check is expensive by
         # design (PBKDF2, 600 000 iterations), so an address that has spent its budget is refused
@@ -279,17 +349,18 @@ def add_routes(router: APIRouter) -> APIRouter:
     @router.post(LOGOUT_PATH, dependencies=[Depends(session.csrf_protect)])
     async def logout(request: Request):
         identity = _manager(request).authenticate(request)
-        doors = login_doors(request)
         from . import clear_session_identity
         clear_session_identity(request)
         request.session.clear()
 
-        # WHERE SIGNING OUT LANDS. Normally the site root. In a DISCORD-ONLY install the root is a
-        # guarded page whose anonymous visitor is bounced straight back into the OAuth flow (see
-        # login_redirect) — signing out there would look broken and be unrepeatable (you would be
-        # signed in again before the page finished). So there the destination is the door page: it
-        # is PUBLIC, it never bounces, and it offers the door again.
-        destination = LOGIN_PATH if (doors.discord and not doors.password) else SITE_ROOT
+        # WHERE SIGNING OUT LANDS. The site root, as on any other install — the login page is a
+        # public page a visitor arrives at AFTER being refused, not one they are parked on. The ONE
+        # exception is ``auth.discord.auto_start``: there the root bounces an anonymous visitor
+        # straight back into the OAuth flow (see login_redirect), so signing out at the root would
+        # sign the person in again before the page finished. That configuration lands on the login
+        # page instead: it is PUBLIC, it never bounces, and it offers the door again.
+        destination = (LOGIN_PATH if discord_auto_start(_manager(request))
+                       else mount.url(SITE_ROOT, app=request.app))
         response = RedirectResponse(destination, status_code=303)
         # delete the cookie the LOGIN actually set: the effective name comes from the installed
         # middleware's settings, never from a name of our own (session.SESSION_COOKIE is only the
@@ -336,9 +407,11 @@ def _manager(request: Request):
     return manager
 
 
-def _safe_next(value) -> str:
-    """A local path or the site root. Never an absolute URL, never protocol-relative (``//``) and
-    never a value carrying control characters.
+def _safe_next(value, *, surface: str = "", app=None) -> str:
+    """A local path inside the surface that started the login, or that surface's root.
+
+    Never an absolute URL, never protocol-relative (``//``) and never a value carrying control
+    characters.
 
     The value arrives from a query string or a form, so it is attacker-controlled: an unchecked
     ``next`` is an open redirect sitting on a page users reach right after typing a password.
@@ -351,13 +424,52 @@ def _safe_next(value) -> str:
     target past it. Escaping is left to the response layer (Starlette percent-encodes ``Location``);
     this is about the value we carry, not about encoding it here.
     """
+    surface = _return_surface(surface, value, app=app)
     if not isinstance(value, str) or not value:
-        return SITE_ROOT
+        return mount.surface_root(surface)
     cleaned = "".join(char for char in value
                       if not unicodedata.category(char).startswith("C"))
     if not cleaned.startswith("/") or cleaned.startswith("//") or "\\" in cleaned:
-        return SITE_ROOT
+        return mount.surface_root(surface)
+    target = cleaned.split("?", 1)[0].split("#", 1)[0]
+    if not _inside(target, surface):
+        return mount.surface_root(surface)
     return cleaned
+
+
+def _return_surface(surface, target, *, app=None) -> str:
+    """The mount a return target is confined to: *surface* when it names one, else the target's own.
+
+    A surface this installation does not serve is ignored, so a crafted parameter can neither widen
+    the accepted set nor pick a mount that does not exist.
+    """
+    allowed = mount.return_prefixes(app) if app is not None else ("/",)
+    candidate = str(surface or "").strip()
+    if candidate in allowed:
+        return candidate
+    return mount.surface_of(target if isinstance(target, str) else "", app=app) if app is not None \
+        else "/"
+
+
+def _inside(path: str, surface: str) -> bool:
+    """Whether *path* lies under *surface* (a mount is a whole segment, not a string prefix)."""
+    if not surface or surface == "/":
+        return path.startswith("/")
+    return path == surface or path.startswith(surface + "/")
+
+
+def login_page_style(source) -> str:
+    """The login page variant this installation configured: ``fancy`` or ``simple``.
+
+    Read from the service's own config on the application (``app.state.webui_config``), the same
+    place the Settings page reads it from. ``fancy`` is the default AND the fallback: an unset key,
+    an empty value or anything the schema would refuse renders the shipped page rather than raising
+    in the one route that must always be reachable.
+    """
+    state = getattr(getattr(source, "app", None), "state", None) or source
+    config = getattr(state, "webui_config", None) or {}
+    value = str(((config.get("auth") or {}).get("login_page")) or "").strip().lower()
+    return value if value in LOGIN_PAGE_STYLES else "fancy"
 
 
 def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str | None = None,
@@ -371,6 +483,14 @@ def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str
 
     ``error`` is a GENERIC sentence; the reason a sign-in was refused belongs in the log.
     """
+    # A console marked HTTPS-only that is opened over plain HTTP cannot hold a sign-in: its cookie
+    # is Secure and the browser will not send it back. Say so on the page rather than letting the
+    # visitor retype a correct password into what looks like a dead form.
+    if error is None:
+        settings = getattr(getattr(getattr(request, 'app', None), 'state', None),
+                           'webui_session_settings', None) or {}
+        if settings.get('https_only') and request.url.scheme != 'https':
+            error = HTTPS_MISMATCH_MESSAGE
     # THE DOORS are what the page is built from, and they are read from the SAME backends the
     # server enforces against (see LoginDoors).
     doors = login_doors(request)
@@ -386,10 +506,12 @@ def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str
         fleet_servers = readmodels.servers(readmodels.console_source(state))[:3]
     except Exception:
         fleet_servers = []
+    template = LOGIN_SIMPLE_TEMPLATE if login_page_style(request) == "simple" else LOGIN_TEMPLATE
     html = i18n.render(
-        request, LOGIN_TEMPLATE,
+        request, template,
         login_path=LOGIN_PATH, csrf_field=session.CSRF_FIELD, csrf_token=token,
-        next_url=next_url, error=error, doors=doors,
+        next_url=next_url, surface=mount.surface_of(next_url, app=request.app),
+        error=error, doors=doors,
         fleet_servers=fleet_servers,
         discord_url=discord_link(request, next_url) if doors.discord else None,
         discord_label=discord_oauth.CONTROL_LABEL, discord_scope=discord_oauth.SCOPE)

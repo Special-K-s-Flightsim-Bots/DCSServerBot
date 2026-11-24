@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS campaigns_servers (
     FOREIGN KEY (campaign_id) REFERENCES campaigns (id) ON DELETE CASCADE,
     FOREIGN KEY (server_name) REFERENCES servers (server_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_campaigns_servers_server ON campaigns_servers (server_name);
 ALTER TABLE campaigns ADD CONSTRAINT campaigns_prevent_double EXCLUDE USING gist(tsrange(start, stop, '[)') WITH &&);
 ALTER TABLE campaigns ADD CONSTRAINT campaigns_check_start_before_stop CHECK (start < stop);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_campaigns_name ON campaigns (name);

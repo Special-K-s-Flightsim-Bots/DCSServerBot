@@ -44,7 +44,7 @@ from fastapi.responses import HTMLResponse
 
 from core.actions import action_available, read_action
 
-from .. import i18n, permissions, readmodels, session
+from .. import mount, i18n, permissions, readmodels, session
 from ..readmodels import bans as ban_model
 from ..readmodels import players as player_model
 from . import dashboard as dashboard_page
@@ -174,7 +174,7 @@ TWO_RECORDS = i18n._("Lifting one leaves the other untouched: lifting the ban ke
 
 def player_path(ucid: str, *suffix: str) -> str:
     """The URL of *ucid*'s page — the overview when nothing follows, else one TAB's path."""
-    base = f"/players/{ucid}"
+    base = mount.url(f"/players/{ucid}")
     return "/".join((base, *suffix)) if suffix else base
 
 
@@ -268,7 +268,11 @@ def _session_controls(request: Request, ucid: str, activity) -> tuple[dict, ...]
     record = actions_page.player_controls(request, WRITE_ORIGIN).get((activity.server, ucid))
     if not record:
         return ()
-    offered = {control["icon"]: control for control in record.get("strip", ())}
+    # BOTH HALVES OF THE ROW RECORD: this page draws its own row of session controls, so it reads
+    # every control the strip would offer — a control the ROW's own overflow trigger would hold
+    # (``PLAYER_STRIP_LIMIT``) is still a session control here, where there is no trigger to open.
+    offered = {control["icon"]: control
+               for control in tuple(record.get("strip", ())) + tuple(record.get("menu", ()))}
     out: list[dict] = []
     for glyph in SESSION_GLYPHS:
         control = offered.get(glyph)

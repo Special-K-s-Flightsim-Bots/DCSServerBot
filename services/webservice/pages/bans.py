@@ -35,7 +35,7 @@ from fastapi.responses import HTMLResponse
 
 from core.actions import read_action
 
-from .. import i18n, readmodels
+from .. import i18n, mount, readmodels
 from ..readmodels import bans as ban_model
 from ..readmodels.views import DIRECTION_PARAM, SORT_PARAM
 from . import lists as lists_page
@@ -109,7 +109,7 @@ async def bans_context(request: Request) -> dict:
         # DGSA rows back off — the same reason the toggle's own form carries the current sort.
         params = {**context["view"].params, ban_model.DGSA_PARAM: ban_model.DGSA_ON}
         table = context["table"]
-        context["table"] = readmodels.table_view(PAGE.path, PAGE.table, shown,
+        context["table"] = readmodels.table_view(mount.url(PAGE.path), PAGE.table, shown,
                                                  sort=table.sort, direction=table.direction,
                                                  params=params, label=PAGE.title)
     context.update(dgsa_context(context, show=show, hidden=hidden))
@@ -137,8 +137,8 @@ def dgsa_context(context: dict, *, show: bool, hidden: int) -> dict:
             "show_label": BANS_DGSA_LABEL,
             "hide_label": BANS_DGSA_HIDE_LABEL,
             "shown_sentence": BANS_DGSA_SHOWN,
-            "show_link": f"{BANS_PATH}?{urlencode({**carry, ban_model.DGSA_PARAM: ban_model.DGSA_ON})}",
-            "hide_link": f"{BANS_PATH}?{urlencode(carry)}",
+            "show_link": f"{mount.url(BANS_PATH)}?{urlencode({**carry, ban_model.DGSA_PARAM: ban_model.DGSA_ON})}",
+            "hide_link": f"{mount.url(BANS_PATH)}?{urlencode(carry)}",
         }
     }
 

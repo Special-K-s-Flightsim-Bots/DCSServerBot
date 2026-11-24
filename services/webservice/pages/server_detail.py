@@ -38,8 +38,10 @@ through the mission plugin's READ actions (``pages/actions.mission_list`` / ``do
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
+import time
 import unicodedata
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -54,7 +56,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, \
     StreamingResponse
 
-from .. import i18n, permissions, readmodels, scheduler_plan, session, weather_fields
+from .. import (config_hints, i18n, mount, permissions, readmodels, scheduler_plan, session,
+                weather_fields)
 # THE console's ONE DCS-install path rule (root lookup, name-shape refusal, read cap): the thumbnail
 # route below and the cloud-preset routes in ``pages/presets`` read it from the SAME module.
 from ..dcs_install import PRESET_IMAGE_MAX_BYTES, PRESET_IMAGE_MEDIA_TYPE, preset_image_file
@@ -62,12 +65,14 @@ from ..dcs_install import PRESET_IMAGE_MAX_BYTES, PRESET_IMAGE_MEDIA_TYPE, prese
 # rendered for the REQUEST's language here, server-side, so the JavaScript carries no translation
 # logic (``templating.SENTENCE_GLOBAL``).
 from ..templating import SENTENCE_GLOBAL
+from ..readmodels import chattail as chat_tail
 from ..readmodels import dcslog as dcs_log
 from ..readmodels import serverconfig as server_config
 from ..readmodels.access import attr
 from ..readmodels.model import ExtensionView, value_parts
 from ..readmodels.players import player_views
 from ..readmodels.servers import format_visibility, server_url, server_view
+from ..readmodels import views as view_model
 # THE console's CLUSTER roles: a cluster role is never a "manager ONLY", so the config tab's manager
 # scope grant excludes one — the same rule the write action applies.
 from ..scope import CLUSTER_ROLES
@@ -107,6 +112,9 @@ __all__ = [
     "music_tab_stream_path", "music_tab_fragments_path", "music_tab_fragment",
     "music_tab_render_for", "music_tab_event_stream", "music_tab_live", "refuse_without_music_view",
     "add_music_tab_stream_routes",
+    "CHAT_TAB", "CHAT_READ_ACTION", "CHAT_REFUSED_SENTENCE", "CHAT_STREAM_PATH",
+    "chat_tab_gate", "chat_request_refused", "chat_stream_path", "chat_event_stream",
+    "add_chat_stream_route",
     "MISSIONS_DOWNLOAD_PATH", "MISSIONS_DOWNLOAD_MAX_BYTES", "MISSIONS_DOWNLOAD_MEDIA_TYPE",
     "LOG_TAB", "LOG_READ_CAPABILITY", "LOG_WINDOW_PATH", "log_window_path",
     "EVENTS_TAB", "LOG_DOWNLOAD_PATH", "LOG_DOWNLOAD_MAX_BYTES", "log_download_path",
@@ -118,6 +126,7 @@ __all__ = [
     "PAGE_TITLE_SUFFIX", "capabilities", "nav_items", "add_routes",
     "normalise_tab", "tabs_for", "tab_views", "config_request_refused", "tab_request_refused",
     "mission_download_path", "mission_rows", "add_mission_download_route",
+    "MISSIONS_FILTER_FIELD", "mission_filter_text", "filter_mission_rows",
     "add_server_status_route", "add_preset_image_route", "PRESET_IMAGE_PATH",
     "PRESET_IMAGE_MAX_BYTES", "PRESET_IMAGE_MEDIA_TYPE", "preset_image_path", "preset_image_file",
     "MISSION_WEATHER_PATH", "mission_weather_path", "add_mission_weather_route",
@@ -215,6 +224,26 @@ MUSIC_TAB_TARGET = "mus-tab-players"
 MUSIC_TAB_STREAM_PATH = "/api/server/{name:path}/music/stream"
 MUSIC_TAB_FRAGMENTS_PATH = "/api/server/{name:path}/music/fragments"
 
+#: THE CHAT TAB — the server's in-game chat, read from the ring the mission plugin's listener fills.
+#: It declares no capability of its own: the page already resolved this server through the scoped
+#: source. Its ONE write is the EXISTING ``message_server`` action (``servers.message``), posted by
+#: the composer with the page's own one-shot confirm token — there is no second write path.
+CHAT_TAB = "chat"
+
+#: the READ the tab consumes: the mission plugin's ``chat_history`` action, which reads the ring its
+#: ``onChatMessage`` listener writes. The tab is offered only while it is registered
+#: (:func:`chat_tab_gate`), so an installation without the mission plugin draws no tab and a crafted
+#: ``?tab=chat`` is refused rather than served empty.
+CHAT_READ_ACTION = "chat_history"
+
+#: the sentence a request for the Chat tab gets while the mission plugin is not registered.
+CHAT_REFUSED_SENTENCE = i18n._("The Chat tab is only offered while the mission plugin is active "
+                               "for this server.")
+
+#: THE CHAT STREAM route — the tab's live read of the ring. Under ``/api`` like the Music tab's two
+#: doors, ``{name:path}`` for the same reason: a server name may contain slashes.
+CHAT_STREAM_PATH = "/api/server/{name:path}/chat/stream"
+
 CONFIG_TEMPLATE = "server_detail.html"
 PAGE_TITLE_SUFFIX = " — DCSServerBot"
 
@@ -241,6 +270,9 @@ SCHEDULER_STEP_LABELS: tuple[tuple[str, str, str], ...] = (
 #: the scheduler file the tab reads, in the Settings area's own vocabulary (a plugin's global config)
 SCHEDULER_FILE_KIND = settings_page.KIND_PLUGIN
 SCHEDULER_FILE_NAME = "scheduler"
+#: THE REVIEW PANEL'S COMPLETION HINTS — a read of the scheduler plugin's OWN schema as JSON
+#: (:mod:`services.webservice.config_hints`), a sibling of the check that panel posts to.
+SCHEDULER_HINTS_PATH = settings_page.SCHEDULER_SAVE_PATH + "/hints"
 
 #: what the tab has to say about itself, as four exclusive states. ``plan`` is the only one that
 #: renders a plan; the other three each render their own sentence and a way to Settings, because a
@@ -365,9 +397,10 @@ LOG_DOWNLOAD_MAX_BYTES = nodes_page.LOG_DOWNLOAD_MAX_BYTES
 #: ``logs.view`` (the cluster log panel's own capability, ``Admin`` only); ``configuration`` only to a
 #: viewer holding ``servers.config``.
 TAB_ORDER: tuple[str, ...] = ("overview", "players", STATISTICS_TAB, MISSIONS_TAB, SCHEDULER_TAB,
-                              MODS_TAB, MUSIC_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
+                              MODS_TAB, MUSIC_TAB, CHAT_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
 OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", STATISTICS_TAB, MISSIONS_TAB,
-                                       SCHEDULER_TAB, MODS_TAB, MUSIC_TAB, LOG_TAB, EVENTS_TAB)
+                                       SCHEDULER_TAB, MODS_TAB, MUSIC_TAB, CHAT_TAB, LOG_TAB,
+                                       EVENTS_TAB)
 
 TAB_LABELS: dict[str, str] = {
     "overview": i18n._("Overview"), "players": i18n._("Players"), MISSIONS_TAB: i18n._("Missions"),
@@ -378,6 +411,7 @@ TAB_LABELS: dict[str, str] = {
     MODS_TAB: mods_page.MODS_LABEL,
     # the music area's own word, for the same reason: the tab and the music pages name one area
     MUSIC_TAB: i18n._("Music"),
+    CHAT_TAB: i18n._("Chat"),
     LOG_TAB: i18n._("Log"), EVENTS_TAB: i18n._("Events"), CONFIG_TAB: i18n._("Configuration"),
 }
 
@@ -554,6 +588,22 @@ def music_request_refused(reason: str) -> HTTPException:
     return HTTPException(status_code=403, detail=reason or MUSIC_NO_RADIOS)
 
 
+def chat_tab_gate(server) -> bool:
+    """Whether the Chat tab is offered for *server* — ONE fact: the mission plugin is registered.
+
+    The writer (``plugins.mission.chatlog``) and the ``message_server`` action both live in the
+    mission plugin, so the tab is offered on the SAME registration check the Music tab uses
+    (``action_available``): an installation without the plugin draws no tab and its crafted
+    ``?tab=chat`` is refused.
+    """
+    return action_available(CHAT_READ_ACTION)
+
+
+def chat_request_refused() -> HTTPException:
+    """The refusal a request for the Chat tab gets while the mission plugin is not registered."""
+    return HTTPException(status_code=403, detail=CHAT_REFUSED_SENTENCE)
+
+
 def music_page_module():
     """The music area's own page module — the ONE home of the editor's URL and of its capability.
 
@@ -614,7 +664,7 @@ def normalise_tab(value) -> str:
 
 def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
              debug_plugin: bool = False, scheduler_view: bool = False,
-             music: bool = False) -> tuple[str, ...]:
+             music: bool = False, chat: bool = False) -> tuple[str, ...]:
     """The tabs a viewer holding *roles* (and, for a manager, the SCOPE) may be offered — and RENDER.
 
     ONE answer for the strip and for the tab in force: ``missions`` is offered exactly when
@@ -665,6 +715,13 @@ def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
             if music:
                 tabs.append(key)
             continue
+        if key == CHAT_TAB:
+            # THE CHAT TAB'S ONE FACT, computed once by ``chat_tab_gate``: the mission plugin is
+            # registered, so the history file has a writer and the composer has an action. The tab's
+            # ONE capability is the message write's (``servers.message``) — who may send may read.
+            if chat and permissions.allows(actions_page.SERVER_MESSAGE_CAPABILITY, roles or ()):
+                tabs.append(key)
+            continue
         if key in (LOG_TAB, EVENTS_TAB):
             # both log-family tabs need the log panel's own capability; ``events`` ADDITIONALLY needs
             # the debug plugin active — a tab that could never serve is never drawn.
@@ -705,6 +762,7 @@ def tab_request_refused(tab: str) -> HTTPException:
     capability = {CONFIG_TAB: CONFIG_CAPABILITY, MISSIONS_TAB: MISSIONS_CAPABILITY,
                   SCHEDULER_TAB: SCHEDULER_CAPABILITY,
                   MODS_TAB: MODS_VIEW_CAPABILITY,
+                  CHAT_TAB: actions_page.SERVER_MESSAGE_CAPABILITY,
                   LOG_TAB: LOG_READ_CAPABILITY, EVENTS_TAB: LOG_READ_CAPABILITY}.get(
         tab, MISSIONS_CAPABILITY)
     requirement = permissions.requirement_text(capability)
@@ -803,6 +861,9 @@ def capabilities() -> dict[str, str]:
             # capability a playlist editor is opened on AND the server's own scope, in the route.
             MUSIC_TAB_STREAM_PATH: music_page_module().CAPABILITY_VIEW,
             MUSIC_TAB_FRAGMENTS_PATH: music_page_module().CAPABILITY_VIEW,
+            # THE CHAT WINDOW is the tab's own read of the same file, gated by the SAME capability
+            # the composer's write takes (``servers.message``): who may send may read.
+            CHAT_STREAM_PATH: actions_page.SERVER_MESSAGE_CAPABILITY,
             # THE STATUS POLL is a READ of the server page's own data (the status the page head and
             # the Overview card render), so it carries the PAGE's capability and its scope — the same
             # predicate the page route is gated with, never a new one.
@@ -814,7 +875,11 @@ def capabilities() -> dict[str, str]:
             # THE MISSION-WEATHER READ is a read of the server's own mission (the launch dialog's
             # prefill), so it carries the SAME predicate for the same reason — a caller who may not
             # open the page may not read its server's mission either.
-            MISSION_WEATHER_PATH: SERVER_DETAIL_CAPABILITY}
+            MISSION_WEATHER_PATH: SERVER_DETAIL_CAPABILITY,
+            # THE SCHEDULER PANEL'S COMPLETION HINTS are a READ of the scheduler's SCHEMA, drawn for
+            # whoever the panel is drawn for: the scheduler area's own view capability, with its
+            # scope resolved in the route.
+            SCHEDULER_HINTS_PATH: settings_page.SCHEDULER_VIEW_CAPABILITY}
 
 
 def nav_items():
@@ -834,7 +899,7 @@ def mission_download_path(server_name: str) -> str:
     into a directory component. A name carrying a ``/`` is encoded here (``%2F``) and decoded again by
     the route's ``{name:path}`` parameter, exactly as the page URL is.
     """
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/missions/download"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/missions/download")
 
 
 def mission_rows(data: dict, server_name: str) -> list[dict]:
@@ -867,6 +932,39 @@ def mission_rows(data: dict, server_name: str) -> list[dict]:
             "download": f"{base}?mission={quote(str(index), safe='')}",
         })
     return rows
+
+
+#: THE MISSIONS TAB'S NAME FILTER — the request field, and the console's own spelling for it (the
+#: players roster, the audit trail and the chat tab all read ``?q=``). A GET: the rows are filtered
+#: BEFORE they are rendered, so the "All" box, the count and the removal selection can only ever name
+#: rows that are on screen — with JavaScript off as well.
+MISSIONS_FILTER_FIELD = "q"
+
+
+def mission_filter_text(value) -> str:
+    """The Missions tab's filter as it may be echoed and matched: the shared query cleaning.
+
+    Control characters are dropped and the text is trimmed and capped (``views.MAX_QUERY_LENGTH``),
+    the same cleaning the players search applies to ``?q=``. A hostile or absurd value therefore
+    reaches neither the match nor the input's echoed value.
+    """
+    return view_model.normalise_query(value)
+
+
+def filter_mission_rows(rows: list[dict], query: str) -> list[dict]:
+    """The rows whose LOGICAL NAME or missions-directory-relative PATH contains *query*.
+
+    Case-insensitive substring. A blank query keeps every row, so the unfiltered list is the filter's
+    own degenerate case and never a second render path. The PATH is matched as well as the name, so a
+    mission is reachable by the words its row shows even where the two differ (a ``.dcssb`` copy, a
+    ``.orig`` twin, a subdirectory) — and a match on the name alone would hide half of what the
+    operator can see.
+    """
+    wanted = (query or "").casefold()
+    if not wanted:
+        return list(rows)
+    return [row for row in rows
+            if wanted in row["name"].casefold() or wanted in row["path"].casefold()]
 
 
 def add_mission_download_route(router: APIRouter) -> APIRouter:
@@ -971,12 +1069,12 @@ def _safe_filename(name: str) -> str:
 
 def log_window_path(server_name: str) -> str:
     """The URL of *server_name*'s log-window endpoint — the name as ONE percent-encoded segment."""
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/window"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/window")
 
 
 def server_status_path(server_name: str) -> str:
     """The URL of *server_name*'s status endpoint — the name as ONE percent-encoded segment."""
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/status"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/status")
 
 
 class _LogUnavailable(Exception):
@@ -1303,7 +1401,7 @@ def debug_plugin_active(node) -> bool:
 
 def log_download_path(server_name: str) -> str:
     """The URL of *server_name*'s log-artifact download BASE — the name as ONE percent-encoded segment."""
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/download"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/download")
 
 
 def _human_size(size) -> str:
@@ -1528,6 +1626,221 @@ async def _log_tab_context(request: Request, server, server_name: str, *,
                    "log_identity": state["identity"], "log_at_start": state["at_start"]}
 
 
+# ---------------------------------------------------------------------------------- the Chat tab
+# The server's in-game chat: the mission plugin's listener records every line into a bounded
+# in-memory ring (``plugins.mission.chatlog``) and the console reads it back through the
+# ``chat_history`` action. The tab shows the ring's tail, filtered server-side by sender and text,
+# and follows it on an event stream while the tab is open. Nothing is written to disk.
+
+#: the "N of M lines" sentence a filtered view states. TRANSLATABLE; rendered by the route.
+CHAT_COUNT_LABEL = i18n._("{shown} of {total} lines")
+
+#: the composer's own note, under the field: which colour is which audience.
+CHAT_NOTE_SENTENCE = i18n._("Coloured by who can read it: everyone, Red only, Blue only — players "
+                            "can only type to everyone, so your side lines are whispers.")
+
+#: the sentence a STOPPED (or otherwise not-running) server's card carries in place of the composer.
+CHAT_OFF_SENTENCE = i18n._("The server is not running — there is nobody to send to. Start it from "
+                           "the Overview tab.")
+
+
+def chat_stream_path(server_name: str) -> str:
+    """The URL of *server_name*'s chat stream, the name as ONE percent-encoded segment."""
+    return mount.url(f"/api/server/{quote(readmodels.text(server_name), safe='')}/chat/stream")
+
+
+def _chat_pairs(records) -> list[tuple[dict, chat_tail.ChatLine]]:
+    """The records a template can show, each paired with its record so ``seq`` stays readable."""
+    pairs = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        line = chat_tail.from_record(record)
+        if line is not None:
+            pairs.append((record, line))
+    return pairs
+
+
+def _chat_view(records, *, who: str, q: str, after: int = 0) -> dict:
+    """The kept lines, the ``N of M`` counts and the lines newer than *after*.
+
+    ``kept`` is every record the filters keep in the whole ring (the count the tab states);
+    ``fresh`` is the subset newer than *after* (what a follower appends).
+    """
+    pairs = _chat_pairs(records)
+    kept = [(record, line) for record, line in pairs if chat_tail.matches(line, who, q)]
+    fresh = [line for record, line in kept if int(record.get("seq") or 0) > after]
+    return {"kept": [line for _, line in kept], "fresh": fresh, "total": len(pairs),
+            "shown": len(kept)}
+
+
+async def _chat_records(request: Request, server_name: str, *, after: int = 0):
+    """The ring's records for *server_name*, plus its newest ``seq`` — or a typed refusal."""
+    ctx = actions_page.context_for(request)
+    result = await read_action(CHAT_READ_ACTION, ctx, server_name=server_name, after=after)
+    if not getattr(result, "success", False):
+        return None, 0, readmodels.text(getattr(result, "message", ""))
+    data = getattr(result, "data", None) or {}
+    records = [record for record in (data.get("lines") or []) if isinstance(record, dict)]
+    return records, int(data.get("last_seq") or 0), ""
+
+
+def _chat_lines_html(environment, records) -> str:
+    """The lines rendered by the SAME partial the page includes."""
+    return environment.get_template("_chat_lines.html").render(lines=records)
+
+
+def _chat_count(environment, shown: int, total: int, *, filtered: bool) -> str:
+    """The ``N of M lines`` sentence, or empty when no filter is in force."""
+    return _rendered(environment, CHAT_COUNT_LABEL, shown=shown, total=total) if filtered else ""
+
+
+def _chat_frame(environment, view: dict, *, last_seq: int, filtered: bool,
+                reset: bool = False) -> str:
+    """One SSE frame: the new lines as markup, the cursor and the counts."""
+    payload = {"lines": _chat_lines_html(environment, view["fresh"]), "last_seq": last_seq,
+               "shown": view["shown"], "total": view["total"], "filtered": filtered,
+               "count_label": _chat_count(environment, view["shown"], view["total"],
+                                          filtered=filtered),
+               "message": "" if view["fresh"] else (
+                   _rendered(environment, chat_tail.NO_MATCH_SENTENCE) if filtered else "")}
+    if reset:
+        payload["reset"] = True
+    return f"event: chat\nid: {last_seq}\ndata: {json.dumps(payload)}\n\n"
+
+
+async def _chat_tab_context(request: Request, server, server_name: str, who: str, q: str) -> dict:
+    """The Chat tab's initial render: the ring's tail, filtered, plus the composer."""
+    # THE COMPOSER'S TARGET is the RESOLVED server's canonical name — the value its form posts as
+    # ``server`` and the one the confirm token is minted for, so the action's own check of that pair
+    # (``consume_confirm_token(request, path, name)``) cannot be handed two spellings of one target.
+    target = readmodels.text(attr(server, "name", None)) or server_name
+    environment = i18n.environment_for(request)
+    status = actions_page.state_of(attr(server, "status", None))
+    filtered = bool(chat_tail.normalise_filter(who) or chat_tail.normalise_filter(q))
+    base = {
+        "chat_stream_url": chat_stream_path(server_name),
+        "chat_after": 0,
+        "chat_who": who,
+        "chat_q": q,
+        "chat_filtered": filtered,
+        "chat_lines": (),
+        "chat_available": False,
+        "chat_message": "",
+        "chat_shown": 0,
+        "chat_total": 0,
+        "chat_count": "",
+        "chat_note_sentence": CHAT_NOTE_SENTENCE,
+        "chat_tab_url": server_url(server_name),
+        "chat_tab_key": CHAT_TAB,
+        "chat_server": target,
+        "chat_server_field": actions_page.SERVER_CONFIG_FIELD,
+        "chat_action_path": mount.url(actions_page.SERVER_CHAT_PATH),
+        "chat_mode": "chat",
+        "chat_field": "message",
+        "chat_coalition_field": "coalition",
+        "chat_audiences": actions_page.SERVER_MESSAGE_AUDIENCE,
+        "chat_message_max": actions_page.MESSAGE_FIELD_MAX,
+        "chat_confirm_field": actions_page.CONFIRM_FIELD,
+        "chat_confirm_token": actions_page.mint_confirm_token(
+            request, actions_page.SERVER_CHAT_PATH, target),
+        "chat_csrf_field": session.CSRF_FIELD,
+        "chat_csrf_token": session.get_csrf_token(request),
+        "chat_can_send": status in ("RUNNING", "PAUSED"),
+        "chat_off_sentence": CHAT_OFF_SENTENCE,
+    }
+    records, last_seq, message = await _chat_records(request, server_name)
+    if records is None:
+        return base | {"chat_message": message}
+    view = _chat_view(records, who=who, q=q)
+    shown = view["kept"][-chat_tail.TAIL_LINES:]
+    sentence = "" if shown else _rendered(
+        environment, chat_tail.NO_MATCH_SENTENCE if filtered else chat_tail.MISSING_SENTENCE)
+    return base | {"chat_available": True, "chat_message": sentence, "chat_lines": shown,
+                   "chat_after": last_seq, "chat_shown": view["shown"], "chat_total": view["total"],
+                   "chat_count": _chat_count(environment, view["shown"], view["total"],
+                                             filtered=filtered)}
+
+
+async def chat_event_stream(request: Request, server_name: str, *, after: int, who: str, q: str):
+    """The SSE generator of one connection: the ring's new lines while the tab is open.
+
+    The WHOLE ring is read each tick (bounded, in-process, no IO) so the ``N of M`` count stays
+    honest; only the lines newer than the cursor are sent. A ``seq`` that went BACKWARDS means the
+    process restarted and the ring is empty — the frame then carries ``reset`` and the whole tail,
+    so the browser never splices two histories.
+    """
+    environment = i18n.environment_for(request)
+    config = live_page.dashboard_config(request.app)
+    registry = live_page.get_registry(request.app, config)
+    acquired = registry.try_acquire() if config.enabled else False
+    filtered = bool(chat_tail.normalise_filter(who) or chat_tail.normalise_filter(q))
+    cursor = max(0, int(after or 0))
+    try:
+        records, last_seq, _ = await _chat_records(request, server_name)
+        if records is None:
+            yield _chat_frame(environment, {"fresh": [], "shown": 0, "total": 0},
+                              last_seq=0, filtered=filtered)
+            return
+        reset = cursor > last_seq
+        if reset:
+            cursor = 0
+        view = _chat_view(records, who=who, q=q, after=cursor)
+        yield _chat_frame(environment, view, last_seq=last_seq, filtered=filtered, reset=reset)
+        cursor = last_seq
+        if not config.enabled or not acquired:
+            # over the cap (or live updates are off): the client got its snapshot, and the stream
+            # closes cleanly rather than queueing for a slot it will never be given
+            return
+        last_beat = time.monotonic()
+        while True:
+            await asyncio.sleep(config.refresh_seconds)
+            now = time.monotonic()
+            if now - last_beat >= config.heartbeat_seconds:
+                yield ": keepalive\n\n"
+                last_beat = now
+            records, last_seq, _ = await _chat_records(request, server_name)
+            if records is None:
+                continue
+            reset = cursor > last_seq
+            if reset:
+                cursor = 0
+            view = _chat_view(records, who=who, q=q, after=cursor)
+            if not view["fresh"] and not reset:
+                continue
+            yield _chat_frame(environment, view, last_seq=last_seq, filtered=filtered, reset=reset)
+            cursor = last_seq
+    finally:
+        if acquired:
+            registry.release()
+
+
+def add_chat_stream_route(router: APIRouter) -> APIRouter:
+    """The Chat tab's live route: ``GET /api/server/{name}/chat/stream``."""
+    @router.get(CHAT_STREAM_PATH, name="server-chat-stream", response_class=StreamingResponse)
+    async def chat_stream(request: Request, name: str, after: str = "0", who: str = "",
+                          q: str = "") -> Response:
+        # BOTH gates run before the generator exists: the tab's plugin gate and the server's own
+        # scope, resolved through the scoped source the page rendered from — so a name the caller
+        # cannot see cannot be streamed, and the refusal is the console's 403/404 rather than a
+        # stream that dies on its first frame.
+        if not action_available(CHAT_READ_ACTION):
+            raise chat_request_refused()
+        dashboard_page.scoped_server(request, name)
+        # THE BROWSER'S OWN RESUME POINT wins over the URL: an EventSource reconnects with the
+        # ``Last-Event-ID`` header set to the last frame's id, which is exactly the cursor.
+        held = readmodels.text(request.headers.get("last-event-id"))
+        cursor = _byte(held if held else after)
+        if cursor is None:
+            cursor = 0
+        return StreamingResponse(chat_event_stream(request, name, after=cursor, who=who, q=q),
+                                 media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache",
+                                          "X-Accel-Buffering": "no"})
+
+    return router
+
+
 def _log_refuse(status_code: int, sentence: str) -> PlainTextResponse:
     """The honest refusal a log download answers with: ONE sentence in plain text, never an empty file.
 
@@ -1685,6 +1998,20 @@ def add_server_status_route(router: APIRouter) -> APIRouter:
     return router
 
 
+def add_scheduler_hints_route(router: APIRouter) -> APIRouter:
+    """Add THE Scheduler review panel's completion-hints route (``GET``).
+
+    A READ of the scheduler plugin's own schema, declared on the server page's capability set with
+    ``scheduler.view`` (:data:`SCHEDULER_HINTS_PATH`) — the panel that fetches it is drawn for the same
+    audience. The scope and the section ride in the query, exactly as they do on the check URL.
+    """
+    @router.get(SCHEDULER_HINTS_PATH, name="scheduler-hints")
+    async def scheduler_config_hints(request: Request) -> Response:
+        return scheduler_hints(request)
+
+    return router
+
+
 # --------------------------------------------------------------------------- the Overview tab's data
 # The card's facts that are NOT a read of the process: the server's extension render, the live fog
 # reading behind its visibility and the scheduler's per-server plan. Each is an RPC or a plugin
@@ -1699,7 +2026,7 @@ def preset_image_path(server_name: str) -> str:
     that server's reported weather and is resolved by the route, so nothing a link carries can name a
     file.
     """
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/preset.png"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/preset.png")
 
 
 def _preset_image_refuse(status_code: int, sentence: str) -> PlainTextResponse:
@@ -1781,7 +2108,7 @@ MISSION_WEATHER_NODE_OFFLINE = ("Node '{node}' is offline or unknown, so its mis
 
 def mission_weather_path(server_name: str) -> str:
     """The URL of *server_name*'s mission-weather read — the name as ONE percent-encoded segment."""
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/mission.json"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/mission.json")
 
 
 def _weather_refuse(status_code: int, sentence: str) -> PlainTextResponse:
@@ -2031,6 +2358,47 @@ def scheduler_file(request: Request):
         return None
 
 
+def scheduler_hints_url(server_name: str, *, shared: bool = False) -> str:
+    """The review panel's completion-hints URL — the server it edits, and the section it edits.
+
+    The scope rides in the query exactly as it does on the panel's check URL, because the panel posts
+    its text and nothing else; ``shared`` is the same carrier the wizard keeps its section in, so the
+    hints of the ``DEFAULT`` sheet are the ``DEFAULT`` block's.
+    """
+    query = {settings_page.SCHEDULER_SCOPE_FIELD: readmodels.text(server_name)}
+    if shared:
+        query[scheduler_plan.SHARED_FIELD] = "1"
+    return mount.url(SCHEDULER_HINTS_PATH) + "?" + urlencode(query)
+
+
+def scheduler_hints(request: Request) -> JSONResponse:
+    """The review panel's completion hints: the schema tree, rooted at the BLOCK being edited.
+
+    The container is read from the same two symbols the save reads — the file's ``DEFAULT`` key while
+    the panel edits the shared section, otherwise ``scheduler_block_key(server)``, the path the write
+    guard resolves — so the keys offered are the keys that block may carry and never the whole file's.
+    A scope naming no server this caller may view answers an empty path map, never a tree rooted
+    somewhere else; nothing here reads the scheduler file.
+    """
+    entry = scheduler_file(request)
+    if entry is None:
+        raise HTTPException(status_code=404)
+    scope = readmodels.text(request.query_params.get(settings_page.SCHEDULER_SCOPE_FIELD)).strip()
+    server = dashboard_page.server_named(request, scope) if scope else None
+    access = settings_page.scheduler_access(request, server) if server is not None else None
+    if access is None or not access.view:
+        return JSONResponse({"paths": {}}, headers={"Cache-Control": "no-store"})
+    if scheduler_plan.shared_target(request.query_params):
+        if not access.shared:
+            return JSONResponse({"paths": {}}, headers={"Cache-Control": "no-store"})
+        container = scheduler_plan.SHARED_KEY
+    else:
+        container = settings_page.scheduler_block_key(server)
+    return JSONResponse(config_hints.payload(list(entry.schema_files), container=container,
+                                            request=request),
+                        headers={"Cache-Control": "no-store"})
+
+
 def _scheduler_document(entry) -> dict:
     """The scheduler file's document with its comments, or ``{}`` when it cannot be read.
 
@@ -2274,6 +2642,9 @@ async def _scheduler_tab_context(request: Request, server, server_name: str) -> 
         "scheduler_expert_field": settings_page.SETTINGS_EXPERT_FIELD,
         "scheduler_validate_url": (settings_page.SCHEDULER_VALIDATE_PATH + "?"
                                    + urlencode({settings_page.SCHEDULER_SCOPE_FIELD: server_name})),
+        # THE PANEL'S COMPLETION SOURCE: the scheduler schema, rooted at the block this sheet writes —
+        # the server's own block, or ``DEFAULT`` while the shared section is the one being edited.
+        "scheduler_hints_url": scheduler_hints_url(server_name, shared=shared),
         "scheduler_save_url": settings_page.SCHEDULER_SAVE_PATH,
         "scheduler_scope_field": settings_page.SCHEDULER_SCOPE_FIELD,
         "scheduler_scope_name": server_name,
@@ -2382,10 +2753,12 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     # THE MUSIC TAB'S TWO FACTS, decided ONCE: the action is registered here AND the file configures
     # a radio for THIS server. The strip and the refusal read this one answer.
     music_offered, music_reason = music_tab_gate(server)
+    # THE CHAT TAB'S ONE FACT: the mission plugin is registered in this process.
+    chat_offered = chat_tab_gate(server)
     allowed_tabs = tabs_for(roles, manager=manager, config_manager=config_viewer,
                             debug_plugin=events_offered,
                             scheduler_view=settings_page.scheduler_access(request, server).view,
-                            music=music_offered)
+                            music=music_offered, chat=chat_offered)
     tab = normalise_tab(request.query_params.get("tab"))
     if tab not in allowed_tabs:
         # the tab exists but this viewer may not open it: REFUSE the request, naming ITS OWN
@@ -2397,6 +2770,9 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
             raise events_request_refused()
         if tab == MUSIC_TAB:
             raise music_request_refused(music_reason)
+        if tab == CHAT_TAB and not chat_offered:
+            # the plugin is the missing fact, not the viewer's rights: the gate's own sentence.
+            raise chat_request_refused()
         raise tab_request_refused(tab)
     if tab == SCHEDULER_TAB:
         # THE WIZARD IS THE WRITE: a viewer who may read this server's plan and not write it is
@@ -2448,11 +2824,13 @@ def add_routes(router: APIRouter) -> APIRouter:
     """
     add_mission_download_route(router)
     add_log_window_route(router)
+    add_chat_stream_route(router)
     add_log_download_route(router)
     add_server_status_route(router)
     add_preset_image_route(router)
     add_mission_weather_route(router)
     add_music_tab_stream_routes(router)
+    add_scheduler_hints_route(router)
 
     @router.get(SERVER_DETAIL_PATH, response_class=HTMLResponse, name="page-server-detail")
     async def server_detail(request: Request, name: str):
@@ -2518,6 +2896,10 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             params=readmodels.view_params(request.query_params),
             carry={"tab": "players"})
         players_tab = server_url(server_name, tab="players")
+        # THE ROWS THIS TAB RENDERS, stashed for the control builder (``actions.controls_for``) — the
+        # same pattern the bans and directory pages use, so the strip describes this server's players
+        # and no other server's, and an Actions column never appears over an empty table.
+        request.state.player_rows = view.tables["players"].rows
         return {
             "table": view.tables["players"], "view": view,
             "search_action": players_tab,
@@ -2525,6 +2907,14 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             "search_hidden": {"tab": "players"},
             "empty": {"players": readmodels.NO_PLAYERS_MESSAGE,
                       "players_matched": i18n._("No players match this search.")},
+            # THE SAME PLAYER STRIP the dashboard's Players tab and /players draw, asked for by the
+            # table this tab renders: every row here is an ACTIVE player of this server, so the map
+            # answers for every one of them. ``origin`` is this page for honesty, but the page path
+            # carries a parameter the origin allow-list cannot hold, so the return rides in
+            # ``SERVER_PAGE_FIELD`` and is rebuilt from the RESOLVED server.
+            "row_controls": actions_page.controls_for(
+                request, "players", server_url(server_name),
+                server_page=actions_page.SERVER_PAGE_PLAYERS),
         }
     if tab == STATISTICS_TAB:
         # THE SAME BODY the Admin-only Statistics page renders, read for THIS server. The server name
@@ -2547,13 +2937,29 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         data = getattr(result, "data", None)
         data = data if isinstance(data, dict) else {}
         rows = mission_rows(data, server_name)
+        # THE NAME FILTER: a GET on the tab, applied to the rows BEFORE they are rendered. The list,
+        # the count and the "All" box therefore describe the SAME rows — the ones on screen — and the
+        # removal selection can never name a row the operator filtered away.
+        query = mission_filter_text(request.query_params.get(MISSIONS_FILTER_FIELD))
+        shown = filter_mission_rows(rows, query)
+        if query:
+            # A FILTERED LIST CANNOT BE REORDERED: a drop posts the whole new order built from the
+            # rows the list holds, so reordering a subset would rewrite the rotation to that subset.
+            # The grip is omitted while a filter is in force, and the tab states why.
+            context["missions_drag_allowed"] = False
         context.update({
             "missions_available": True,
-            "missions": rows,
-            # THE SERVER-RENDERED COUNT'S OWN TOTAL: every row is selectable (the running row's box
-            # included), so this number and the script's ``N of M`` mean the SAME thing with
+            "missions": shown,
+            # THE SERVER-RENDERED COUNT'S OWN TOTAL: every SHOWN row is selectable (the running row's
+            # box included), so this number and the script's ``N of M`` mean the SAME thing with
             # JavaScript off.
-            "missions_selectable": len(rows),
+            "missions_selectable": len(shown),
+            #: THE FILTER IN FORCE, echoed into the input and the count sentence; the unfiltered TOTAL
+            #: rides beside it so "3 of 12 missions" stays readable.
+            "missions_filter": query,
+            "missions_filtered": bool(query),
+            "missions_shown": len(shown),
+            "missions_total": len(rows),
         })
         return context
     if tab == MODS_TAB:
@@ -2566,6 +2972,11 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         # the service is the ONE reader of its own configuration), with the writes declared in
         # ``pages/actions.py`` posting to their own routes.
         return await _music_tab_context(request, server_name)
+    if tab == CHAT_TAB:
+        # THE GAME CHAT: the mission plugin's JSONL history, filtered by the URL's two fields.
+        return await _chat_tab_context(request, server, server_name,
+                                       readmodels.text(request.query_params.get("who")),
+                                       readmodels.text(request.query_params.get("q")))
     if tab == LOG_TAB:
         # THE SERVER'S OWN DCS LOG: the config-driven path and the initial TAIL, read as a
         # BOUNDED window. Failures render their own sentence, never a blank panel.
@@ -2652,12 +3063,12 @@ async def _music_tab_context(request: Request, server_name: str) -> dict:
 
 def music_tab_stream_path(server_name: str) -> str:
     """The URL of *server_name*'s music stream — the name as ONE percent-encoded segment."""
-    return f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/stream"
+    return mount.url(f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/stream")
 
 
 def music_tab_fragments_path(server_name: str) -> str:
     """The URL of *server_name*'s music fragments — the polling fallback of the same region."""
-    return f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/fragments"
+    return mount.url(f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/fragments")
 
 
 def music_tab_live(request: Request, server_name: str) -> dict | None:
@@ -2806,11 +3217,21 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         "missions_server_field": actions_page.SERVER_CONFIG_FIELD,
         "missions_server": server_name,
         "missions_field": actions_page.MISSION_FIELD,
-        "missions_add_path": actions_page.MISSIONS_ADD_PATH,
-        "missions_load_path": actions_page.MISSIONS_LOAD_PATH,
-        "missions_activate_path": actions_page.MISSIONS_ACTIVATE_PATH,
-        "missions_upload_path": actions_page.MISSIONS_UPLOAD_PATH,
+        "missions_add_path": mount.url(actions_page.MISSIONS_ADD_PATH),
+        "missions_load_path": mount.url(actions_page.MISSIONS_LOAD_PATH),
+        "missions_activate_path": mount.url(actions_page.MISSIONS_ACTIVATE_PATH),
+        "missions_upload_path": mount.url(actions_page.MISSIONS_UPLOAD_PATH),
         "missions_tab_url": server_url(server_name, tab=MISSIONS_TAB),
+        #: THE FILTER FORM'S TARGET: the page's OWN path, without a query. A GET form REPLACES the
+        #: action's query string, so the tab rides as a hidden field instead — and the tab URL above
+        #: is what "Clear" links to, which drops the filter along with the selection.
+        "missions_page_url": server_url(server_name),
+        "missions_filter_field": MISSIONS_FILTER_FIELD,
+        #: THE REORDER'S SECOND REASON: the grip is omitted while a filter is in force, because a drop
+        #: posts the order of the rows the list holds. Stated where the grips are absent, like the
+        #: offline-only sentence beside it.
+        "missions_filter_reorder_reason": i18n._(
+            "Reordering is only offered on the full list — clear the filter to drag rows."),
         #: the DIALOG path suffix (``/confirm``): the ADD opener and the selection bar post to
         #: ``<path><suffix>``, which RENDERS the console's one dialog component (``confirm.html``)
         #: rather than performing the write — the picker/load choice and the delete-file choice are
@@ -2839,11 +3260,19 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         #: client script states the SAME wording in the count when the tick is none or several — never
         #: a second copy of the rule written in JavaScript.
         "missions_activate_why": actions_page.MISSIONS_ACTIVATE_SELECTION_REFUSAL,
-        "missions_upload_allowed": upload_allowed,
+        # THE UPLOAD: offered only in the states DCS is not writing ``serverSettings.lua`` itself
+        # (``MISSIONS_UPLOAD_STATES``), so an uploaded mission cannot land in a settings write DCS
+        # overwrites. The CAPABILITY alone rides beside it, so the card's omission in a busy state is
+        # spoken in the upload's OWN sentence rather than drawn as a capability problem — the shape
+        # ``missions_activate_capable`` / ``missions_activate_reason`` already uses.
+        "missions_upload_allowed": upload_allowed
+        and state in actions_page.MISSIONS_UPLOAD_STATES,
+        "missions_upload_capable": upload_allowed,
+        "missions_upload_reason": actions_page.MISSIONS_UPLOAD_BUSY_REFUSAL,
         # THE ORDER CONTROL: the row's grip. Its path is the one the drop posts to, and its gate is
         # the offline one — a write made while DCS is up is reverted — so ``missions_drag_allowed``
         # carries capability + process down, and the tab states the reason where the grip is absent.
-        "missions_reorder_path": actions_page.MISSIONS_REORDER_PATH,
+        "missions_reorder_path": mount.url(actions_page.MISSIONS_REORDER_PATH),
         #: THE DROP'S FIELD: the whole new order, one value per row.
         "missions_order_field": actions_page.MISSION_ORDER_FIELD,
         "missions_drag_allowed": reorder_capable and offline,
@@ -2851,8 +3280,8 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         # row's LOGICAL name ("<index>=<name>") so a write whose list changed since render is refused.
         "missions_name_field": actions_page.MISSION_NAME_FIELD,
         "missions_reorder_capable": reorder_capable,
-        "missions_delete_bulk_path": actions_page.MISSIONS_BULK_DELETE_PATH,
-        "missions_delete_bulk_dialog": (actions_page.MISSIONS_BULK_DELETE_PATH
+        "missions_delete_bulk_path": mount.url(actions_page.MISSIONS_BULK_DELETE_PATH),
+        "missions_delete_bulk_dialog": (mount.url(actions_page.MISSIONS_BULK_DELETE_PATH)
                                         + actions_page.CONFIRM_SUFFIX),
         "missions_delete_bulk_capable": delete_bulk_capable,
         # THE SELECTION AND ITS BAR: present in every state but ``LOADING`` (``bulk_allowed``), the

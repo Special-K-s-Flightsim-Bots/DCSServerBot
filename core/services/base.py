@@ -203,7 +203,10 @@ class Service(ABC):
             return {}
         self.log.debug(f'  - Reading service configuration from {filename} ...')
         try:
-            path = os.path.join('services', self.name.lower(), 'schemas')
+            #: The schemas live in the PACKAGE tree, not under the working directory: a relative join
+            #: here silently skipped validation whenever the bot was started from anywhere but the
+            #: repository root, so a strict install could accept a document it should refuse.
+            path = Path(__file__).resolve().parents[2] / 'services' / self.name.lower() / 'schemas'
             validation = self.node.config.get('validation', 'lazy')
             if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]

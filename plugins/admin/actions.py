@@ -1,7 +1,7 @@
 """
-Action functions for NODE operations.
+Action functions for NODE operations and the server EXTENSION lifecycle.
 
-TWO FAMILIES:
+FAMILIES:
 
 * the NODE LIFECYCLE trio — **restart**, **shut down** and **upgrade** — acts on the node's own
   PROCESS (``Node.restart()`` / ``shutdown()`` / ``upgrade()``); every server on the node goes down
@@ -16,7 +16,12 @@ TWO FAMILIES:
   through the node's own instance operations (``Node.add_instance`` / ``Node.delete_instance``), so a
   running install can create and remove a server without a restart. Everything these two write —
   the ``nodes.yaml`` block, ``servers.yaml``, the database rows — is written by the bot method they
-  call (``plugins/admin/commands.py``'s ``/node add_instance`` and ``/node delete_instance``).
+  call (``plugins/admin/commands.py``'s ``/node add_instance`` and ``/node delete_instance``);
+* the EXTENSION pair — **enable** and **disable** — acts on ONE extension of ONE server, through
+  ``Server.enable_extension`` / ``Server.disable_extension``, so an extension starts and stops without
+  a restart. It is the ONE call site of that lifecycle, whatever the transport: no command calls the
+  two server methods itself. (``plugins/dks`` enables its own extension inside its install flow, which
+  is a different operation with its own preconditions.)
 
 The SEMANTICS do not live here: they are the engine's (``core/data/maintenance.py``,
 :class:`~core.data.maintenance.ServerMaintenanceManager`), as is the record of what an ``offline`` did
@@ -35,7 +40,10 @@ Each one mirrors an existing command so a word never means two things:
   ``NodeImpl.restart()`` is ``shutdown(RESTART)`` (the launcher brings it back), ``shutdown()`` does
   not come back on its own, and ``upgrade()`` checks for an update and shuts down with ``rc=UPDATE``;
 * :func:`take_node_offline` / :func:`bring_node_online` -> ``/node offline`` / ``/node online`` (the
-  power pair above).
+  power pair above);
+* :func:`enable_extension` / :func:`disable_extension` -> ``/extension enable`` / ``/extension
+  disable`` (``plugins/admin/commands.py``): the commands keep the modal / ``ConfigView`` step that
+  collects an extension's ``NODE_CONFIG_DICT`` / ``CONFIG_DICT`` values and pass its answer on.
 
 THE TRAIL is written HERE, once, whatever the transport, including for a refusal. The audit's actor is
 the caller's: ``[web:backend/subject]`` for the console, a display name for Discord (``core/actions``).
@@ -51,19 +59,21 @@ import asyncio
 import logging
 from contextlib import suppress
 from datetime import datetime
-from typing import Any
+from typing import Any, TypeVar
 
-from core.action_results import NodeControlResult
+from core.action_results import ActionResult, NodeControlResult, ServerControlResult
 from core.actions import audit_action, action
 from core.data.maintenance import (PowerOffOutcome, ServerMaintenanceManager, clear_power_record,
                                    power_record, process_started_at, record_power_off)
 from core.data.node import UPDATE_SERVERS_UP, UPDATE_STOOD_BY
+from core.extension import InstallException
 
 log = logging.getLogger(__name__)
 
 __all__ = ["NODE_OPERATIONS", "NODE_MAINTENANCE_OPERATIONS", "DCS_UPDATE_OPERATION",
            "restart_node", "shutdown_node", "upgrade_node", "take_node_offline",
-           "bring_node_online", "add_server", "delete_server", "update_dcs"]
+           "bring_node_online", "add_server", "delete_server", "update_dcs",
+           "enable_extension", "disable_extension"]
 
 #: the ONE DCS operation's own name — the words ``/dcs update`` uses (``plugins/admin/commands.py``).
 #: Update, rollback and branch switch are ONE operation: ``Node.dcs_update`` takes a branch BESIDE a
@@ -90,15 +100,35 @@ _VERBS: dict[str, tuple[str, str]] = {
     "upgrade": ("upgraded", "upgrade"),
 }
 
+#: The refusal ONE in-flight DCS update produces for all three operations, differing only by the
+#: operation's own word. It names the node, the consequence the update already has (servers stopped,
+#: and staying stopped) and the way forward (wait, or force).
+DCS_UPDATE_REFUSAL = (
+    "Node '{node}' is updating DCS right now: its servers were stopped for the update and stay "
+    "stopped, and the installer keeps running. Wait for it to finish, or repeat the {method} with "
+    "Force."
+)
 
-async def _lifecycle(ctx: Any, node_name: str, method: str) -> NodeControlResult:
+#: Appended to the trail entry of an operation the caller FORCED past that guard, so a forced
+#: shutdown is distinguishable afterwards from one that ran on an idle node.
+DCS_UPDATE_OVERRIDE = "Forced while a DCS update was in progress on node '{node}'."
+
+
+async def _lifecycle(ctx: Any, node_name: str, method: str, *,
+                     force: bool = False) -> NodeControlResult:
     """The shared body of the three node operations — ONE implementation, so they refuse alike.
 
     ``method`` is the ``Node`` method name (``restart`` / ``shutdown`` / ``upgrade``). The lookup
     goes through :meth:`core.actions.ActionContext.resolve_node`, i.e. the caller's own view of the
     cluster, so a node the caller cannot see is simply not found — there is no lookup that begins
-    anywhere else. ``upgrade`` additionally runs ``upgrade_pending()`` first, the check ``/node
-    upgrade`` makes; the other two have no precondition.
+    anywhere else.
+
+    Two preconditions, in this order and before anything is called:
+
+    * an in-flight DCS update refuses the operation unless *force* is set (see the guard below);
+    * ``upgrade`` additionally runs ``upgrade_pending()``, the check ``/node upgrade`` makes.
+
+    ``restart`` and ``shutdown`` have no precondition of their own.
     """
     done, verb = _VERBS[method]
     node = ctx.resolve_node(node_name)
@@ -115,6 +145,31 @@ async def _lifecycle(ctx: Any, node_name: str, method: str) -> NodeControlResult
         return await _audited(ctx, NodeControlResult(
             success=False, message=f"Node '{node_name}' cannot be {verb}ed in this installation.",
             node_name=node_name))
+
+    canonical = str(getattr(node, "name", "") or node_name)
+
+    # THE IN-FLIGHT DCS UPDATE GUARD. An update owns the node's installation: its servers were
+    # stopped for it and stay stopped, the installer keeps running, and a restart / shutdown /
+    # upgrade now would cut that in half. Asked of the node, so every transport landing here refuses
+    # alike. A node too old to answer CANNOT be checked, and refusing there would freeze the cluster
+    # on the operation that upgrades it: only a node that answers refuses.
+    forced = False
+    accessor: Any = getattr(node, "dcs_update_in_progress", None)
+    if callable(accessor):
+        try:
+            answer: Any = accessor()
+            updating = bool(await answer)
+        except Exception as ex:
+            # an answer that failed is not an answer that said "busy": report it once and run on.
+            log.warning("dcs_update_in_progress() failed for node '%s': %s", canonical, ex)
+            updating = False
+        if updating:
+            if not force:
+                return await _audited(ctx, NodeControlResult(
+                    success=False,
+                    message=DCS_UPDATE_REFUSAL.format(node=canonical, method=method),
+                    node_name=canonical))
+            forced = True
 
     if method == "upgrade":
         # THE UPGRADE'S OWN GUARD, mirroring ``/node upgrade`` (``plugins/admin/commands.py``), which
@@ -183,44 +238,62 @@ async def _lifecycle(ctx: Any, node_name: str, method: str) -> NodeControlResult
         log.exception("%s_node failed", method)
         result = NodeControlResult(success=False,
                                    message=f"Failed to {verb} node: {ex}", node_name=node_name)
+    if forced:
+        # ONE entry as always, saying the operation ran UNDER an update in flight — a forced
+        # shutdown must not read like a clean one afterwards.
+        await audit_action(ctx, result,
+                           message=f"{result.message} "
+                                   f"{DCS_UPDATE_OVERRIDE.format(node=canonical)}")
+        return result
     return await _audited(ctx, result)
 
 
-async def _audited(ctx: Any, result: NodeControlResult) -> NodeControlResult:
+_R = TypeVar("_R", bound=ActionResult)
+
+
+async def _audited(ctx: Any, result: _R, server: Any = None) -> _R:
     """Write the trail for *result* and return it.
 
     ONE place, so every exit of every node operation — the success, each typed refusal (offline/unknown,
     nothing to upgrade, the check itself failing) and the failure — leaves exactly one entry. The entry
     names the node in its own message; the audit row carries no ``server`` and the target is spelled,
     which makes a node event greppable in the trail.
+
+    A SERVER operation passes *server*, so its entry carries the server the row is about.
     """
-    await audit_action(ctx, result)
+    await audit_action(ctx, result, server=server)
     return result
 
 
 @action
-async def restart_node(ctx: Any, node_name: str) -> NodeControlResult:
+async def restart_node(ctx: Any, node_name: str, *, force: bool = False) -> NodeControlResult:
     """Restart the bot process on ONE node — the same operation ``/node restart`` performs.
 
     ``NodeImpl.restart()`` is ``shutdown(RESTART)``: the node's process ends and the launcher on that
     machine brings it back. Every server on the node goes down with it and does not come back on its
     own, which is why the console's control confirms first.
+
+    Refused while a DCS update is in flight on that node; *force* runs it anyway and says so in the
+    trail.
     """
-    return await _lifecycle(ctx, node_name, "restart")
+    return await _lifecycle(ctx, node_name, "restart", force=force)
 
 
 @action
-async def shutdown_node(ctx: Any, node_name: str) -> NodeControlResult:
+async def shutdown_node(ctx: Any, node_name: str, *, force: bool = False) -> NodeControlResult:
     """Shut the bot process on ONE node down — the same operation ``/node shutdown`` performs.
 
     Nothing brings the node back: starting it again is an OS-level job on that machine (the
     launcher, a service, a terminal), and no browser can do it. The console's copy says so.
+
+    Refused while a DCS update is in flight on that node; *force* runs it anyway and says so in the
+    trail.
     """
-    return await _lifecycle(ctx, node_name, "shutdown")
+    return await _lifecycle(ctx, node_name, "shutdown", force=force)
 
 
 @action
-async def upgrade_node(ctx: Any, node_name: str) -> NodeControlResult:
+async def upgrade_node(ctx: Any, node_name: str, *, force: bool = False) -> NodeControlResult:
     """Update DCSServerBot on ONE node and restart it — the same operation ``/node upgrade`` performs.
 
     ``NodeImpl.upgrade()`` checks for an update itself, sets the cluster's ``update_pending`` flag,
@@ -236,8 +309,11 @@ async def upgrade_node(ctx: Any, node_name: str) -> NodeControlResult:
 
     The console still OFFERS Upgrade unconditionally: that check is an async git/HTTP call on the node
     (an RPC for a remote one), and a page render must not issue one (``readmodels/nodes``).
+
+    Refused while a DCS update is in flight on that node — before the two checks above; *force* runs
+    it anyway and says so in the trail.
     """
-    return await _lifecycle(ctx, node_name, "upgrade")
+    return await _lifecycle(ctx, node_name, "upgrade", force=force)
 
 
 # ── the DCS UPDATE ─────────────────────────────────────────────────────────
@@ -942,3 +1018,98 @@ async def delete_server(ctx: Any, server_name: str, remove_files: bool = False) 
         message=(f"Server '{name}' and instance '{instance_name}' were removed from node "
                  f"'{canonical_node}'{extra}."),
         node_name=canonical_node))
+
+
+# ── the EXTENSION pair ─────────────────────────────────────────────────────
+#
+# TWO operations, one extension of one server: **enable** installs, prepares and starts it,
+# **disable** stops it and drops it from the server's registry. The engine calls are
+# ``Server.enable_extension`` / ``Server.disable_extension`` (``core/data/server.py``); the semantics
+# — the install, the prepare, the ``enabled`` flag in ``nodes.yaml`` — are the extension's own
+# (``core/extension.py``) and are not restated here. This module resolves the server, hands the
+# caller's config through and words the report.
+#
+# ONE call site of that lifecycle: ``/extension enable`` and ``/extension disable``
+# (``plugins/admin/commands.py``) reach these functions through ``call_action``, and any other
+# transport that offers the control reaches the same two, so the trail is written once, in this
+# layer, including for a refusal.
+
+
+@action
+async def enable_extension(ctx: Any, server_name: str, extension: str,
+                           config: dict | None = None) -> ServerControlResult:
+    """Enable ONE extension on ONE server — the same operation ``/extension enable`` performs.
+
+    *config* is the ``{"Node": {...}, "Instance": {...}}`` pair ``Server.config_extension`` reads and
+    writes, i.e. what the Discord modal / ``ConfigView`` collects. It decides WHICH config values the
+    extension starts with: ``ServerImpl.load_extension`` merges a PASSED pair OVER the node's and the
+    instance's in-memory ``locals``, and those stay as they were when this process read them — so a
+    caller that has just written ``nodes.yaml`` (the console) passes the pair it read back from the
+    file. ``None`` starts the extension from the in-memory values, which is the behaviour every
+    caller had before this parameter existed.
+
+    ``True`` is the success. ``False``/``None`` is a typed REFUSAL: the server collapses two causes
+    into that one value — the extension class was not found, or its ``install()``/``prepare()``
+    failed — so the refusal names both rather than picking one it cannot know. An
+    ``InstallException`` is mapped to a refusal with its own text and never escapes this action.
+    """
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        return await _audited(ctx, ServerControlResult(
+            success=False, message=f"Server '{server_name}' not found.", server_name=server_name))
+    name = str(getattr(server, "name", "") or server_name)
+    try:
+        enabled = await server.enable_extension(extension, config)
+    except InstallException as ex:
+        return await _audited(ctx, ServerControlResult(
+            success=False,
+            message=f"Extension '{extension}' could not be enabled on server '{name}': {ex}",
+            server_name=name), server)
+    if not enabled:
+        return await _audited(ctx, ServerControlResult(
+            success=False,
+            message=(f"Extension '{extension}' was not enabled on server '{name}': either its "
+                     f"extension class was not found, or its install/prepare step failed. See the "
+                     f"log for details."),
+            server_name=name), server)
+    return await _audited(ctx, ServerControlResult(
+        success=True, message=f"Extension '{extension}' enabled on server '{name}'.",
+        server_name=name), server)
+
+
+@action
+async def disable_extension(ctx: Any, server_name: str, extension: str) -> ServerControlResult:
+    """Disable ONE extension on ONE server — the same operation ``/extension disable`` performs.
+
+    The SERVER's registry decides whether a name is KNOWN: a name no configuration block carries
+    raises ``InstallException`` there (``ServerImpl.disable_extension``), which is returned here as a
+    typed refusal carrying that text. An extension that is CONFIGURED but not loaded — its package or
+    files are gone, or it was skipped at start-up — is NOT a refusal: nothing runs because nothing is
+    running, and the server writes ``enabled: false`` so the switch stops claiming it is on.
+
+    ``False`` is the extension's OWN ``disable()`` declining — an extension refuses while it cannot
+    shut down (``DKS`` while its server runs) — so the refusal names the extension's decision and
+    never reports it as a bot failure. The extension stays enabled in that case, which the sentence
+    says.
+    """
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        return await _audited(ctx, ServerControlResult(
+            success=False, message=f"Server '{server_name}' not found.", server_name=server_name))
+    name = str(getattr(server, "name", "") or server_name)
+    try:
+        disabled = await server.disable_extension(extension)
+    except InstallException as ex:
+        return await _audited(ctx, ServerControlResult(
+            success=False,
+            message=f"Extension '{extension}' could not be disabled on server '{name}': {ex}",
+            server_name=name), server)
+    if not disabled:
+        return await _audited(ctx, ServerControlResult(
+            success=False,
+            message=(f"Extension '{extension}' on server '{name}' was not disabled: the "
+                     f"extension's own disable() declined, so it is still enabled."),
+            server_name=name), server)
+    return await _audited(ctx, ServerControlResult(
+        success=True, message=f"Extension '{extension}' disabled on server '{name}'.",
+        server_name=name), server)

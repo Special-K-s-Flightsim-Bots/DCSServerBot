@@ -1,0 +1,22 @@
+NODE1:
+  listen_port: 10042
+  use_upnp: false
+  public_ip: 1.2.3.4
+  database:
+    url: postgres://dcssb:SECRET@127.0.0.1:5432/dcssb?sslmode=prefer
+  DCS:
+    installation: 
+      <WORK>/dcs
+    autoupdate: true
+  extensions:
+    SRS:
+      installation: 
+        <WORK>/srs
+  instances:
+    Instance1:
+      bot_port: 6666
+      home: '%USERPROFILE%/Saved Games/Instance1'
+      extensions:
+        SRS:
+          config: '{instance.home}/Config/SRS.cfg'
+          port: 5002

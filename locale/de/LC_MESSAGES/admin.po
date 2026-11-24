@@ -896,3 +896,43 @@ msgstr "Verwaltet die lokalen Benutzerkonten, die sich bei der Admin-Website anm
 # /webadmin setup
 msgid "Setup cancelled — nothing was written."
 msgstr "Einrichtung abgebrochen — es wurde nichts geschrieben."
+
+#: plugins/admin/webadmin.py
+msgid "Public address (http:// if no SSL)"
+msgstr "Öffentliche Adresse (http:// ohne SSL)"
+
+#: plugins/admin/webadmin.py
+msgid "The session cookie is marked Secure when this address is https://, and left alone for http://. A Secure cookie is not sent back over plain HTTP, so the sign-in would not stick — use http:// while there is no certificate in front of the console."
+msgstr "Das Sitzungs-Cookie wird Secure markiert, wenn diese Adresse https:// ist, und für http:// unverändert gelassen. Ein Secure-Cookie wird über reines HTTP nicht zurückgeschickt — die Anmeldung würde also nicht halten. Nutze http://, solange kein Zertifikat vor der Konsole steht."
+
+#: plugins/admin/webadmin.py
+msgid "Sign-in cookie"
+msgstr "Anmelde-Cookie"
+
+#: plugins/admin/webadmin.py
+msgid "The public address is not known yet, so whether the cookie's Secure flag matches it cannot be checked."
+msgstr "Die öffentliche Adresse ist noch nicht bekannt, daher lässt sich nicht prüfen, ob das Secure-Flag des Cookies dazu passt."
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is not a boolean ({}) — the service refuses the session block, so no cookie is set at all."
+msgstr "session.https_only ist kein Wahrheitswert ({}) — der Dienst lehnt den session-Block ab, es wird also gar kein Cookie gesetzt."
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is set"
+msgstr "session.https_only ist gesetzt"
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is not set, and a non-loopback listen makes it Secure"
+msgstr "session.https_only ist nicht gesetzt, und ein listen außerhalb von Loopback macht es Secure"
+
+#: plugins/admin/webadmin.py
+msgid "The session cookie is marked Secure, but the address is {} ({}). A browser does not send a Secure cookie back over plain HTTP: the sign-in appears to work and the next page is signed out again. Set session.https_only: false in {}, or open the console over https://."
+msgstr "Das Sitzungs-Cookie ist Secure markiert, die Adresse ist aber {} ({}). Ein Browser schickt ein Secure-Cookie nicht über reines HTTP zurück: die Anmeldung scheint zu klappen, und die nächste Seite ist wieder abgemeldet. Setze session.https_only: false in {} oder öffne die Konsole über https://."
+
+#: plugins/admin/webadmin.py
+msgid "The address is {} but the session cookie is not marked Secure ({}). It then travels in cleartext on any plain http hop in front of the reverse proxy. Set session.https_only: true in {}."
+msgstr "Die Adresse ist {}, aber das Sitzungs-Cookie ist nicht Secure markiert ({}). Damit reist es auf jedem einfachen http-Abschnitt vor dem Reverse-Proxy im Klartext. Setze session.https_only: true in {}."
+
+#: plugins/admin/webadmin.py
+msgid "The cookie's Secure flag matches {} — a sign-in sticks over this address."
+msgstr "Das Secure-Flag des Cookies passt zu {} — eine Anmeldung hält über diese Adresse."

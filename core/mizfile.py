@@ -15,7 +15,6 @@ from astral import LocationInfo
 from astral.sun import sun
 from core import utils
 from datetime import datetime, timedelta, date as _date
-from packaging.version import parse, Version
 from tzfpy import get_tz
 from zoneinfo import ZoneInfo
 

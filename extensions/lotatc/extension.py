@@ -263,6 +263,21 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         }
 
     @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        """The address line only; ``withheld`` counts the password lines left out."""
+        if not self.locals:
+            raise NotImplementedError()
+
+        ret = await super().render_public(param)
+        host = self.config.get('host', self.node.public_ip)
+        value = f"{host}:{self.locals.get('port', 10310)}"
+        withheld = sum(1 for key in ('blue_password', 'red_password') if self.locals.get(key))
+        return ret | {
+            "value": value,
+            "withheld": withheld
+        }
+
+    @override
     def is_installed(self) -> bool:
         return os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll'))
 

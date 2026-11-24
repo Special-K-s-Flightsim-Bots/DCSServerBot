@@ -227,12 +227,16 @@ def check(language: str, fresh) -> bool:
 
 
 def languages() -> list[str]:
-    """Every language that has a ``locale/`` folder, base language first."""
+    """Every language that ships a TRANSLATED catalog.
+
+    English is the base language and the msgid itself: there is no EN catalog to keep in step, and
+    generating one would only duplicate every sentence into ``locale/en``. A stray ``en`` folder is
+    therefore ignored rather than reported out of date forever.
+    """
     if not LOCALE_DIR.is_dir():
-        return ["en"]
-    found = sorted(child.name for child in LOCALE_DIR.iterdir()
-                   if child.is_dir() and (child / "LC_MESSAGES").is_dir())
-    return (["en"] if "en" in found else []) + [code for code in found if code != "en"]
+        return []
+    return sorted(child.name for child in LOCALE_DIR.iterdir()
+                  if child.is_dir() and (child / "LC_MESSAGES").is_dir() and child.name != "en")
 
 
 def write_catalog(catalog, language: str) -> pathlib.Path:

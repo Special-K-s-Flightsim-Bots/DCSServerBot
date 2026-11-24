@@ -42,8 +42,9 @@ from core import DEFAULT_TAG, Group, ServiceProxy, ServiceRegistry, command, get
 from core.utils import configwrite
 from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import YAMLError
-from services.webservice.auth.local import BUILTIN_ROLE_NAMES, known_role_names
+from services.webservice.auth.local import known_role_names
 from services.webservice.service import WebService
+from services.webservice.session import cookie_is_secure
 from services.webservice.setup.console import MAX_PASSWORD_LENGTH, hash_password
 from services.webservice.setup.discord import CLIENT_SECRET_KEY
 
@@ -272,6 +273,47 @@ def _public_url_row(block: Mapping) -> Row:
                _("auth.public_base_url is {} — redirect URIs are built from it.").format(value))
 
 
+def _cookie_row(block: Mapping) -> Row:
+    """The cookie's Secure flag against the address users open.
+
+    A mismatch here is invisible from the outside: the sign-in POST succeeds and the cookie is set,
+    the browser then declines to send a Secure cookie over plain HTTP, so the next page arrives
+    unauthenticated and the login looks like a dead form. The flag is resolved through the service's
+    OWN rule, so this row cannot disagree with what the service installs.
+    """
+    configured = _auth(block).get('public_base_url')
+    address = str(configured).strip().rstrip('/') if configured is not None else ''
+    scheme, _host = _origin(configured)
+    if scheme is None:
+        return Row(WARN, _("Sign-in cookie"),
+                   _("The public address is not known yet, so whether the cookie's Secure flag "
+                     "matches it cannot be checked."))
+    try:
+        secure = cookie_is_secure(dict(block))
+    except ValueError as ex:
+        return Row(FAIL, _("Sign-in cookie"),
+                   _("session.https_only is not a boolean ({}) — the service refuses the session "
+                     "block, so no cookie is set at all.").format(type(ex).__name__))
+    session = block.get('session')
+    written = isinstance(session, Mapping) and session.get('https_only') not in (None, '')
+    origin = _("session.https_only is set") if written else _(
+        "session.https_only is not set, and a non-loopback listen makes it Secure")
+    if scheme == 'http' and secure:
+        return Row(FAIL, _("Sign-in cookie"),
+                   _("The session cookie is marked Secure, but the address is {} ({}). A browser "
+                     "does not send a Secure cookie back over plain HTTP: the sign-in appears to "
+                     "work and the next page is signed out again. Set session.https_only: false in "
+                     "{}, or open the console over https://.").format(address, origin, CONFIG_FILE))
+    if scheme == 'https' and not secure:
+        return Row(WARN, _("Sign-in cookie"),
+                   _("The address is {} but the session cookie is not marked Secure ({}). It then "
+                     "travels in cleartext on any plain http hop in front of the reverse proxy. Set "
+                     "session.https_only: true in {}.").format(address, origin, CONFIG_FILE))
+    return Row(OK, _("Sign-in cookie"),
+               _("The cookie's Secure flag matches {} — a sign-in sticks over this address."
+                 ).format(address))
+
+
 def _service_row(facts: Facts) -> Row:
     if not facts.is_master:
         return Row(WARN, _("Service"),
@@ -311,6 +353,7 @@ def status_rows(config: Mapping | None, facts: Facts) -> list[Row]:
             _login_row(block),
             _session_row(block),
             _public_url_row(block),
+            _cookie_row(block),
         ]
     rows += [_service_row(facts), _next_step_row(facts)]
     return rows
@@ -517,6 +560,10 @@ def mutate_for(plan: SetupPlan) -> Callable[[Any], None]:
         block['session'] = session
         if not session.get('secret'):
             session['secret'] = session_secret()
+        # The cookie's Secure flag is written from the address the operator gave, never derived:
+        # an unset value is derived from the bind address, which marks the cookie Secure on any
+        # non-loopback listen — the login then looks like it does nothing over plain HTTP.
+        session['https_only'] = _origin(plan.public_base_url)[0] == 'https'
         if plan.discord:
             auth['discord'] = {'enabled': True, 'client_id': client_id,
                                'client_secret_key': CLIENT_SECRET_KEY}
@@ -578,8 +625,8 @@ def _field_specs() -> dict[str, dict]:
     return {
         'port': {'type': int, 'label': _("Port"), 'placeholder': str(DEFAULT_PORT),
                  'default': DEFAULT_PORT, 'required': True, 'min_length': 4, 'max_length': 5},
-        'public_base_url': {'type': str, 'label': _("Public address"),
-                            'placeholder': 'https://dcs.example.com', 'required': True,
+        'public_base_url': {'type': str, 'label': _("Public address (http:// if no SSL)"),
+                            'placeholder': 'http://192.168.1.50:9876', 'required': True,
                             'max_length': 256},
         'client_secret': {'type': str, 'label': _("Client secret"), 'required': True,
                           'max_length': 256},
@@ -810,6 +857,10 @@ class SetupWizard:
         embed.add_field(name=_("Port"), value=str(self.port), inline=True)
         embed.add_field(name=_("Listen"), value=self.listen, inline=True)
         embed.add_field(name=_("Login"), value=_login_label(self.mode), inline=False)
+        embed.add_field(name=_("Sign-in cookie"), value=_(
+            "The session cookie is marked Secure when this address is https://, and left alone for "
+            "http://. A Secure cookie is not sent back over plain HTTP, so the sign-in would not "
+            "stick — use http:// while there is no certificate in front of the console."), inline=False)
         embed.add_field(name=_("Next step"), value=_next_step(
             self.mode, complete=self.complete), inline=False)
         if self.mode == 'manual':

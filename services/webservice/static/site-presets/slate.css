@@ -1,0 +1,44 @@
+/* slate.css — a light theme: neutral greys, one blue accent, a serif for headings.
+ *
+ * Custom properties only. The components, their geometry and their type sizes are the shipped
+ * ones; this file moves the palette, the accent and the display face.
+ *
+ * Contrast on --ground (#f2f4f7): --fg 16.4:1, --fg-2 7.0:1, --fg-3 5.1:1, --brass 5.8:1.
+ */
+:root {
+  --ground:     #f2f4f7;
+  --stage:      #eaeef3;
+  --band:       #e3e8ef;
+  --panel:      #ffffff;
+  --panel-2:    #f6f8fb;
+  --line:       #d6dce5;
+  --line-2:     #b9c3d0;
+  --black:      #0b1220;
+
+  --fg:         #101720;
+  --fg-2:       #46536a;
+  --fg-3:       #5a6980;
+
+  --brass:      #1e5fae;
+  --brass-dim:  #7d9dc4;
+  --brass-wash: rgba(30, 95, 174, .09);
+  --brass-hi:   #14468a;
+  --sage:       #5d7f74;
+
+  --wash:       rgba(16, 23, 32, .05);
+  --hair:       rgba(16, 23, 32, .08);
+  --hero-glow:  rgba(30, 95, 174, .10);
+  --hero-sage:  rgba(93, 127, 116, .06);
+  --pulse-ring: rgba(30, 95, 174, .45);
+  --pulse-none: rgba(30, 95, 174, 0);
+  --pulse-edge: rgba(30, 95, 174, .30);
+
+  --medal-ink:    #1b2430;
+  --medal-gold:   linear-gradient(160deg, #f7e2a0, #c9a227);
+  --medal-silver: linear-gradient(160deg, #eef0f3, #9aa3ad);
+  --medal-bronze: linear-gradient(160deg, #e6b48c, #a4682f);
+
+  --disp: "Iowan Old Style", "Palatino Linotype", Palatino, "Bitstream Charter", Georgia, "DejaVu Serif", serif;
+  --body: "Ubuntu Sans", "Ubuntu", "DejaVu Sans", system-ui, sans-serif;
+  --mono: "Ubuntu Mono", "DejaVu Sans Mono", monospace;
+}

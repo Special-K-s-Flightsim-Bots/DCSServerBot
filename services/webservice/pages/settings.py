@@ -39,7 +39,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.utils import configwrite
 
-from .. import (catalog, config_apply, configgen, i18n, permissions, plugin_registry, readmodels,
+from .. import (catalog, config_apply, config_hints, configgen, i18n, mount, permissions,
+                plugin_registry, readmodels,
                 scheduler_plan, scope as identity_scope, scopes, session, validation)
 from ..registry import NavItem
 from . import actions as actions_page
@@ -50,6 +51,7 @@ __all__ = [
     "SETTINGS_SAVE_PATH", "SETTINGS_VALIDATE_PATH", "SETTINGS_REVISION_FIELD",
     "SETTINGS_EXPERT_FIELD", "SETTINGS_YAML_FIELD",
     "SETTINGS_FILE_PATH", "SETTINGS_FILE_SAVE_PATH", "SETTINGS_VALIDATE_FILE_PATH",
+    "SETTINGS_HINTS_PATH", "SETTINGS_HINTS_FILE_PATH",
     "SETTINGS_MAIN_PATH", "SETTINGS_SERVICE_TOGGLE_PATH", "SETTINGS_FORM_MAX_FIELDS",
     "SETTINGS_ADD_BLOCK_PATH", "SETTINGS_APPLY_PATH", "SETTINGS_APPLY_ASK_PATH", "KIND_NODES",
     "KIND_MAIN", "KIND_SERVICE", "KIND_PLUGIN", "KIND_LABELS",
@@ -102,6 +104,13 @@ SETTINGS_VALIDATE_PATH = "/actions/settings/validate"
 SETTINGS_FILE_PATH = "/settings/{kind}/{name}"
 SETTINGS_FILE_SAVE_PATH = "/actions/settings/config/{kind}/{name}"
 SETTINGS_VALIDATE_FILE_PATH = "/actions/settings/validate/{kind}/{name}"
+
+#: THE COMPLETION HINTS. A read of the schema tree as JSON (:mod:`services.webservice.config_hints`):
+#: the literal path serves ``main.yaml``'s tree, the parameterised one that file's own tree, rooted at
+#: ``?node=<name>`` when a node is selected. A hint is a READ, so both paths are declared with the
+#: view capabilities — they are not part of the write flow the validate routes belong to.
+SETTINGS_HINTS_PATH = "/actions/settings/hints"
+SETTINGS_HINTS_FILE_PATH = "/actions/settings/hints/{kind}/{name}"
 
 #: THE MAIN CONFIG PAGE'S OWN URL. ``/settings`` is now the tile LANDING page, so ``main.yaml``'s
 #: generated form — like every other file's — lives behind its cogwheel at the generic file URL.
@@ -670,7 +679,7 @@ def scheduler_override(document, scope: SchedulerScope, plan: dict) -> dict:
 def scheduler_redirect(scope: SchedulerScope | None) -> str:
     """The page a save (or its refusal) returns to: the server's Scheduler tab, review step."""
     if scope is None:
-        return SCHEDULER_FALLBACK_URL
+        return mount.url(SCHEDULER_FALLBACK_URL)
     return (readmodels.server_url(scope.label, tab="scheduler")
             + "&step=" + scheduler_plan.SCHEDULER_REVIEW_STEP)
 
@@ -768,26 +777,39 @@ def capabilities() -> dict[str, str]:
 
     The four PARAMETERISED file paths declare :data:`SETTINGS_FILE_VIEW_CAPABILITY` because they serve
     every kind this area lists; what the caller may do with the file it names is decided per request by
-    :func:`require_file_capability`. Every fixed path keeps ``settings.*``.
+    :func:`require_file_capability`. Every fixed path keeps ``settings.*``. The Site settings page's
+    own three paths are declared by that module and merged here, so one route table carries them.
     """
+    from . import site_config as site_config_page
+
     declare()
     declare_file_capabilities()
-    return {SETTINGS_PATH: SETTINGS_VIEW_CAPABILITY,
-            SETTINGS_SAVE_PATH: SETTINGS_WRITE_CAPABILITY,
-            SETTINGS_VALIDATE_PATH: SETTINGS_WRITE_CAPABILITY,
-            SETTINGS_FILE_PATH: SETTINGS_FILE_VIEW_CAPABILITY,
-            SETTINGS_FILE_SAVE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
-            SETTINGS_VALIDATE_FILE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
-            SETTINGS_SERVICE_TOGGLE_PATH: SETTINGS_WRITE_CAPABILITY,
-            SETTINGS_ADD_BLOCK_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
-            SCHEDULER_SAVE_PATH: SCHEDULER_WRITE_CAPABILITY,
-            SCHEDULER_VALIDATE_PATH: SCHEDULER_WRITE_CAPABILITY}
+    declared = {SETTINGS_PATH: SETTINGS_VIEW_CAPABILITY,
+                SETTINGS_SAVE_PATH: SETTINGS_WRITE_CAPABILITY,
+                SETTINGS_VALIDATE_PATH: SETTINGS_WRITE_CAPABILITY,
+                SETTINGS_HINTS_PATH: SETTINGS_VIEW_CAPABILITY,
+                SETTINGS_FILE_PATH: SETTINGS_FILE_VIEW_CAPABILITY,
+                SETTINGS_FILE_SAVE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
+                SETTINGS_VALIDATE_FILE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
+                SETTINGS_HINTS_FILE_PATH: SETTINGS_FILE_VIEW_CAPABILITY,
+                SETTINGS_SERVICE_TOGGLE_PATH: SETTINGS_WRITE_CAPABILITY,
+                SETTINGS_ADD_BLOCK_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
+                SCHEDULER_SAVE_PATH: SCHEDULER_WRITE_CAPABILITY,
+                SCHEDULER_VALIDATE_PATH: SCHEDULER_WRITE_CAPABILITY}
+    declared.update(site_config_page.capabilities())
+    return declared
 
 
 def nav_items() -> tuple[NavItem, ...]:
-    """The sidebar entry this page contributes — data, not markup."""
+    """The sidebar entry this page contributes — data, not markup.
+
+    The Site settings page joins it in the same group: it is the Settings area's sibling, and its own
+    item names ``site.view`` so the rail and the gate cannot disagree.
+    """
+    from . import site_config as site_config_page
+
     return (NavItem(label=NAV_LABEL, url=SETTINGS_PATH, capability=SETTINGS_VIEW_CAPABILITY,
-                    group="Administration", glyph="cog"),)
+                    group="Administration", glyph="cog"),) + site_config_page.nav_items()
 
 
 def config_dir(request: Request) -> Path:
@@ -915,7 +937,7 @@ def file_url(entry: GlobalFile) -> str:
     landing is the tile grid and ``main.yaml`` is just another config file, so its form lives at
     ``/settings/main/main`` behind its own cogwheel like every service's.
     """
-    return SETTINGS_FILE_PATH.format(kind=entry.kind, name=entry.name)
+    return mount.url(SETTINGS_FILE_PATH.format(kind=entry.kind, name=entry.name))
 
 
 def resolve_file(request: Request, kind: str, name: str) -> GlobalFile:
@@ -1322,6 +1344,22 @@ def scoped_write_guard(request: Request, entry: GlobalFile,
 
 
 
+def carried_node_names(request: Request, entry: GlobalFile) -> list[str]:
+    """The NODE names *entry*'s file carries — the reading a scoped save places a node with.
+
+    A node name is never invented here: it is one of the blocks the FILE declares, read through the
+    SAME scope list the tabs, the node selector and :func:`scoped_write_guard` are built from, so a
+    caller cannot address a block the file does not hold.
+    """
+    if entry.primary_schema is None:
+        return []
+    document = _document_or_none(entry.path)
+    if not isinstance(document, dict):
+        return []
+    scope_list = _scoped_scope_list(request, entry, document, _node_names(config_dir(request)))
+    return scopes.node_options(scope_list)
+
+
 def scoped_context(request: Request, entry: GlobalFile, current_url: str,
                    tab_index: int = 0, node: str = "") -> dict:
     """Everything ``settings_scope.html`` reads for one global file: the node, the tabs, the slice.
@@ -1408,7 +1446,7 @@ def scoped_context(request: Request, entry: GlobalFile, current_url: str,
     plain = any(scope.get("plain") for scope in scope_list)
     add_path = ""
     if not readonly and document is not None and not plain:
-        add_path = SETTINGS_ADD_BLOCK_PATH.format(kind=entry.kind, name=entry.name)
+        add_path = mount.url(SETTINGS_ADD_BLOCK_PATH.format(kind=entry.kind, name=entry.name))
     return {
         "scoped": True,
         "tabs": tabs,
@@ -1438,7 +1476,7 @@ def scoped_context(request: Request, entry: GlobalFile, current_url: str,
         "selected_node": chosen,
         "slice_note": SCOPE_SLICE_NOTE,
         "slice_mode": bool(slice_keys),
-        "back_url": SETTINGS_PATH,
+        "back_url": mount.url(SETTINGS_PATH),
         "back_label": SCOPE_BACK_LABEL,
         "crumb_tail": f"{KIND_LABELS.get(entry.kind, entry.kind)} / {entry.name}",
         "kind_label": KIND_LABELS.get(entry.kind, entry.kind),
@@ -1561,18 +1599,18 @@ def _plugin_switch(row: dict, base_fields: list) -> dict:
     if not row["installed"]:
         return {"type": "static", "label": PLUGIN_SWITCH_OFF}
     if row["confirm"]:
-        return {"type": "form", "action": SETTINGS_SAVE_PATH,
+        return {"type": "form", "action": mount.url(SETTINGS_SAVE_PATH),
                 "fields": list(base_fields) + [(field, "")],
                 "list_field": field, "list_values": list(row["toggle_values"]),
                 "label": PLUGIN_DEFAULT_TURN_OFF, "title": PLUGIN_DEFAULT_TURN_OFF, "on": False,
-                "cancel_url": SETTINGS_PATH, "cancel_label": PLUGIN_DEFAULT_KEEP}
+                "cancel_url": mount.url(SETTINGS_PATH), "cancel_label": PLUGIN_DEFAULT_KEEP}
     if row["warn"] and row["enabled"]:
-        return {"type": "link", "href": f"{SETTINGS_PATH}?warn={quote(row['name'], safe='')}",
+        return {"type": "link", "href": f"{mount.url(SETTINGS_PATH)}?warn={quote(row['name'], safe='')}",
                 "label": PLUGIN_SWITCH_ON, "title": PLUGIN_SWITCH_OFF, "on": True}
     fields = list(base_fields)
     if row["send_sentinel"]:
         fields.append((field, ""))
-    return {"type": "form", "action": SETTINGS_SAVE_PATH,
+    return {"type": "form", "action": mount.url(SETTINGS_SAVE_PATH),
             "fields": fields, "list_field": field, "list_values": list(row["toggle_values"]),
             "label": PLUGIN_SWITCH_ON if row["enabled"] else PLUGIN_SWITCH_OFF,
             "title": PLUGIN_SWITCH_OFF if row["enabled"] else PLUGIN_SWITCH_ON,
@@ -1588,11 +1626,11 @@ def _service_switch(state: str, name: str, csrf: str) -> dict:
     shape (the tile's note says why).
     """
     if state == "on":
-        return {"type": "form", "action": SETTINGS_SERVICE_TOGGLE_PATH.format(name=name),
+        return {"type": "form", "action": mount.url(SETTINGS_SERVICE_TOGGLE_PATH.format(name=name)),
                 "fields": [(session.CSRF_FIELD, csrf), ("action", "disable")],
                 "label": SERVICE_SWITCH_ON, "title": SERVICE_TURN_OFF, "on": True}
     if state == "off":
-        return {"type": "form", "action": SETTINGS_SERVICE_TOGGLE_PATH.format(name=name),
+        return {"type": "form", "action": mount.url(SETTINGS_SERVICE_TOGGLE_PATH.format(name=name)),
                 "fields": [(session.CSRF_FIELD, csrf), ("action", "enable")],
                 "label": SERVICE_SWITCH_OFF, "title": SERVICE_TURN_ON, "on": False}
     return {"type": "static", "label": SERVICE_SWITCH_OFF}
@@ -1649,7 +1687,7 @@ def load_landing(request: Request) -> dict:
                    (SETTINGS_REVISION_FIELD, plugin_block["revision"]),
                    (SETTINGS_EXPERT_FIELD, "0")]
     for row in plugin_block["rows"]:
-        row["cog_url"] = (SETTINGS_FILE_PATH.format(kind=KIND_PLUGIN, name=row["name"])
+        row["cog_url"] = (mount.url(SETTINGS_FILE_PATH.format(kind=KIND_PLUGIN, name=row["name"]))
                           if row["name"].lower() in plugin_config_stems else "")
         row["switch"] = _plugin_switch(row, base_fields)
 
@@ -1695,7 +1733,7 @@ def load_landing(request: Request) -> dict:
             "placement_label": catalog.PLACEMENT_LABELS.get(info.placement, info.placement),
             "state": state,
             "configured": info.configured,
-            "cog_url": (SETTINGS_FILE_PATH.format(kind=KIND_SERVICE, name=info.name.lower())
+            "cog_url": (mount.url(SETTINGS_FILE_PATH.format(kind=KIND_SERVICE, name=info.name.lower()))
                         if info.configured else ""),
             "note": note,
             "plugin": info.plugin or "",
@@ -2150,9 +2188,17 @@ def add_routes(router: APIRouter) -> APIRouter:
     The ``main.yaml`` page keeps its two literal routes; every other global file is served by the
     SAME generated page through one parameterised route pair (a GET page and a POST save), resolved
     against the DISK listing (:func:`resolve_file`) so a new service or preset file needs no code.
-    """
 
-    def _render(request: Request, page: dict, *, save_path: str, validate_path: str):
+    The Site settings page's three routes are added here as well, from its own module: they are the
+    same area's sibling and register on the shell's one router, which is the only place a page joins
+    the route table.
+    """
+    from . import site_config as site_config_page
+
+    site_config_page.add_routes(router)
+
+    def _render(request: Request, page: dict, *, save_path: str, validate_path: str,
+                hints_path: str):
         registrar = getattr(request.app.state, "webui_registrar", None)
         roles = permissions.role_names_for(request)
         template = SETTINGS_SCOPE_TEMPLATE if page.get("scoped") else SETTINGS_TEMPLATE
@@ -2168,6 +2214,7 @@ def add_routes(router: APIRouter) -> APIRouter:
             user=dashboard_page.identity_summary(request),
             save_path=save_path,
             validate_path=validate_path,
+            hints_path=hints_path,
             revision_field=SETTINGS_REVISION_FIELD,
             expert_field=SETTINGS_EXPERT_FIELD,
             yaml_field=SETTINGS_YAML_FIELD,
@@ -2192,12 +2239,12 @@ def add_routes(router: APIRouter) -> APIRouter:
             notice=actions_page.pop_notice(request),
             nav_groups=dashboard_page.nav_groups(registrar, roles, current=SETTINGS_PATH),
             user=dashboard_page.identity_summary(request),
-            save_path=SETTINGS_SAVE_PATH,
-            service_toggle_path=SETTINGS_SERVICE_TOGGLE_PATH,
+            save_path=mount.url(SETTINGS_SAVE_PATH),
+            service_toggle_path=mount.url(SETTINGS_SERVICE_TOGGLE_PATH),
             revision_field=SETTINGS_REVISION_FIELD,
             csrf_field=session.CSRF_FIELD,
             csrf_token=session.get_csrf_token(request),
-            file_path=SETTINGS_FILE_PATH,
+            file_path=mount.url(SETTINGS_FILE_PATH),
             plugins_heading=PLUGINS_HEADING,
             services_heading=SERVICES_HEADING,
             services_legend=SERVICES_LEGEND,
@@ -2208,7 +2255,7 @@ def add_routes(router: APIRouter) -> APIRouter:
             service_switch_off=SERVICE_SWITCH_OFF,
             cog_label=COG_LABEL,
             kind_labels=catalog.kind_labels(),
-            settings_path=SETTINGS_PATH,
+            settings_path=mount.url(SETTINGS_PATH),
             plugin_default_warning=PLUGIN_DEFAULT_WARNING,
             plugin_default_turn_off=PLUGIN_DEFAULT_TURN_OFF,
             plugin_default_keep=PLUGIN_DEFAULT_KEEP,
@@ -2241,8 +2288,9 @@ def add_routes(router: APIRouter) -> APIRouter:
         """
         require_file_capability(request, kind, write=False)
         page = load_file_page(request, kind, name, tab, node)
-        save_path = SETTINGS_FILE_SAVE_PATH.format(kind=kind, name=name)
-        validate_path = SETTINGS_VALIDATE_FILE_PATH.format(kind=kind, name=name)
+        save_path = mount.url(SETTINGS_FILE_SAVE_PATH.format(kind=kind, name=name))
+        validate_path = mount.url(SETTINGS_VALIDATE_FILE_PATH.format(kind=kind, name=name))
+        hints_path = mount.url(SETTINGS_HINTS_FILE_PATH.format(kind=kind, name=name))
         chosen = page.get("selected_node") or ""
         if chosen:
             from urllib.parse import quote
@@ -2250,7 +2298,36 @@ def add_routes(router: APIRouter) -> APIRouter:
             query = f"?node={quote(chosen)}"
             save_path += query
             validate_path += query
-        return _render(request, page, save_path=save_path, validate_path=validate_path)
+            hints_path += query
+        return _render(request, page, save_path=save_path, validate_path=validate_path,
+                       hints_path=hints_path)
+
+    def _hints(request: Request, schema_files, *, container=()) -> JSONResponse:
+        """The schema tree as hints JSON: no page, never a write, and never cached by the browser."""
+        return JSONResponse(config_hints.payload(schema_files, container=container, request=request),
+                            headers={"Cache-Control": "no-store"})
+
+    @router.get(SETTINGS_HINTS_PATH)
+    async def settings_hints(request: Request):
+        """``main.yaml``'s completion hints — the whole tree, rooted at the document's own keys."""
+        return _hints(request, _schema_files())
+
+    @router.get(SETTINGS_HINTS_FILE_PATH)
+    async def settings_hints_file(request: Request, kind: str, name: str, node: str = ""):
+        """One global file's completion hints — through that file's OWN schema files.
+
+        ``?node=<name>`` roots the payload at that node's block, because a scoped page's Expert Mode
+        document IS that node's slice. The name is resolved AGAINST THE KEYS THE FILE CARRIES — the
+        reading a scoped save places a node with — and only then handed to the schema tree, so a name
+        the file does not carry answers an empty path map: never an invented-key block, and never the
+        whole document.
+        """
+        require_file_capability(request, kind, write=False)
+        entry = resolve_file(request, kind, name)
+        node_name = readmodels.text(node).strip()
+        if node_name and node_name not in carried_node_names(request, entry):
+            return JSONResponse({"paths": {}}, headers={"Cache-Control": "no-store"})
+        return _hints(request, list(entry.schema_files), container=(node_name,) if node_name else ())
 
     @router.post(SETTINGS_VALIDATE_PATH,
                  dependencies=[Depends(session.csrf_protect_with(SETTINGS_FORM_MAX_FIELDS))])
@@ -2440,7 +2517,7 @@ def add_routes(router: APIRouter) -> APIRouter:
                  dependencies=[Depends(session.csrf_protect_with(SETTINGS_FORM_MAX_FIELDS))])
     async def settings_save(request: Request):
         return await _save(request, path=config_path(request), schema_files=_schema_files(),
-                           tree=_tree(), redirect_to=SETTINGS_PATH,
+                           tree=_tree(), redirect_to=mount.url(SETTINGS_PATH),
                            apply_kind=KIND_MAIN, apply_name="main")
 
     @router.post(SETTINGS_FILE_SAVE_PATH,
@@ -2481,7 +2558,7 @@ def add_routes(router: APIRouter) -> APIRouter:
             entry, scope = scheduler_write_guard(request, form.get(SCHEDULER_SCOPE_FIELD))
         except SchedulerRefusal as refusal:
             _notice(request, refusal.message, ok=False, refusal=True)
-            return RedirectResponse(SCHEDULER_FALLBACK_URL, status_code=303)
+            return RedirectResponse(mount.url(SCHEDULER_FALLBACK_URL), status_code=303)
         redirect_to = scheduler_redirect(scope)
         revision = readmodels.text(form.get(SETTINGS_REVISION_FIELD)) or None
         # THE SHARED TARGET: the same steps, writing the file's ``DEFAULT`` block. The scope the guard
@@ -2624,7 +2701,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         info = next((s for s in services if s.name.lower() == name.lower()), None)
         if info is None:
             _notice(request, SERVICE_TOGGLE_UNKNOWN, ok=False, refusal=True)
-            return RedirectResponse(SETTINGS_PATH, status_code=303)
+            return RedirectResponse(mount.url(SETTINGS_PATH), status_code=303)
         form = await request.form()
         action = str(form.get("action") or "")
         real = catalog.service_config_path(config_dir(request), info.name)
@@ -2636,7 +2713,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         if info.plugin and info.plugin not in active and real.is_file():
             # the file is fine; the PLUGIN is what holds it off — move nothing, say so.
             _notice(request, SERVICE_TOGGLE_HELD, ok=False, refusal=True)
-            return RedirectResponse(SETTINGS_PATH, status_code=303)
+            return RedirectResponse(mount.url(SETTINGS_PATH), status_code=303)
         if action == "disable" and real.is_file():
             real.rename(aside)
             _notice(request, i18n.translate(request, SERVICE_MOVED_ASIDE, path=str(aside)),
@@ -2647,7 +2724,7 @@ def add_routes(router: APIRouter) -> APIRouter:
                     ok=True, refusal=True)
         else:
             _notice(request, SERVICE_TOGGLE_REFUSED, ok=False, refusal=True)
-        return RedirectResponse(SETTINGS_PATH, status_code=303)
+        return RedirectResponse(mount.url(SETTINGS_PATH), status_code=303)
 
     def _ensure_block(document, base: tuple) -> None:
         """Create the (empty) block at *base* in *document*, making any missing intermediate maps.

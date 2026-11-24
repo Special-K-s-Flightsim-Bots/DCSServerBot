@@ -81,7 +81,7 @@ def _name_filters(ctx: Any) -> dict[str, str]:
             "mission_name": configured.get("mission_name", "!.*")}
 
 
-@action
+@action(kind="read")
 async def get_server_statistics(ctx: Any, period: str = "month",
                                 server: str | None = None,
                                 window_days: Any = None) -> ActionResult:
@@ -205,7 +205,7 @@ async def get_server_statistics(ctx: Any, period: str = "month",
     })
 
 
-@action
+@action(kind="read")
 async def get_node_statistics(ctx: Any, node: str, period: str = "hour") -> ActionResult:
     """The per-minute queue and pool series of ONE node.
 
@@ -264,7 +264,7 @@ _LOAD_GAUGES = ("players", "cpu", "mem_ram", "mem_paged", "read", "write", "sent
                 "fps", "ping")
 
 
-@action
+@action(kind="read")
 async def get_load_statistics(ctx: Any, scale: str = "24h", node: str | None = None,
                               server: str | None = None) -> ActionResult:
     """The load series of a fixed-width window, plus the node table's aggregate and sparks.

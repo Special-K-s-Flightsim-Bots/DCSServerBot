@@ -525,6 +525,10 @@ class SkyEye(InstallableExtension):
         }
 
     @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        return await self.render(param)
+
+    @override
     def is_available(self) -> bool:
         exe_path = self.get_exe_path()
         if not os.path.exists(exe_path):

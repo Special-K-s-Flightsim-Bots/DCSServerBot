@@ -331,6 +331,12 @@ mapping:
         nullable: false
         desc: Show the server password in the status embed.
         example: "true"
+      show_web_passwords:
+        type: bool
+        nullable: false
+        desc: Show the server password on the public site. Applies to the public site only; the
+          Discord status embed keeps its own setting (show_passwords).
+        example: "false"
       show_atis:
         type: bool
         nullable: false

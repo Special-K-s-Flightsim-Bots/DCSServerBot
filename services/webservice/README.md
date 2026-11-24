@@ -61,8 +61,8 @@ request, so the same file behaves the same behind a reverse proxy as it does on 
 | `auth.local.users[].scope`         | *(unset = unrestricted)*          | The `managed_by` values this account may see and act on (the web-only equivalent of a Discord manager's scope).                  | `schemas/webservice_schema.yaml:106-110`                            |
 | `auth.discord.enabled`             | `false`                           | Enable Discord OAuth login.                                                                                                      | `schemas/webservice_schema.yaml:122`                                |
 | `auth.discord.client_id`           | *(none)*                          | The Discord application's client id.                                                                                             | `schemas/webservice_schema.yaml:123`                                |
-| `auth.discord.client_secret`       | *(none)*                          | Inline client secret.                                                                                                            | `schemas/webservice_schema.yaml:126`                                |
-| `auth.discord.client_secret_key`   | *(none)*                          | Name of a key in the bot's secret store. When set it **wins over** `client_secret`.                                              | `schemas/webservice_schema.yaml:130`                                |
+| `auth.discord.client_secret`       | *(none)*                          | Inline client secret. **Moved into the secret store on the next start** and dropped from the file.                                | `schemas/webservice_schema.yaml:126`                                |
+| `auth.discord.client_secret_key`   | `discord_client_secret`           | Name of a key in the bot's secret store. When set it **wins over** `client_secret`; omit it and the default key is read.          | `schemas/webservice_schema.yaml:130`                                |
 | `auth.discord.member_ttl`          | `60`                              | Seconds a member resolution may be cached when the bot runs without the Server Members Intent (clamped 1–3600).                  | `schemas/webservice_schema.yaml:136`                                |
 | `auth.breakglass.enabled`          | `false`                           | Enable the single emergency Admin credential, for the day the identity provider is what broke.                                   | `schemas/webservice_schema.yaml:143`                                |
 | `auth.breakglass.username`         | *(none)*                          | The emergency account name.                                                                                                      | `schemas/webservice_schema.yaml:144`                                |
@@ -76,13 +76,20 @@ Generate a password hash (never store plaintext):
 python -m services.webservice.auth.local --hash --username <name> --roles Admin
 ```
 
-Store the Discord client secret in the bot's secret store rather than inline:
+The Discord client secret is **moved into the bot's secret store on the next start**, exactly as the
+bot token is: write it inline once (`auth.discord.client_secret`) and the service stores it under
+`config/.secret/discord_client_secret.pkl` and drops the key from the file. Nothing else is needed —
+`auth.discord.client_secret_key` may name another store key, but the default one needs no entry. A
+value written inline **replaces** what the store holds, so changing the secret means writing it there
+and restarting.
+
+To store it by hand instead:
 
 ```
 python -c "from core.utils.os import set_password; set_password('discord_client_secret', '<the secret>')"
 ```
 
-then set `auth.discord.client_secret_key: discord_client_secret`.
+then either leave `auth.discord.client_secret_key` out or set it to `discord_client_secret`.
 
 ---
 
@@ -107,10 +114,11 @@ without the needed role gets an "access denied" page.
    (one fallback membership lookup when the bot cannot read the guild's members — see the problems
    section).
 
-3. Supply the client secret through `auth.discord.client_secret_key` (preferred) or
-   `auth.discord.client_secret`. Enabled with neither — or with a store key that does not exist — the
-   service refuses to install the login backend at startup and logs why, rather than starting a login
-   that cannot complete.
+3. Supply the client secret inline as `auth.discord.client_secret`; the service moves it into
+   `config/.secret/discord_client_secret.pkl` on the next start and drops the key from the file.
+   `auth.discord.client_secret_key` names a different store key if you want one. Enabled with no
+   secret anywhere — or with a store key that does not exist — the service refuses to install the
+   login backend at startup and logs why, rather than starting a login that cannot complete.
 
 A signed-in Discord user's **roles** come from the running bot's own role model (`bot.yaml →
 roles:`), so the console and the bot's commands can never disagree about who is an Admin.

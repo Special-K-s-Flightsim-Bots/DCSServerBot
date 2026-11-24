@@ -1,0 +1,36 @@
+{
+  "area_source": [
+    "services",
+    "plugins",
+    "core",
+    "extensions"
+  ],
+  "tolerance_pp": 0.5,
+  "areas": {
+    "services": {
+      "statements": 38168,
+      "covered": 31046,
+      "percent": 81.3
+    },
+    "plugins": {
+      "statements": 36982,
+      "covered": 8351,
+      "percent": 22.6
+    },
+    "core": {
+      "statements": 15779,
+      "covered": 7443,
+      "percent": 47.2
+    },
+    "extensions": {
+      "statements": 4189,
+      "covered": 303,
+      "percent": 7.2
+    },
+    "overall": {
+      "statements": 95118,
+      "covered": 47143,
+      "percent": 49.6
+    }
+  }
+}

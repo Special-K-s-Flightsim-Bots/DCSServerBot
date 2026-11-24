@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import posixpath
-import re
 import secrets
 import threading
 import time
@@ -38,7 +37,7 @@ from core.utils.presets import (PRESET_PAIR_SEPARATOR, REFUSAL_NO_PICK, REFUSAL_
                                 REFUSAL_UNKNOWN_PRESET, preset_file_is_safe, preset_names_of,
                                 preset_option_value, resolve_picked_values, split_preset_entry)
 
-from .. import i18n, permissions, readmodels, session
+from .. import i18n, mount, permissions, readmodels, session
 # THE ONE WEATHER FIELD TABLE (``services/webservice/weather_fields.py``): the launch dialog's
 # temporary preset draws its controls from the SAME rows the presets wizard renders, so the two
 # surfaces cannot drift into two sets of labels, units or ranges.
@@ -90,12 +89,15 @@ __all__ = [
     "SERVER_MAINTENANCE_CAPABILITY", "SERVER_CLEAR_MAINTENANCE_CAPABILITY",
     "NOTICE_MAX_CHARS", "CONFIRM_SUFFIX", "CONFIRM_FIELD", "CONFIRM_TEMPLATE", "CONFIRM_MAX_PENDING",
     "ORIGIN_FIELD", "TAB_FIELD", "origin_path", "origin_url", "posted_tab", "tabbed_origin",
+    "SERVER_PAGE_FIELD", "SERVER_PAGE_PLAYERS", "server_page_url", "PLAYER_STRIP_LIMIT",
     "dialog_back",
     "ROW_STRIP", "ROW_MENU",
     "NODE_RESTART_CAPABILITY", "NODE_SHUTDOWN_CAPABILITY", "NODE_UPGRADE_CAPABILITY",
     "NODE_OFFLINE_CAPABILITY", "NODE_ONLINE_CAPABILITY",
     "NODE_IN_SERVICE", "NODE_MAINTENANCE", "NODE_POWER_OFF", "NODE_POWER_ON",
-    "NOTE_NO_CHECK",
+    "NOTE_NO_CHECK", "NOTE_UPDATE_RUNNING",
+    "FORCE_FIELD", "FORCE_LABEL", "FORCE_HELP", "FORCE_OPTION",
+    "UPDATE_RUNNING_NOTE", "UPDATE_CHECK_UNKNOWN", "UPDATE_CHECKED_AT",
     "WriteAction", "PlayerAction", "NodeAction", "BanAction", "NodeOption", "SelectField", "SelectOption",
     "SERVER_ACTIONS", "PLAYER_ACTIONS", "NODE_ACTIONS", "BAN_ACTIONS",
     # the SERVER CREATION pair: the row-level DELETE and the page-level ADD
@@ -159,11 +161,12 @@ __all__ = [
     "MISSIONS_LOAD_CAPABILITY", "MISSIONS_UPLOAD_CAPABILITY",
     "MISSIONS_ADD_PATH", "MISSIONS_DELETE_PATH", "MISSIONS_LOAD_PATH", "MISSIONS_UPLOAD_PATH",
     "MISSIONS_REORDER_CAPABILITY", "MISSIONS_REORDER_PATH", "MISSIONS_BULK_DELETE_PATH",
-    "MISSIONS_BULK_DELETE_STATES", "MISSION_DELETE_LOADING_REFUSAL",
+    "MISSIONS_BULK_DELETE_STATES", "MISSION_DELETE_LOADING_REFUSAL", "MISSION_LIST_BUSY_REFUSAL",
     "MISSIONS_ACTIVATE_CAPABILITY", "MISSIONS_ACTIVATE_PATH", "MISSIONS_ACTIVATE_STATES",
     "MISSION_ACTIVE_LOADING_REFUSAL", "MISSIONS_ACTIVATE_SELECTION_REFUSAL",
     "MISSION_DIRECTION_FIELD", "MISSION_LIST_OFFLINE_STATES", "MISSION_LIST_OFFLINE_ONLY",
     "MISSION_ORDER_FIELD",
+    "MISSIONS_UPLOAD_STATES", "MISSIONS_UPLOAD_BUSY_REFUSAL",
     "MISSION_FIELD", "MISSION_NAME_FIELD", "MISSION_PATH_FIELD", "MISSION_FILE_FIELD",
     "MISSION_AUTOSTART_FIELD", "MISSION_LOAD_FIELD", "MISSION_DISK_FIELD",
     "MISSIONS_UPLOAD_MAX_BYTES", "mission_index_required",
@@ -330,6 +333,29 @@ NODE_MAINTENANCE = "maintenance"
 NODE_POWER_OFF = "servers-up"
 NODE_POWER_ON = "servers-down"
 NOTE_NO_CHECK = upgrade_signal.NOTE_NO_CHECK
+#: THE ROW'S WARNING while the cached DCS update check says an update IS in flight: the update has
+#: already stopped this node's servers, so the row states it before anybody presses a control. It is
+#: the cache module's OWN wording (``services/webservice/upgrade.py``), so the row and the dialog
+#: cannot describe the same fact two ways.
+NOTE_UPDATE_RUNNING = upgrade_signal.NOTE_UPDATE_RUNNING
+
+# ── the FORCE box ──────────────────────────────────────────────────────────
+#: The form field AND the action parameter of the three lifecycle controls' override — one string, so
+#: the route cannot post one thing and the action read another.
+FORCE_FIELD = "force"
+FORCE_LABEL = i18n._("Force — run it even while a DCS update is running")
+FORCE_HELP = i18n._("Off by default. An update in flight already stopped this node's servers; forcing "
+                    "this leaves them stopped and its installer running.")
+#: THE DIALOG SENTENCES the force box is explained by, one per cached state, plus the stamp that says
+#: HOW OLD the value is. Rendered as ``_sentence`` records: the dialog is the one place the cache's
+#: timestamp can be shown, and a stale answer must read as stale rather than as live.
+UPDATE_RUNNING_NOTE = i18n._("A DCS update is running on this node — its servers were stopped for it "
+                             "and stay stopped until it finishes. Ticking Force runs this operation "
+                             "anyway, leaving those servers stopped and the installer running.")
+UPDATE_CHECK_UNKNOWN = i18n._("Whether a DCS update is running on this node is not known yet: the "
+                              "background check has not answered, so nothing here claims there is "
+                              "none.")
+UPDATE_CHECKED_AT = i18n._("Last DCS update check: {when}.")
 
 PAUSE_PATH = "/actions/server/pause"
 UNPAUSE_PATH = "/actions/server/unpause"
@@ -491,10 +517,24 @@ MISSION_LIST_OFFLINE_ONLY = "Missions can only be changed while the server is no
 MISSIONS_BULK_DELETE_STATES: tuple[str, ...] = (
     "UNREGISTERED", "SHUTDOWN", "SHUTTING_DOWN", "STOPPED", "PAUSED", "RUNNING")
 
-#: The sentence the bulk remove refuses a ``LOADING`` POST with — owned by
-#: ``plugins.mission.actions.MISSION_DELETE_LOADING_REFUSAL``; the console keeps its OWN copy so the
-#: generic web surface never imports a plugin module (a test pins the two equal).
-MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."
+#: The two refusal sentences the mission writes share with the bot and the chat plugin. They live in
+#: :mod:`core.data.const`, which all three surfaces import, so one wording serves every door an
+#: operator can knock on; re-exported here because this page names them.
+from core.data.const import MISSION_DELETE_LOADING_REFUSAL, MISSION_LIST_BUSY_REFUSAL
+
+#: The states an UPLOAD is accepted in: every state except ``LOADING`` and ``SHUTTING_DOWN``. DCS
+#: writes ``serverSettings.lua`` itself in both of those windows, so an upload that adds a mission to
+#: the rotation races its own copy of that file. Deliberately STRICTER than
+#: :data:`MISSION_LIST_OFFLINE_STATES`, which counts ``SHUTTING_DOWN`` as safe: that gate serves the
+#: reorder, and a reorder writes a list, not a file beside DCS's exit write.
+MISSIONS_UPLOAD_STATES: tuple[str, ...] = (
+    "UNREGISTERED", "SHUTDOWN", "STOPPED", "PAUSED", "RUNNING")
+
+#: The sentence the tab shows where it omits the upload control, and the route refuses a POST with.
+#: The SAME sentence every mission write refuses a busy server with, aliased rather than retyped so
+#: the upload's gate cannot drift from the console's other copy; a test pins it equal to the
+#: plugin's and the core's.
+MISSIONS_UPLOAD_BUSY_REFUSAL = MISSION_LIST_BUSY_REFUSAL
 
 #: THE ACTIVATE WRITE'S STATE GATE: every state EXCEPT ``LOADING``. The bot's ``setStartIndex``
 #: routes to DCS in ``{STOPPED, PAUSED, RUNNING}`` and writes the file otherwise; in ``LOADING`` the
@@ -596,6 +636,14 @@ ORIGIN_FIELD = "_origin"
 #: control on a page whose table is its path (``/fleet``, ``/players``, ``/nodes``) carries no tab
 #: at all, and neither does the dashboard's default tab: an unadorned page stays unadorned.
 TAB_FIELD = "_tab"
+#: THE SERVER-PAGE RETURN — a closed vocabulary, never a URL. A player write pressed on a SERVER's
+#: own page (``/fleet/<name>``) must come back to that page, and the registry's origin allow-list
+#: holds top-level page paths only: ``/fleet/<name>`` is a route with a parameter, so ``_origin``
+#: cannot name it. The control states which TAB of that page drew it and the route rebuilds the URL
+#: from the RESOLVED server (:func:`server_page_url`), so no request value reaches the redirect —
+#: the same rule ``_tab`` follows.
+SERVER_PAGE_FIELD = "_server_page"
+SERVER_PAGE_PLAYERS = "players"
 CONFIRM_KEY = "_action_confirms"
 CONFIRM_MAX_PENDING = 8
 
@@ -604,6 +652,19 @@ ROW_MENU = "menu"
 
 MENU_NOTE = i18n._("Start and Stop live only here: they act on fewer states than Startup and "
                    "Shutdown, so they do not earn a place in the strip.")
+
+#: HOW MANY GLYPHS a player row's strip carries before the rest move behind its overflow trigger.
+#: SIX is the row's own set — kick, ban, chat, popup, mute and screenshot, which is exactly what the
+#: dashboard has always drawn on a server that allows screenshots — so a row that ALSO carries the
+#: watchlist pair (a directory row) opens the trigger instead of widening the cell. A row below the
+#: limit never gets a trigger at all.
+PLAYER_STRIP_LIMIT = 6
+
+#: What a player row's overflow trigger says the controls in it are FOR — the one sentence a person
+#: reads before opening it. The row itself names the player and the server; this explains why these
+#: two did not fit beside the session writes.
+PLAYER_MENU_NOTE = i18n._("The watchlist pair lives here: it changes the player's record, not their "
+                          "session.")
 
 #: THE BUSY SENTENCE a pending control's own glyph carries (see :func:`_control`). It is a
 #: per-request record like every other composed sentence: the control's own ``label`` and the
@@ -2282,6 +2343,10 @@ class NodeAction:
     #: DCS update's version pick is filled from the node ON DEMAND, so its page loads one script of
     #: its own. Empty means the shared template, which is every other node control.
     template: str = ""
+    #: THE COMMAND'S OWN OPTION, the checkbox its dialog draws (``confirm.html`` through
+    #: :func:`node_dialog_inputs`) — the DCS update's announce box, and the FORCE box the three
+    #: lifecycle controls share (:data:`FORCE_OPTION`). ``field`` is BOTH the form field's name and
+    #: the ACTION parameter's name.
     option: NodeOption | None = None
     heading: str = ""
     tip: str = ""
@@ -2292,6 +2357,13 @@ class NodeAction:
     master_note: str = ""
     go: str = ""
     go_title: str = ""
+
+
+#: THE ONE FORCE BOX the three lifecycle controls share. ONE :class:`NodeOption` read by restart,
+#: shutdown and upgrade, so the override cannot be worded two ways on three dialogs that all mean the
+#: same thing: an update in flight owns the installation, and forcing the operation cuts it in half.
+#: Its ``field`` is the ACTION's own parameter (``force``), which is why one declaration is enough.
+FORCE_OPTION = NodeOption(field=FORCE_FIELD, label=FORCE_LABEL, default=False, help=FORCE_HELP)
 
 
 #: The NODE row's controls: **restart · shut down · upgrade** and the
@@ -2320,9 +2392,14 @@ class NodeAction:
 #: ``check=True`` so it is offered only while that cache says True (and the row says "no update check
 #: yet" while the value is unknown). See the Upgrade entry's ``detail`` and
 #: ``services/webservice/upgrade.py``.
+#:
+#: ALL THREE CARRY THE SAME FORCE BOX (:data:`FORCE_OPTION`): an action refused because a DCS update
+#: is in flight can be repeated past that guard, and the box is where the operator says so. The
+#: warnings about that update come from the SAME cached check the row is warned by
+#: (:func:`_node_note`, :func:`node_confirm_context`), never from a node call made while rendering.
 NODE_ACTIONS: tuple[NodeAction, ...] = (
     NodeAction(key="restart", capability=NODE_RESTART_CAPABILITY, qualname="restart_node",
-               path="/actions/node/restart", label=i18n._("Restart"),
+               path="/actions/node/restart", label=i18n._("Restart"), option=FORCE_OPTION,
                tip=i18n._("Restart node — every server on {node} goes down while the node restarts"),
                aria=i18n._("Restart node {node}"),
                hint=i18n._("every server on the node goes down"),
@@ -2337,7 +2414,7 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
                go=i18n._("Restart node"),
                go_title=i18n._("Restart {node} — every server on it goes down")),
     NodeAction(key="shutdown", capability=NODE_SHUTDOWN_CAPABILITY, qualname="shutdown_node",
-               path="/actions/node/shutdown", label=i18n._("Shut down"),
+               path="/actions/node/shutdown", label=i18n._("Shut down"), option=FORCE_OPTION,
                tip=i18n._("Shut down node — every server on {node} goes down and nothing brings it back"),
                aria=i18n._("Shut down node {node}"),
                hint=i18n._("every server on the node goes down, for good"),
@@ -2354,6 +2431,7 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
                go_title=i18n._("Shut down {node} — every server on it goes down")),
     NodeAction(key="upgrade", capability=NODE_UPGRADE_CAPABILITY, qualname="upgrade_node",
                path="/actions/node/upgrade", label=i18n._("Upgrade"), check=True,
+               option=FORCE_OPTION,
                tip=i18n._("Upgrade node — update DCSServerBot on {node} and restart it; every server on "
                    "it goes down"),
                aria=i18n._("Upgrade node {node}"),
@@ -3277,7 +3355,7 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
     else:
         title = _sentence(action.tip, server=name)
         aria = _sentence(action.aria, server=name)
-    return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+    return {"path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
             "label": action.label, "icon": action.key, "title": title,
             "aria": aria, "hint": action.hint,
             "danger": action.danger, "server": name, "busy": busy,
@@ -3533,7 +3611,8 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
                                           declares_dcs=key.casefold() in declared_dcs))
         # THE HONEST STATEMENT for a check-gated control whose value is UNKNOWN: the
         # control is NOT offered, and the row says why rather than leaving the person to guess.
-        note = _upgrade_note(key, roles, manager)
+        # The same slot carries the warning while a DCS update is in flight.
+        note = _node_note(key, roles, manager)
         # A row is kept when it has ANYTHING to render: an offered write, the unknown-check note, the
         # two log read controls, the node page link or the mods door. The reads and the two page
         # links need no plugin, so an install whose ``admin`` actions are absent still follows and
@@ -3616,6 +3695,42 @@ def _node_offered(action: NodeAction, name: str, roles: frozenset[str], manager:
     return True
 
 
+def _force_actions() -> tuple[NodeAction, ...]:
+    """The node controls that declare the FORCE box — read off the declarations, never a second list."""
+    return tuple(action for action in NODE_ACTIONS
+                 if any(option.field == FORCE_FIELD for option in dialog_options(action)))
+
+
+def _declares_force(action: NodeAction) -> bool:
+    """Whether ONE control's dialog carries the force box (:data:`FORCE_OPTION`)."""
+    return any(option.field == FORCE_FIELD for option in dialog_options(action))
+
+
+def _node_note(name: str, roles: frozenset[str], manager: bool) -> str:
+    """The row's ONE line about the node's CACHED background checks — or nothing at all.
+
+    Two statements share the slot, in this order:
+
+    * **a DCS update is running** (:data:`NOTE_UPDATE_RUNNING`), from the cached in-flight check.
+      It comes FIRST because it describes something that already happened to the node — its servers
+      were stopped for the update — and it is the fact a person about to press a lifecycle control
+      has to read. Gated by the same predicates the controls themselves carry, so a caller who could
+      not be offered one of them is told nothing about the node's installation;
+    * **no update check yet** (:data:`NOTE_NO_CHECK`), the Upgrade gate's own honest unknown
+      (:func:`_upgrade_note`), unchanged.
+
+    Both are dict lookups: nothing here asks a node, and an UNKNOWN in-flight value carries NO line —
+    the row does not claim an update is running, and it does not claim there is none either; the
+    dialog the click opens is where the unknown state is stated in words.
+    """
+    if upgrade_signal.progress_running(name) is True \
+            and any(permissions.allows(action.capability, roles, manager=manager)
+                    and action_available(action.qualname)
+                    for action in _force_actions()):
+        return NOTE_UPDATE_RUNNING
+    return _upgrade_note(name, roles, manager)
+
+
 def _upgrade_note(name: str, roles: frozenset[str], manager: bool) -> str:
     """The row's honest statement while a CHECK-GATED control's cached value is UNKNOWN.
 
@@ -3670,7 +3785,7 @@ def dcs_versions_path(node_name: str) -> str:
     never into a shell command — so a name carrying a ``/`` resolves while nothing it contains
     reaches the disk or a process.
     """
-    return f"/nodes/{quote(readmodels.text(node_name), safe='')}/dcs/versions"
+    return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}/dcs/versions")
 
 
 def _declared_dcs_block(node_name: str) -> dict | None:
@@ -3956,7 +4071,7 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab
     ``busy`` marks a write THIS control started and is still waiting for (the strip animates it); it
     is a per-row, per-control fact like ``attention``, never a declaration field.
     """
-    return {"path": action.path + CONFIRM_SUFFIX,
+    return {"path": mount.url(action.path + CONFIRM_SUFFIX),
             "label": action.label, "icon": action.key, "title": _sentence(action.tip, node=name),
             "aria": _sentence(action.aria, node=name), "hint": action.hint,
             "danger": action.danger, "node": name, "attention": bool(attention),
@@ -3966,7 +4081,8 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab
             "csrf_field": session.CSRF_FIELD, "csrf_token": token}
 
 
-def controls_for(request: Request, table: str, origin: str, *, tab: str = "") -> dict:
+def controls_for(request: Request, table: str, origin: str, *, tab: str = "",
+                 server_page: str = "") -> dict:
     """The row controls the table *table* may render — ONE call a list page makes for its own table.
 
     A list page asks for controls by the table it renders, so the page never decides which map
@@ -3985,7 +4101,7 @@ def controls_for(request: Request, table: str, origin: str, *, tab: str = "") ->
     table IS its path passes nothing (the default tab included — see :func:`dashboard.row_controls_for`).
     """
     if table == "players":
-        return player_controls(request, origin, tab=tab)
+        return player_controls(request, origin, tab=tab, server_page=server_page)
     if table == "servers":
         return server_controls(request, origin, tab=tab)
     if table == "nodes":
@@ -4166,14 +4282,16 @@ def _muted_state(source) -> dict[tuple[str, str], bool]:
     return out
 
 
-def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tuple[str, str], dict]:
+def player_controls(request: Request, origin: str, *, tab: str = "",
+                    server_page: str = "") -> dict[tuple[str, str], dict]:
     """The controls each PLAYER row may render, keyed by ``(server name, ucid)`` — and nothing for a
     row whose control may not be offered.
 
     ``origin`` is the PAGE this strip is being rendered on, carried into every control as a hidden
     field so the write returns there — the registry re-checks it (:func:`origin_path`) — and ``tab``
     is the dashboard's active tab, carried beside it for the page whose tables share one path
-    (:func:`controls_for`).
+    (:func:`controls_for`). ``server_page`` is the second return carrier: the tab of the SERVER page
+    the strip was drawn on, whose path the origin allow-list cannot hold (:data:`SERVER_PAGE_FIELD`).
 
     Same three conditions as :func:`server_controls`, each read from the ONE place that decides it,
     and the control is OMITTED — never rendered disabled — when any is false:
@@ -4198,8 +4316,9 @@ def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tup
 
     The value is ONE record per row, in the SAME shape :func:`server_controls` builds — the row is
     ONE component at two widths (``templates/_strip.html``), and the player row shares it rather than
-    growing a second. A player row has no overflow menu: its five glyphs go
-    to the strip, and folding five icons into a menu would be a different design.
+    growing a second. The split is :func:`_strip_record`'s: the row's own glyphs stay on it, and a row
+    that carries more than :data:`PLAYER_STRIP_LIMIT` opens the ``⋮`` trigger — a directory row's
+    seventh control (the watchlist pair) is the one that overflows, so the dashboard keeps its shape.
     """
     source = dashboard_page.request_source(request)
     roles = permissions.role_names_for(request)
@@ -4208,36 +4327,75 @@ def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tup
     muted = _muted_state(source)
     capable = _screenshot_capable(source)
     controls: dict[tuple[str, str], dict] = {}
-    for index, view in enumerate(readmodels.players_online(source)):
-        server_name = readmodels.text(view.server_name)
-        ucid = readmodels.text(view.ucid)
+    for index, (server_name, ucid, name) in enumerate(_player_rows(request, source)):
         if not server_name or not ucid:
             continue
         is_muted = bool(muted.get((server_name, ucid), False))
-        name = readmodels.text(view.name) or ucid
-        offered = tuple(_player_control(action, server_name, ucid, name, token, origin, tab)
+        offered = tuple(_player_control(action, server_name, ucid, name, token, origin, tab,
+                                        server_page)
                         for action in PLAYER_ACTIONS
                         if (action.when_muted is None or action.when_muted == is_muted)
                         and (not action.when_server_allows or capable.get(server_name, False))
                         and permissions.allows(action.capability, roles, manager=manager)
                         and action_available(action.qualname))
         if offered:
-            controls[(server_name, ucid)] = {
-                "strip": offered, "menu": (), "wide": False,
-                "menu_id": f"act-menu-p{index}", "server": server_name, "ucid": ucid,
-                "aria": _sentence(i18n._("Controls for {player} on {server}"),
-                                  player=name, server=server_name)}
+            controls[(server_name, ucid)] = _strip_record(offered, index, server_name, ucid, name)
     return controls
 
 
+def _player_rows(request: Request, source) -> list[tuple[str, str, str]]:
+    """The ``(server, ucid, name)`` rows this table may draw a strip for.
+
+    THE ROWS THE PAGE RENDERED, when it stashed them: a page that renders ONE server's players sets
+    ``request.state.player_rows`` (``pages/server_detail``) so its controls describe its own rows and
+    nothing else — the same pattern ``ban_controls`` and ``directory_controls`` follow. A page that
+    asks for the whole roster (the dashboard's Players tab, ``/players?show=online``) stashes nothing
+    and gets :func:`readmodels.players_online` — the very read model its table renders, so
+    ``controls ⊆ rows`` holds either way.
+    """
+    stashed = getattr(request.state, "player_rows", None)
+    if stashed is not None:
+        return [(readmodels.text(getattr(row, "server_name", "")),
+                 readmodels.text(getattr(row, "ucid", "")),
+                 readmodels.text(getattr(row, "name", "")) or readmodels.text(getattr(row, "ucid", "")))
+                for row in stashed]
+    return [(readmodels.text(view.server_name), readmodels.text(view.ucid),
+             readmodels.text(view.name) or readmodels.text(view.ucid))
+            for view in readmodels.players_online(source)]
+
+
+def _strip_record(offered: tuple[dict, ...], index: int, server_name: str, ucid: str,
+                  player_name: str) -> dict:
+    """ONE player row's record, as :data:`templates._strip.html` reads it — the split into the strip
+    and its overflow menu.
+
+    A player row shows GLYPHS ONLY, and :data:`PLAYER_STRIP_LIMIT` describes how many fit: the row's
+    own session writes are the six the dashboard draws (screenshot included on a server that allows
+    it), so a seventh control — the watchlist pair a directory row adds — opens the `⋮` trigger
+    instead of widening the cell. The split is POSITIONAL, so a row inside the limit looks exactly as
+    it did before: no trigger, every glyph on the row.
+    """
+    strip = tuple(offered[:PLAYER_STRIP_LIMIT])
+    menu = tuple(offered[PLAYER_STRIP_LIMIT:])
+    aria = (_sentence(i18n._("Controls for {player} on {server}"), player=player_name, server=server_name)
+            if server_name else _sentence(i18n._("Controls for {player}"), player=player_name))
+    return {"strip": strip, "menu": menu, "wide": bool(strip) and bool(menu),
+            "menu_id": f"act-menu-p{index}", "server": server_name, "ucid": ucid,
+            "aria": aria, "menu_note": PLAYER_MENU_NOTE if menu else ""}
+
+
 def _player_control(action: PlayerAction, server_name: str, ucid: str, player_name: str,
-                    token: str, origin: str, tab: str = "") -> dict:
+                    token: str, origin: str, tab: str = "", server_page: str = "") -> dict:
     """One rendered PLAYER control, as data: path, glyph, the two names, target, token.
 
     BOTH halves of the target travel in the request BODY — there is no URL a person
     can edit to point a write at another server or another player — and the ORIGIN travels beside
     them, the page this control is rendered on, with the dashboard's TAB beside the origin
     (:func:`_hidden_fields`).
+
+    ``server_page`` is the OTHER return carrier (:data:`SERVER_PAGE_FIELD`): the tab of a SERVER's
+    own page, which the origin allow-list cannot name. It rides beside the origin and is the value the
+    route builds the return URL from (:func:`server_page_url`); empty means \"not a server page\".
 
     A CONFIRM-REQUIRED control posts to its DIALOG's path, not to the action's (see
     :data:`CONFIRM_SUFFIX`): the action's own route refuses a POST that did not come through the
@@ -4249,13 +4407,14 @@ def _player_control(action: PlayerAction, server_name: str, ucid: str, player_na
     """
     values = {"server": server_name, "player": player_name}
     return {
-        "path": action.path + CONFIRM_SUFFIX if action.confirm else action.path,
+        "path": mount.url(action.path + CONFIRM_SUFFIX if action.confirm else action.path),
         "label": action.label, "icon": action.icon,
         "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
         "hint": action.hint, "danger": action.danger,
         "server": server_name, "ucid": ucid,
         "direct": not action.confirm,
-        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
+        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid),
+                                 (SERVER_PAGE_FIELD, server_page)),
         "csrf_field": session.CSRF_FIELD, "csrf_token": token,
     }
 
@@ -4328,7 +4487,7 @@ def _ban_control(action: BanAction, row, token: str, origin: str,
     """
     values = {"player": readmodels.text(getattr(row, "name", ""))}
     return {
-        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
         "label": action.label, "icon": action.icon,
         "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
         "danger": bool(action.danger),
@@ -4353,54 +4512,98 @@ DIRECTORY_BAN_SENTENCE = i18n._("Ban {player}")
 
 
 def directory_controls(request: Request, rows, origin: str) -> dict[str, dict]:
-    """The Ban/Watch controls a PLAYER-DIRECTORY row may render, keyed by the row's UCID.
+    """The controls a PLAYER-DIRECTORY row may render, keyed by the row's UCID.
 
     The rows are the SAME scoped :class:`~services.webservice.pages.players.DirectoryRowView` records
     the table renders (the page stashed them for :func:`controls_for`), so ``controls ⊆ rows`` holds
     by construction: a player outside the caller's scope is not in the rows at all, and a crafted
     POST naming one is refused by the action layer exactly like a UCID nothing answers to.
 
-    Both pairs key on the UCID and need no live session — the ban ADD resolves no server and looks no
-    player up, and the watch trio is the same shape — which is why they are row controls here while
-    Message / Popup / Kick / Screenshot stay on the player page.
+    A row whose player HOLDS A SLOT carries the SAME session strip the dashboard's Players tab draws —
+    kick, ban, chat, popup, mute/unmute — because the caller may act on a player wherever they are
+    reading them, and the roster already tells this page who is flying and on which server. The
+    strip's target is that roster server, and it rides the request BODY like every other half of a
+    target: the row's UCID alone cannot say which session a kick ends.
+
+    THE BAN IS ONE GLYPH, never two. A row carries the LIVE Ban (a duration, and the session it ends)
+    when the player is online; a row whose player is offline carries the directory's own ban ADD,
+    which needs no session at all; a banned row carries the LIFT. A UCID online on more than one
+    server is acted on through the FIRST server the roster names — the tooltip names it, and the
+    action's own lookup is the authority a stale page meets.
 
     EACH control is gated on its OWN capability (``permissions.allows``, the predicate the gate runs)
-    and its own action (``action_available``), and on the ROW's state: a banned row offers the LIFT
-    and never the ADD, a watched row the REMOVE and never the ADD. A control the caller may not use,
-    or that does not apply to the row, is ABSENT — never rendered disabled.
+    and its own action (``action_available``), and the entry-level pair on the ROW's state: a banned
+    row offers the LIFT and never the ADD, a watched row the REMOVE and never the ADD. A control the
+    caller may not use, or that does not apply to the row, is ABSENT — never rendered disabled.
 
-    The shape is the row strip's (``templates/_strip.html``): ``{"strip": (control, …), "wide":
-    False}``, so a directory row draws the same component every other row does. A row nothing applies
-    to gets no entry at all, and its Actions cell renders nothing.
+    The shape is the row strip's (``templates/_strip.html``), split by :data:`PLAYER_STRIP_LIMIT`:
+    the session glyphs stay on the row and the watchlist pair moves behind the `⋮` trigger once the
+    strip is full. A row nothing applies to gets no entry at all, so its Actions cell renders nothing.
     """
     roles = permissions.role_names_for(request)
     manager = permissions.manages_console(request)
+    source = dashboard_page.request_source(request)
 
     def offered(action) -> bool:
         return (permissions.allows(action.capability, roles, manager=manager)
                 and action_available(action.qualname))
 
-    ban = tuple(action for action in (BAN_ADD_ACTION, BAN_LIFT_ACTION) if offered(action))
-    watch = tuple(action for action in (WATCH_ADD_ACTION, WATCH_REMOVE_ACTION) if offered(action))
-    if not ban and not watch:
-        return {}
     token = session.get_csrf_token(request)
+    online = _live_servers_by_ucid(source)
+    muted = _muted_state(source)
+    capable = _screenshot_capable(source)
     controls: dict[str, dict] = {}
-    for row in rows:
+    for index, row in enumerate(rows):
         ucid = readmodels.text(getattr(row, "ucid", ""))
         if not ucid:
             continue
         banned = bool(getattr(row, "banned", False))
         watched = bool(getattr(row, "watched", False))
         name = readmodels.text(getattr(row, "name", "")) or ucid
-        applicable = (tuple(action for action in ban if (action.key == BAN_LIFT_ACTION.key) == banned)
-                      + tuple(action for action in watch
-                              if (action.key == WATCH_REMOVE_ACTION.key) == watched))
-        if applicable:
-            controls[ucid] = {"strip": tuple(_directory_control(action, ucid, name, token, origin)
-                                             for action in applicable),
-                              "wide": False}
+        server_name = online.get(ucid, "")
+        records: list[dict] = []
+        if server_name:
+            is_muted = bool(muted.get((server_name, ucid), False))
+            for action in PLAYER_ACTIONS:
+                if action.key == "ban" and banned:
+                    # the LIFT owns a banned row — two ban glyphs would be two dialogs for one write
+                    continue
+                if action.when_muted is not None and action.when_muted != is_muted:
+                    continue
+                if action.when_server_allows and not capable.get(server_name, False):
+                    continue
+                if not offered(action):
+                    continue
+                records.append(_player_control(action, server_name, ucid, name, token, origin))
+        if banned and offered(BAN_LIFT_ACTION):
+            records.append(_directory_control(BAN_LIFT_ACTION, ucid, name, token, origin))
+        elif not server_name and offered(BAN_ADD_ACTION):
+            records.append(_directory_control(BAN_ADD_ACTION, ucid, name, token, origin))
+        if watched and offered(WATCH_REMOVE_ACTION):
+            records.append(_directory_control(WATCH_REMOVE_ACTION, ucid, name, token, origin))
+        elif not watched and offered(WATCH_ADD_ACTION):
+            records.append(_directory_control(WATCH_ADD_ACTION, ucid, name, token, origin))
+        if records:
+            controls[ucid] = _strip_record(tuple(records), index, server_name, ucid, name)
     return controls
+
+
+def _live_servers_by_ucid(source) -> dict[str, str]:
+    """The server each ACTIVE player of the caller's view holds a slot on, keyed by UCID.
+
+    Read from the SAME scoped source the rows come from, so a directory row can be matched to its
+    session without a second lookup and without ever naming a server outside the caller's view. A
+    UCID reports the FIRST server the roster lists (it is sorted by server, then name), which keeps
+    the answer stable across renders; a second session for the same UCID is not offered as a second
+    strip — the glyph names one server in its tooltip, and the action resolves it again.
+    """
+    out: dict[str, str] = {}
+    for view in readmodels.players_online(source):
+        server_name = readmodels.text(view.server_name)
+        ucid = readmodels.text(view.ucid)
+        if server_name and ucid and ucid not in out:
+            out[ucid] = server_name
+    return out
 
 
 def _directory_control(action: BanAction | WatchAction, ucid: str, player_name: str, token: str,
@@ -4415,10 +4618,10 @@ def _directory_control(action: BanAction | WatchAction, ucid: str, player_name: 
     values = {"player": player_name}
     sentence = DIRECTORY_BAN_SENTENCE if action.key == BAN_ADD_ACTION.key else action.aria
     return {
-        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
         "label": action.label, "icon": DIRECTORY_GLYPHS[action.key],
         "title": _sentence(sentence, **values), "aria": _sentence(sentence, **values),
-        "danger": bool(action.danger),
+        "hint": action.hint, "danger": bool(action.danger),
         "key": ucid,
         "hidden": _hidden_fields(origin, "", ("ucid", ucid)),
         "csrf_field": session.CSRF_FIELD, "csrf_token": token,
@@ -4493,7 +4696,7 @@ def _watch_control(action: WatchAction, ucid: str, player_name: str, token: str,
     """
     values = {"player": player_name}
     return {
-        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
         "label": action.label, "icon": action.icon,
         "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
         "hint": action.hint, "danger": bool(action.danger),
@@ -4649,7 +4852,7 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence((action.go_title_empty if empty else "") or action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": name,
         #: the CONSEQUENCE's target, as the dialog's own sentence names it (``pages/actions``): the
         #: resolved object's label, never a field the browser sent. A server dialog targets the
@@ -4759,7 +4962,7 @@ def _player_name(player: Any, ucid: str) -> str:
 
 def player_confirm_context(request: Request, action: PlayerAction, server: Any, player: Any,
                            server_name: str, ucid: str, token: str, origin: str,
-                           tab: str = "") -> dict:
+                           tab: str = "", server_page: str = "") -> dict:
     """Everything a PLAYER confirm dialog's page reads — the twin of :func:`confirm_context`.
 
     Same discipline, one difference that is the whole point: the dialog carries the SECOND half of
@@ -4798,10 +5001,11 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": server_name,
         "target": label,
-        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
+        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid),
+                                 (SERVER_PAGE_FIELD, server_page)),
         "inputs": tuple(inputs),
         "body_inputs": (),
         "tag": i18n._("confirm"),
@@ -4822,7 +5026,8 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "user": dashboard_page.identity_summary(request),
         "env": dashboard_page.environment_marker(state),
         "pills": dashboard_page.status_pills(state),
-        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "back": dialog_back(request, server_page_url(server_page, server_name)
+                            or tabbed_origin(origin, tab)),
         "dialog": dialog,
     }
 
@@ -4912,7 +5117,7 @@ def ban_confirm_context(request: Request, action: BanAction, row, token: str, or
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": label,
         "hidden": _hidden_fields(origin, tab,
@@ -5540,7 +5745,11 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
       makes this page a form rather than a yes/no. The dialog a POST that skipped it is refused
       against is still this one (``action.confirm``), and for the pair's non-destructive half it is a
       form that runs the operation directly — the mockup's own rule (offline confirms, online does
-      not).
+      not);
+    * a control carrying the FORCE box (restart, shutdown, upgrade) states the CACHED in-flight DCS
+      update in its detail notes: this node's servers are stopped for an update that is still
+      running, and forcing the operation leaves them that way. The value and its timestamp come from
+      ``services/webservice/upgrade.py`` — a dict lookup, never a node call.
 
     The warning is assembled HERE with :func:`html.escape`, as its two siblings' are: the node name
     is config data and the copy must not be able to inject markup. A node action with NO warning
@@ -5568,6 +5777,20 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
             # field the browser sent, and it is present only for a check-gated control.
             detail_notes.append(_sentence(i18n._("Last update check: {when}."),
                                           when=_checked_text(when)))
+    if _declares_force(action):
+        # THE IN-FLIGHT DCS UPDATE, from the SAME cache the row is warned by — a dict lookup, never a
+        # node call. Three readings of one value, and each says which it is: an update IS running
+        # (what the force box would cut in half), the value is UNKNOWN (so nothing here claims there
+        # is none), and — whenever the poller has answered at all — WHEN it answered, so the reader
+        # never mistakes a cached answer for a live one.
+        running = upgrade_signal.progress_running(name)
+        when = upgrade_signal.progress_checked_at(name)
+        if running is True:
+            detail_notes.append(_sentence(UPDATE_RUNNING_NOTE))
+        elif running is None:
+            detail_notes.append(_sentence(UPDATE_CHECK_UNKNOWN))
+        if when is not None:
+            detail_notes.append(_sentence(UPDATE_CHECKED_AT, when=_checked_text(when)))
     # THE CONTROL'S OWN PAGE FACTS, for a dialog that declares a TEMPLATE of its own. The DCS update
     # is the one control whose version pick is filled AFTER the page is open: its page reads these off
     # the served document — the read's URL, the two field names, the INSTALLED branch/version (so the
@@ -5601,7 +5824,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
         "detail_notes": tuple(detail_notes),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": label,
         "target": _sentence(i18n._("{label} (node)"), label=label),
         "hidden": _hidden_fields(origin, tab, ("node", name)),
@@ -6984,6 +7207,39 @@ async def _read_upload_capped(upload: Any, limit: int) -> bytes | None:
             return None
 
 
+async def _busy_upload_refusal(request: Request, action: WriteAction) -> RedirectResponse | None:
+    """The upload route's QUERY-ONLY refusal: the sentence and the tab when the named server is busy.
+
+    THE SERVER IS READ FROM THE QUERY STRING, which the tab's own upload form carries beside the body
+    (``?server=<name>``), so the gate answers before this route reads the file part: nothing is
+    staged and the action is never called. IT DOES NOT SAVE THE TRANSFER: the route is declared with
+    ``Depends(session.csrf_protect)``, and that dependency reads the token out of the form
+    (``session.read_csrf_token`` calls ``await request.form()``), so the whole multipart — the file
+    part included — is parsed and buffered before this function runs. What the gate saves is the
+    staging and the action call; the bytes have already arrived. The action's own gate stays the
+    second line of defence for a caller that sends no query and refuses identically.
+
+    ``None`` for everything else — no name, no identity, a name this caller cannot resolve — because
+    the body path below owns those answers (identity, scope, unknown target) and must speak them
+    once, with its own notice/403 shapes, rather than twice.
+    """
+    name = readmodels.text(request.query_params.get(SERVER_CONFIG_FIELD))
+    if not name:
+        return None
+    identity = _identity(request)
+    if identity is None:
+        return None
+    ctx = _context(request, identity)
+    resolution = await ctx.resolve_scoped_server(name)
+    if not resolution.is_found or state_of(getattr(resolution.server, "status", None)) \
+            in MISSIONS_UPLOAD_STATES:
+        return None
+    _remember_notice(request, action, ActionResult(success=False,
+                                                   message=MISSIONS_UPLOAD_BUSY_REFUSAL))
+    canonical = readmodels.text(readmodels.safe(lambda: getattr(resolution.server, "name", ""))) or name
+    return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+
 def _mission_upload_handler(action: WriteAction):
     """The route for ``missions.upload`` — a MULTIPART form (the file + its two load options).
 
@@ -6992,11 +7248,18 @@ def _mission_upload_handler(action: WriteAction):
     The upload's two load options (``autostart`` = load at next start, ``load`` = load now) ride the
     same POST and are handed to the action, which owns the load handling.
 
-    THE CAP IS REFUSED AS THE SIZE CROSSES IT, never after the whole file has been buffered:
+    A BUSY SERVER (``LOADING`` / ``SHUTTING_DOWN``) IS REFUSED BEFORE ANYTHING IS STAGED — see
+    :func:`_busy_upload_refusal`: DCS writes ``serverSettings.lua`` itself in both of those windows,
+    so an upload then races its own copy of that file. The body has already been parsed when the gate
+    runs (the route's CSRF dependency reads the token out of the form), so the gate saves the staging
+    and the action call, never the transfer.
 
-    1. the request's DECLARED ``Content-Length`` is checked BEFORE the body is parsed — a body that
-       cannot fit the cap (plus the multipart envelope) is refused with a 413 without the console
-       ever reading it;
+    THE CAP IS REFUSED BEFORE ANY BYTE IS READ OUT OF THE PARSED PART, never after the whole file has
+    been copied into this handler's buffer:
+
+    1. the request's DECLARED ``Content-Length`` is checked first — a body that cannot fit the cap
+       (plus the multipart envelope) is refused with a 413 before the file part is read out of the
+       already-parsed form, so it is never copied out and never staged;
     2. the parsed part's own size (``UploadFile.size``, the bytes Starlette counted for the part) is
        checked before the file is read at all — an oversized file is refused, never ``read()``;
     3. the bytes are then read in CHUNKS with a running total, so a body that lied about its length
@@ -7007,12 +7270,16 @@ def _mission_upload_handler(action: WriteAction):
     cannot tell which of the two surfaces refused.
     """
     async def handle(request: Request) -> RedirectResponse:
+        busy = await _busy_upload_refusal(request, action)
+        if busy is not None:
+            return busy
         declared_body = request.headers.get("content-length")
         if declared_body and declared_body.isdigit() \
                 and int(declared_body) > MISSIONS_UPLOAD_MAX_BYTES + _MULTIPART_ENVELOPE_BYTES:
-            # The BODY alone cannot fit the cap: refuse BEFORE ``request.form()`` buffers it. No
-            # server name is known yet (it is a field IN the body), so this is the one mission
-            # refusal that cannot be a notice on the tab.
+            # The BODY alone cannot fit the cap: refuse before the file part is copied out of the
+            # parsed form, so no byte of it is held here or staged. The target to hang a notice on
+            # the tab under would have to come from the body, so this is the one mission refusal
+            # answered with a 413 instead.
             raise HTTPException(status_code=413, detail=_upload_cap_message())
         form = await request.form()
         resolved = await _resolve_mission_write(request, form, action)
@@ -7331,7 +7598,7 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
         "detail_notes": (),
         "go": go,
         "go_title": _sentence(action.go_title, **escape_values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": server_name,
         "target": target,
         "hidden": tuple(hidden),
@@ -7972,7 +8239,7 @@ def ban_add_dialog_context(request: Request, action: BanAction, origin: str, tab
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": {"msgid": BAN_ADD_TARGET, "params": {}},
         "hidden": _hidden_fields(origin, tab, *carry),
@@ -8060,7 +8327,7 @@ def ban_edit_dialog_context(request: Request, action: BanAction, row, origin: st
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, player=label),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         #: the target line names the RESOLVED player and its ucid — the pair the entry is identified
         #: by — as ONE plain string of operator data (it is never translated).
@@ -8162,7 +8429,7 @@ def watch_add_dialog_context(request: Request, action: WatchAction, detail, orig
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": label,
         "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
@@ -8217,7 +8484,7 @@ def watch_remove_dialog_context(request: Request, action: WatchAction, detail, t
         "detail_notes": _watch_note(watch),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": label,
         "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
@@ -8274,7 +8541,7 @@ def watch_edit_dialog_context(request: Request, action: WatchAction, detail, ori
         "detail_notes": _watch_note(watch),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, player=html.escape(label)),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": label,
         "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
@@ -8349,7 +8616,7 @@ def penalty_dialog_context(request: Request, action: PenaltyAction, ucid: str, l
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": html.escape(label),
         "hidden": _hidden_fields(origin, "", ("ucid", ucid)),
@@ -8460,7 +8727,7 @@ def page_controls(request: Request, table: str, origin: str) -> dict | None:
         return None
     if not action_available(action.qualname):
         return None
-    return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+    return {"path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
             "label": action.label, "title": _sentence(action.tip), "aria": _sentence(action.aria),
             "csrf_field": session.CSRF_FIELD, "csrf_token": session.get_csrf_token(request),
             "origin_field": ORIGIN_FIELD, "origin": origin,
@@ -8525,7 +8792,7 @@ def add_dialog_context(request: Request, action: WriteAction, origin: str, tab: 
         "detail_notes": (),
         "go": _sentence(i18n._("Add server")),
         "go_title": _sentence(i18n._("Add the server — it is created, not started")),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         #: the TARGET is what is being created — an operator-facing phrase rather than a name, so the
         #: template's own "Target: …" sentence still reads as a sentence.
@@ -8785,8 +9052,10 @@ def _node_handler(action: NodeAction):
       :meth:`core.actions.ActionContext.resolve_scoped_node` — the seam's node twin, which keeps the
       not-found/not-permitted distinction for the same reason the server one does;
     * the OPTION: an action declaring one (``NodeAction.option``) reads it out of the same body and
-      hands it to the action as its own parameter (``shutdown`` / ``startup``) — one name for the
-      field and the parameter, so the route cannot post one thing and the action read another.
+      hands it to the action as its own parameter — ``announce`` for the DCS update, and ``force``
+      for the three lifecycle controls, which is what lets an operator repeat an operation past the
+      action's in-flight-update guard. One name for the field and the parameter, so the route cannot
+      post one thing and the action read another.
 
     ``action.confirm`` decides whether this route demands the one-shot token: the LIFECYCLE trio and
     the pair's offline half do, so a POST that skipped the dialog is refused; the online half does
@@ -9614,15 +9883,24 @@ def _player_handler(action: PlayerAction):
             result = await audit_action(ctx, ActionResult(success=False,
                                                           message=resolution.message))
         _remember_notice(request, action, result)
-        # 303 back to the PAGE the control was rendered on — the Dashboard's
-        # Players tab and /players render the same row strip, so the write must not re-orient the
-        # person, and the tab in force is re-attached so a player write pressed on the Players tab
-        # lands back on the Players tab; never a re-render of a POST.
-        return RedirectResponse(
-            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
-            status_code=303)
+        return RedirectResponse(_player_write_back(request, form, resolution), status_code=303)
 
     return handle
+
+
+def _player_write_back(request: Request, form, resolution) -> str:
+    """Where a PLAYER write returns: the SERVER page it was drawn on, else its origin page.
+
+    ONE composition for both player routes (the write and the screenshot), so the two cannot disagree
+    about the destination. The server page is built from the RESOLVED server
+    (:func:`server_page_url`) because ``/fleet/<name>`` is a parameterised path the origin allow-list
+    cannot hold; every other surface falls back to :func:`origin_url`, which is the allow-listed page
+    the control stated.
+    """
+    server_name = (readmodels.text(readmodels.safe(
+        lambda: getattr(resolution.server, "name", ""), "")) if resolution.is_found else "")
+    return (server_page_url(form.get(SERVER_PAGE_FIELD), server_name)
+            or origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()))
 
 
 def _screenshot_handler(action: PlayerAction):
@@ -9672,9 +9950,7 @@ def _screenshot_handler(action: PlayerAction):
             result = await audit_action(ctx, ActionResult(success=False,
                                                           message=resolution.message))
         _remember_notice(request, action, result)
-        return RedirectResponse(
-            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
-            status_code=303)
+        return RedirectResponse(_player_write_back(request, form, resolution), status_code=303)
 
     return handle
 
@@ -9755,8 +10031,9 @@ def _player_confirm_handler(action: PlayerAction):
         token = mint_confirm_token(request, action.path, _player_target(name, ucid))
         origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
         tab = posted_tab(form.get(TAB_FIELD))
+        server_page = readmodels.text(form.get(SERVER_PAGE_FIELD))
         dialog = player_confirm_context(request, action, resolution.server, player, name, ucid,
-                                        token, origin, tab)
+                                        token, origin, tab, server_page)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
@@ -9848,7 +10125,7 @@ def _servers_path() -> str:
     own constant, never a typed string."""
     from . import servers as servers_page
 
-    return servers_page.SERVERS_PATH
+    return mount.url(servers_page.SERVERS_PATH)
 
 
 def origin_path(request: Request, posted: Any, section_default: str) -> str:
@@ -9911,9 +10188,28 @@ def tabbed_origin(origin: str, tab: Any) -> str:
     from urllib.parse import urlencode
 
     key = posted_tab(tab)
-    if origin == dashboard_page.DASHBOARD_PATH and key:
+    if origin == mount.url(dashboard_page.DASHBOARD_PATH) and key:
         return f"{origin}?{urlencode({'tab': key})}"
     return origin
+
+
+def server_page_url(posted: Any, server_name: str) -> str:
+    """The SERVER's own page at the tab *posted* names — ``""`` when it names no tab we serve.
+
+    The return carrier :data:`SERVER_PAGE_FIELD` resolves here: *posted* is a MEMBER of the closed
+    vocabulary this module declares (a tab of a server page), never a URL, and the server name in the
+    URL is the RESOLVED one the route already holds — so no request value reaches the redirect, which
+    is :func:`origin_path`'s whole rule. An empty answer means \"the control was not drawn on a server
+    page\": the caller then falls back to :func:`origin_url`.
+
+    It exists because ``/fleet/<name>`` is a route with a PARAMETER and the origin allow-list
+    (``Registrar.page_paths``) holds top-level page paths only, so a control rendered on a server's
+    Players tab cannot state that page as its origin.
+    """
+    wanted = readmodels.text(posted)
+    if wanted != SERVER_PAGE_PLAYERS or not server_name:
+        return ""
+    return server_url(server_name, tab=SERVER_PAGE_PLAYERS)
 
 
 def dialog_back(request: Request, target: str) -> str:
@@ -9953,21 +10249,21 @@ def _players_path() -> str:
     """Where a PLAYER write redirects back to: the Players page's own constant."""
     from . import players as players_page
 
-    return players_page.PLAYERS_PATH
+    return mount.url(players_page.PLAYERS_PATH)
 
 
 def _bans_path() -> str:
     """Where a BAN-ENTRY write redirects back to: the Bans page's own constant."""
     from . import bans as bans_page
 
-    return bans_page.BANS_PATH
+    return mount.url(bans_page.BANS_PATH)
 
 
 def _nodes_path() -> str:
     """Where a NODE write redirects back to: the Nodes page's own constant, never a typed string."""
     from . import nodes as nodes_page
 
-    return nodes_page.NODES_PATH
+    return mount.url(nodes_page.NODES_PATH)
 
 
 class _Cluster:

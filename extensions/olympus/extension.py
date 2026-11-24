@@ -167,6 +167,22 @@ class Olympus(InstallableExtension):
             "value": value
         }
 
+    @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        """The address line only; ``withheld`` counts the password lines left out."""
+        ret = await super().render_public(param)
+        if 'url' in self.config:
+            value = self.config['url']
+        else:
+            value = f"http://{self.node.public_ip}:{self.config.get(self.frontend_tag, {}).get('port', 3000)}"
+        authentication = self.config.get('authentication', {})
+        withheld = sum(1 for key in ('gameMasterPassword', 'blueCommanderPassword', 'redCommanderPassword')
+                       if authentication.get(key))
+        return ret | {
+            "value": value,
+            "withheld": withheld
+        }
+
     async def prepare_olympus_json(self) -> bool:
         try:
             os.chmod(self.config_path, stat.S_IWUSR)

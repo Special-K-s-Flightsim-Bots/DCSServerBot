@@ -167,15 +167,17 @@
 {%- endmacro -%}
 
 {#-
-  THE NAV SET — the twelve symbols the SIDEBAR draws, one per group heading and one per entry.
+  THE NAV SET — the twelve symbols the SIDEBAR's entries draw.
 
   A second, separate table from the control glyphs above, because its readers and its rules differ:
-  this set is CHROME. A heading's glyph and an entry's glyph are decoration beside a word, so every
-  one of them is `aria-hidden` and the entry is read by its label.
+  this set is CHROME. An entry's glyph is decoration beside a word, so every one of them is
+  `aria-hidden` and the entry is read by its label. A GROUP HEADING DRAWS NO GLYPH: it is a bare
+  label printed on the rail's own gutter (`shell.css`, `.nav .grp`), so nothing in a heading line
+  stands in a link's icon column. The five names the headings used to wear (`grid`, `note`, `hex`,
+  `chart`, `cog`) stay in this table — every one of them is also an entry's symbol.
 
   EACH ENTRY DRAWS IN `currentColor` AT 15px, so the same symbol follows the palette, the hover colour
-  and the active row's accent. A GROUP glyph is drawn at 12px and dimmed (`.nav .grp .g` in shell.css),
-  so a heading reads as structure rather than as two more links.
+  and the active row's accent.
 
   AN UNKNOWN NAME DRAWS NOTHING. `nav_glyph` asks this table first and emits an EMPTY `<span class="ic">`
   when the name is missing — never a dangling `<use>`, never a broken image, never a tofu box, and never
@@ -183,8 +185,8 @@
 
   WHICH NAME DRAWS WHAT (the mockup is `mockups/webui-nav/06b-nav-icons.html`):
 
-    | group          | glyph   | entries                      | their glyphs          |
-    |----------------|---------|------------------------------|-----------------------|
+    | group          | glyph the heading used to wear | entries                      | their glyphs          |
+    |----------------|-------------------------------|------------------------------|-----------------------|
     | Operations     | grid    | Dashboard, Servers, Players, Bans | grid, server, users, ban |
     | Media          | note    | Music                        | note                  |
     | Cluster        | hex     | Nodes                        | hex                   |
@@ -219,7 +221,4 @@
 {%- endmacro -%}
 {%- macro nav_glyph(name) -%}
 <span class="ic">{% if name in NAV_GLYPHS %}<svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-{{ name }}"/></svg>{% endif %}</span>
-{%- endmacro -%}
-{%- macro nav_group_glyph(name) -%}
-<span class="g">{% if name in NAV_GLYPHS %}<svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-{{ name }}"/></svg>{% endif %}</span>
 {%- endmacro -%}

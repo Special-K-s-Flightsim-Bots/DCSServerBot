@@ -1,0 +1,46 @@
+/* midnight.css — deep blue-black, a cyan accent, a condensed display face.
+ *
+ * Custom properties only. The display face is where the theme's character sits: --disp is what the
+ * hero, the enormous figure, the readout strip, the panel figures and every masthead read, so one
+ * token narrows all of them. Table figures stay --mono, because a mono is what keeps a column of
+ * numbers aligned.
+ *
+ * Contrast on --ground (#05080e): --fg 17.9:1, --fg-2 11.7:1, --fg-3 7.6:1, --brass 10.9:1.
+ */
+:root {
+  --ground:     #05080e;
+  --stage:      #070c14;
+  --band:       #0c1522;
+  --panel:      #0a121d;
+  --panel-2:    #0e1a29;
+  --line:       #16273a;
+  --line-2:     #24405c;
+  --black:      #000;
+
+  --fg:         #e7f4ff;
+  --fg-2:       #b4c8da;
+  --fg-3:       #8aa2b8;
+
+  --brass:      #33d1e6;
+  --brass-dim:  #17697a;
+  --brass-wash: rgba(51, 209, 230, .10);
+  --brass-hi:   #7deaf7;
+  --sage:       #7fb2d6;
+
+  --wash:       rgba(231, 244, 255, .05);
+  --hair:       rgba(231, 244, 255, .07);
+  --hero-glow:  rgba(51, 209, 230, .15);
+  --hero-sage:  rgba(127, 178, 214, .06);
+  --pulse-ring: rgba(51, 209, 230, .55);
+  --pulse-none: rgba(51, 209, 230, 0);
+  --pulse-edge: rgba(51, 209, 230, .35);
+
+  --medal-ink:    #04121a;
+  --medal-gold:   linear-gradient(160deg, #f7df8b, #c9a227);
+  --medal-silver: linear-gradient(160deg, #dfe9f2, #8f9fae);
+  --medal-bronze: linear-gradient(160deg, #dda57a, #9c5f2a);
+
+  --disp: "Midnight Condensed", "Roboto Condensed", "Arial Narrow", "Liberation Sans Narrow", system-ui, sans-serif;
+  --body: "Ubuntu Sans", "Ubuntu", "DejaVu Sans", system-ui, sans-serif;
+  --mono: "Ubuntu Mono", "DejaVu Sans Mono", monospace;
+}

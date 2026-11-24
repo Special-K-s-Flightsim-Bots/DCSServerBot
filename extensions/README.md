@@ -422,6 +422,36 @@ async def render(self, param: Optional[dict] = None) -> dict:
   - `version`: Version string.
   - `value`: Status description (e.g., URL, port number, operational state).
 
+### Public Rendering (`render_public`)
+
+The public web pages read `render_public()`, never `render()`. The base implementation answers
+`_class`, `name` and `version` plus `withheld: 0`, and carries no `value` key at all — an extension
+that does not override it publishes nothing but its name and its version.
+
+To show a public page the same block as Discord, opt in:
+
+```python
+async def render_public(self, param: dict | None = None) -> dict:
+    return await self.render(param)
+```
+
+An extension whose `render()` builds credentials into its `value` (a `show_passwords` setting cannot
+tell a public page from Discord) builds its public value without those lines and reports how many it
+left out:
+
+```python
+async def render_public(self, param: dict | None = None) -> dict:
+    ret = await super().render_public(param)
+    return ret | {
+        "value": f"{host}:{self.locals['port']}",
+        "withheld": 2
+    }
+```
+
+- `withheld` is the number of credential lines the public value leaves out (`0` when it has none).
+- A public value carries no password, passphrase or admin-account text in any form.
+- `self.hidden` raises `NotImplementedError()` here too, so a hidden extension publishes nothing.
+
 ---
 
 ## Port Tracking & Firewall Integration

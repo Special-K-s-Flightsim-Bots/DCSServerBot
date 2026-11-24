@@ -82,7 +82,7 @@ schema;element_schema:
               example: "30.0"
             modulation:
               type: str
-              enum: ['AM', 'FM']
+              enum: ['AM', 'FM', 'MIDS']
               required: true
               nullable: false
               desc: Radio modulation.

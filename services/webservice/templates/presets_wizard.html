@@ -20,7 +20,8 @@
 {#-  THE VENDORED EDITOR'S STYLESHEET, loaded AFTER shell.css (the base template's) exactly as the
     settings pages load it, so the shell's own `.cfg-editor .CodeMirror` dark theme wins the tie.  -#}
 {% block head %}<link rel="stylesheet" href="/static/{{ style }}">
-<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">{% endblock %}
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/static/vendor/codemirror/addon/hint/show-hint.css?v={{ asset_version }}">{% endblock %}
 {% block content %}
 
 <div class="page-head">
@@ -193,7 +194,7 @@
                 ticked (the LATER field wins on the wire, so the pair reads off/on), and CSS swaps the
                 read-only panel for the plain editor. The editor's text ships PREFILLED with the review's
                 own produced YAML, so what the operator starts from is what the review shows.  -#}
-            <section class="pw-card pw-yaml-card" data-cfg-yaml data-validate-url="{{ validate_url }}">
+            <section class="pw-card pw-yaml-card" data-cfg-yaml data-validate-url="{{ validate_url }}" data-hints-url="{{ hints_url }}">
               <input type="hidden" name="{{ expert_field }}" value="0" data-cfg-expert>
               <div class="hd pw-yaml-head">
                 <h4>{{ _(review_yaml) }}</h4>
@@ -468,9 +469,10 @@
     pages load, in the SAME order (the editor before the script that builds it, both deferred). The
     script is driven by the documented `[data-cfg-*]` contract the panel below ships, so the wizard
     and the settings area share ONE editor and ONE server check. -#}
-<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
-<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
-<script src="/static/settings-yaml.js" defer></script>
+<script src="/static/vendor/codemirror/codemirror.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/addon/hint/show-hint.js?v={{ asset_version }}" defer></script>
+<script src="/static/settings-yaml.js?v={{ asset_version }}" defer></script>
 {#- THE WEATHER CONTROLS' behaviour: a shipped asset of its own, because the slider pair is a CONTROL
     rather than this page's — the launch dialog draws the same pair and loads the same file. It does
     nothing on a page whose rows carry no `data-weather-pair` / `data-weather-time`. -#}

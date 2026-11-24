@@ -37,7 +37,10 @@ from core.action_results import (
     PlayerActionResult,
     PlayerScreenshotResult,
     ServerControlResult,
+    ServerInfoResult,
 )
+
+from . import chatlog
 
 log = logging.getLogger(__name__)
 
@@ -46,45 +49,66 @@ log = logging.getLogger(__name__)
 #: language at CALL time (``core.translations``), never at import.
 _ = get_translation(__name__.split('.')[1])
 
+#: The states in which a mission write is refused on EVERY transport, and the ONE sentence every
+#: surface refuses with — both live in :mod:`core.data.const`, which this plugin, the bot's writer and
+#: the console all import, so the wording and the rule cannot drift between the doors an operator can
+#: knock on. Re-exported here (``__all__``) because callers name them from this module.
+from core.data.const import (MISSION_DELETE_LOADING_REFUSAL, MISSION_LIST_BUSY_REFUSAL,
+                             MISSION_LIST_BUSY_STATES)
+
+#: The refusal wordings a caller may import by NAME instead of reaching into the module.
+__all__ = ["MISSION_LIST_BUSY_REFUSAL", "MISSION_DELETE_LOADING_REFUSAL"]
+
 
 # ── Server control ──────────────────────────────────────────────────────────
 
 @action
 async def start_server(ctx: Any, server_name: str) -> ServerControlResult:
-    """Start a stopped DCS server instance."""
+    """Start a server whose instance is STOPPED. A SHUTDOWN server needs startup_server."""
     server = ctx.resolve_server(server_name)
     if server is None:
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Server '{server_name}' not found.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.status != Status.STOPPED:
-        return ServerControlResult(
+        label = _server_label(server, server_name)
+        # The refusal names the tool that CAN start this instance: a SHUTDOWN server is started by
+        # the DCS-level Startup, never by the process-level Start.
+        message = (f"Server '{label}' is Shutdown - use startup_server."
+                   if server.status == Status.SHUTDOWN
+                   else f"Server '{label}' is {server.status.value}, not stopped.")
+        result = ServerControlResult(
             success=False,
-            message=f"Server '{_server_label(server, server_name)}' is {server.status.value}, not stopped.",
+            message=message,
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     try:
         await server.start()
-        return ServerControlResult(
+        result = ServerControlResult(
             success=True,
             message=f"Server '{_server_label(server, server_name)}' started.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except (TimeoutError, asyncio.TimeoutError):
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Timeout while starting server '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except Exception as ex:
         log.exception("start_server failed")
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Failed to start server: {ex}",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
 
 
 @action
@@ -92,37 +116,42 @@ async def stop_server(ctx: Any, server_name: str) -> ServerControlResult:
     """Stop a running or paused DCS server instance."""
     server = ctx.resolve_server(server_name)
     if server is None:
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Server '{server_name}' not found.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.status not in (Status.RUNNING, Status.PAUSED):
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Server '{_server_label(server, server_name)}' is {server.status.value}, not running or paused.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     try:
         await server.stop()
-        return ServerControlResult(
+        result = ServerControlResult(
             success=True,
             message=f"Server '{_server_label(server, server_name)}' stopped.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except (TimeoutError, asyncio.TimeoutError):
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Timeout while stopping server '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except Exception as ex:
         log.exception("stop_server failed")
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Failed to stop server: {ex}",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
 
 
 # TEMPORARY-REDUNDANCY(W-R3): the console's Restart is THIS action (a plain stop + start) while
@@ -132,42 +161,130 @@ async def stop_server(ctx: Any, server_name: str) -> ServerControlResult:
 # maintenance/delay/popup flow and moves the command onto it removes both markers.
 @action
 async def restart_server(ctx: Any, server_name: str) -> ServerControlResult:
-    """Restart a DCS server instance (stop then start)."""
+    """Restart a running, paused or stopped server. A SHUTDOWN server needs startup_server."""
     server = ctx.resolve_server(server_name)
     if server is None:
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Server '{server_name}' not found.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.status not in (Status.RUNNING, Status.PAUSED, Status.STOPPED):
-        return ServerControlResult(
+        label = _server_label(server, server_name)
+        # A restart is stop + start, and a SHUTDOWN instance has no process to stop: the DCS-level
+        # Startup is the tool that brings it back, so the refusal names it.
+        message = (f"Server '{label}' is Shutdown - use startup_server."
+                   if server.status == Status.SHUTDOWN
+                   else f"Server '{label}' is {server.status.value}.")
+        result = ServerControlResult(
             success=False,
-            message=f"Server '{_server_label(server, server_name)}' is {server.status.value}.",
+            message=message,
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     try:
         if server.status in (Status.RUNNING, Status.PAUSED):
             await server.stop()
         await server.start()
-        return ServerControlResult(
+        result = ServerControlResult(
             success=True,
             message=f"Server '{_server_label(server, server_name)}' restarted.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except (TimeoutError, asyncio.TimeoutError):
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Timeout while restarting server '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except Exception as ex:
         log.exception("restart_server failed")
-        return ServerControlResult(
+        result = ServerControlResult(
             success=False,
             message=f"Failed to restart server: {ex}",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
+
+
+# ── Fleet reads ─────────────────────────────────────────────────────────────
+
+@dataclass
+class ServerListResult(ActionResult):
+    """Result for the fleet read (``list_servers``).
+
+    ``servers`` is the same row list ``data["servers"]`` carries: the envelope carries the wire
+    shape, the field is the typed view an in-process caller reads.
+    """
+    servers: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _server_row(server: Any) -> dict[str, Any]:
+    """One server as the fleet reads expose it: name, status, running mission, its map, players.
+
+    ONE row shape for both reads, so ``list_servers`` and ``get_server_status`` can never describe
+    the same server differently. Both names are read through the label helpers, which is the only
+    place an ESCAPED name may be touched — the row carries the plain one. The status is read as its
+    enum VALUE (a plain string double answers as it is), and a server without a running mission
+    answers ``None`` for both mission and map rather than an empty string, which would be
+    indistinguishable from a mission named "".
+    """
+    status = getattr(server, "status", "")
+    mission = getattr(server, "current_mission", None)
+    return {
+        "name": _server_label(server, ""),
+        "status": getattr(status, "value", str(status or "")),
+        "mission": _mission_label(mission, "") if mission else None,
+        "map": getattr(mission, "map", None) if mission else None,
+        "players_online": len(_active_players(server)),
+    }
+
+
+@action(kind="read")
+async def list_servers(ctx: Any) -> ServerListResult:
+    """List every server this process knows, with its status and running mission.
+
+    ``ctx.servers`` is the caller's own view of the cluster, so a scoped caller lists exactly the
+    servers it may see. The rows ride under ``data["servers"]``: a TOP-LEVEL ``status`` key would
+    overwrite the envelope's own ``ok``/``error``.
+    """
+    rows = [_server_row(server) for server in (ctx.servers or {}).values()]
+    return ServerListResult(
+        success=True,
+        message=f"{len(rows)} servers.",
+        data={"servers": rows},
+        servers=rows,
+    )
+
+
+@action(kind="read")
+async def get_server_status(ctx: Any, server_name: str) -> ServerInfoResult:
+    """One server's status, mission, map and player count.
+
+    The row rides under ``data["server"]`` for the same reason ``list_servers`` nests its list: the
+    envelope's ``status`` is the outcome, not the server's state. The typed fields carry the same
+    facts for a caller that holds the dataclass instead of the wire body.
+    """
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        return ServerInfoResult(
+            success=False,
+            message=f"Server '{server_name}' not found.",
+            server_name=server_name,
+        )
+    row = _server_row(server)
+    return ServerInfoResult(
+        success=True,
+        message=f"Server '{_server_label(server, server_name)}' is {row['status']}.",
+        data={"server": row},
+        server_name=row["name"] or server_name,
+        status=row["status"],
+        mission_name=row["mission"] or "",
+        players_online=row["players_online"],
+    )
 
 
 # ── DCS-level server control (startup / shutdown) ───────────────────────────
@@ -229,7 +346,7 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
                          preset_name: str | None = None,
                          announce: bool = False,
                          mission: int | str | None = None) -> ServerControlResult:
-    """Start up a SHUTDOWN DCS server (the DCS-level Startup; process-level Start is another action).
+    """Boot a SHUTDOWN server (the DCS-level Startup). For a STOPPED server use start_server.
 
     ``mission`` names what this launch loads — the 1-based ``missionList`` index or the mission's
     logical name (:func:`_resolve_mission_id`, the resolver its siblings use). It is honoured by
@@ -287,9 +404,14 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
             server_name=server_name,
         )
     if server.status != Status.SHUTDOWN:
+        label = _server_label(server, server_name)
+        # A STOPPED instance has no shutdown state to boot: the process-level Start is its tool.
+        message = (f"Server '{label}' is Stopped - use start_server."
+                   if server.status == Status.STOPPED
+                   else f"Server '{label}' is {server.status.value}, not shut down.")
         return ServerControlResult(
             success=False,
-            message=f"Server '{_server_label(server, server_name)}' is {server.status.value}, not shut down.",
+            message=message,
             server_name=server_name,
         )
     if states_unapplied_weather(modify_mission, preset):
@@ -414,7 +536,7 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
 @action
 async def shutdown_server(ctx: Any, server_name: str, force: bool = False,
                           maintenance: bool = True) -> ServerControlResult:
-    """Shut down a running or paused DCS server gracefully (the DCS-level Shutdown).
+    """Shut a running or paused server down to SHUTDOWN. stop_server ends the process instead.
 
     The DCS-level counterpart of ``stop_server``: the server stays registered and reads SHUTDOWN
     until a Startup brings it back, where a Stop ends the process and leaves it STOPPED.
@@ -480,37 +602,42 @@ async def pause_mission(ctx: Any, server_name: str) -> MissionControlResult:
     """Pause the running mission on a DCS server."""
     server = ctx.resolve_server(server_name)
     if server is None:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Server '{server_name}' not found.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.status != Status.RUNNING:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Server '{_server_label(server, server_name)}' is {server.status.value}, not running.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.current_mission is None:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"No active mission on server '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     try:
         await server.current_mission.pause()
-        return MissionControlResult(
+        result = MissionControlResult(
             success=True,
             message=f"Mission on server '{_server_label(server, server_name)}' paused.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except Exception as ex:
         log.exception("pause_mission failed")
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Failed to pause mission: {ex}",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
 
 
 @action
@@ -518,37 +645,42 @@ async def unpause_mission(ctx: Any, server_name: str) -> MissionControlResult:
     """Unpause the paused mission on a DCS server."""
     server = ctx.resolve_server(server_name)
     if server is None:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Server '{server_name}' not found.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.status != Status.PAUSED:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Server '{_server_label(server, server_name)}' is {server.status.value}, not paused.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.current_mission is None:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"No active mission on server '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     try:
         await server.current_mission.unpause()
-        return MissionControlResult(
+        result = MissionControlResult(
             success=True,
             message=f"Mission on server '{_server_label(server, server_name)}' unpaused.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except Exception as ex:
         log.exception("unpause_mission failed")
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Failed to unpause mission: {ex}",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
 
 
 @action
@@ -561,45 +693,51 @@ async def restart_mission(
     """Restart the current mission on a DCS server."""
     server = ctx.resolve_server(server_name)
     if server is None:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Server '{server_name}' not found.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.status not in (Status.RUNNING, Status.PAUSED, Status.STOPPED):
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Server '{_server_label(server, server_name)}' is {server.status.value}.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.current_mission is None:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"No active mission on server '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     try:
         if not server.locals.get("mission_rewrite", True) and server.status != Status.STOPPED:
             await server.stop()
         await server.restart(modify_mission=modify_mission)
-        return MissionControlResult(
+        result = MissionControlResult(
             success=True,
             message=f"Mission on server '{_server_label(server, server_name)}' restarted.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except (TimeoutError, asyncio.TimeoutError):
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Timeout while restarting mission on '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except Exception as ex:
         log.exception("restart_mission failed")
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Failed to restart mission: {ex}",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
 
 
 @action
@@ -612,39 +750,44 @@ async def rotate_mission(
     """Rotate to the next mission in the rotation list."""
     server = ctx.resolve_server(server_name)
     if server is None:
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Server '{server_name}' not found.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.status not in (Status.RUNNING, Status.PAUSED, Status.STOPPED):
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Server '{_server_label(server, server_name)}' is {server.status.value}.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     try:
         if not server.locals.get("mission_rewrite", True) and server.status != Status.STOPPED:
             await server.stop()
         await server.loadNextMission(modify_mission=modify_mission, use_orig=use_orig)
-        return MissionControlResult(
+        result = MissionControlResult(
             success=True,
             message=f"Mission rotated on server '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except (TimeoutError, asyncio.TimeoutError):
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Timeout while rotating mission on '{_server_label(server, server_name)}'.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     except Exception as ex:
         log.exception("rotate_mission failed")
-        return MissionControlResult(
+        result = MissionControlResult(
             success=False,
             message=f"Failed to rotate mission: {ex}",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
 
 
 def _loaded_message(mission_name: str, verb: str, preset, preset_name: str | None = None) -> str:
@@ -702,23 +845,26 @@ async def load_mission(
     """
     server = ctx.resolve_server(server_name)
     if server is None:
-        return MissionLoadResult(
+        result = MissionLoadResult(
             success=False,
             message=f"Server '{server_name}' not found.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if server.status not in (Status.RUNNING, Status.PAUSED, Status.STOPPED):
-        return MissionLoadResult(
+        result = MissionLoadResult(
             success=False,
             message=f"Server '{_server_label(server, server_name)}' is {server.status.value}.",
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     if states_unapplied_weather(modify_mission, preset):
-        return MissionLoadResult(
+        result = MissionLoadResult(
             success=False,
             message=WEATHER_NEEDS_EXTENSIONS,
             server_name=server_name,
         )
+        return await _audited(ctx, result, server)
     # The pick travels ONLY into a load that applies it: with the extensions off the node treats
     # ``preset`` as "already applied, record it", so a pick sent there would be recorded as weather
     # no extension produced. ``None`` is what such a load states — it clears the record.
@@ -729,11 +875,12 @@ async def load_mission(
     mission_list = await server.getMissionList()
     if isinstance(mission, int):
         if mission < 0 or mission >= len(mission_list):
-            return MissionLoadResult(
+            result = MissionLoadResult(
                 success=False,
                 message=f"Mission index {mission} out of range (0-{len(mission_list)-1}).",
                 server_name=server_name,
             )
+            return await _audited(ctx, result, server)
         mission_file = mission_list[mission]
         mission_name = os.path.basename(mission_file[:-4])
         # STALE-PAGE GUARD: the console posts the row's LOGICAL name beside its index, so a row whose
@@ -741,7 +888,8 @@ async def load_mission(
         if expected_name:
             reason = await _stale_mission_refusal(server, mission_file, expected_name)
             if reason:
-                return MissionLoadResult(success=False, message=reason, server_name=server_name)
+                result = MissionLoadResult(success=False, message=reason, server_name=server_name)
+                return await _audited(ctx, result, server)
     else:
         mission_file = os.path.join(await server.get_missions_dir(), mission)
         if mission_file not in mission_list:
@@ -758,20 +906,22 @@ async def load_mission(
             # silently dropped — and its NAME reaches the record on that branch as well.
             await server.restart(modify_mission=modify_mission, preset=weather_pick,
                                  preset_name=weather_name, announce=announce)
-            return MissionLoadResult(
+            result = MissionLoadResult(
                 success=True,
                 message=_loaded_message(mission_name, "restarted", weather_pick, weather_name),
                 server_name=server_name,
                 mission_name=mission_name,
             )
+            return await _audited(ctx, result, server)
         except Exception as ex:
             log.exception("load_mission (restart current) failed")
-            return MissionLoadResult(
+            result = MissionLoadResult(
                 success=False,
                 message=f"Failed to restart current mission: {ex}",
                 server_name=server_name,
                 mission_name=mission_name,
             )
+            return await _audited(ctx, result, server)
 
     try:
         if not server.locals.get("mission_rewrite", True) and server.status != Status.STOPPED:
@@ -781,33 +931,37 @@ async def load_mission(
             preset=weather_pick, preset_name=weather_name, announce=announce
         )
         if not success:
-            return MissionLoadResult(
+            result = MissionLoadResult(
                 success=False,
                 message=f"Mission '{mission_name}' NOT loaded. Check installed terrains/mods.",
                 server_name=server_name,
                 mission_name=mission_name,
             )
-        return MissionLoadResult(
+            return await _audited(ctx, result, server)
+        result = MissionLoadResult(
             success=True,
             message=_loaded_message(mission_name, "loaded", weather_pick),
             server_name=server_name,
             mission_name=mission_name,
         )
+        return await _audited(ctx, result, server)
     except (TimeoutError, asyncio.TimeoutError):
-        return MissionLoadResult(
+        result = MissionLoadResult(
             success=False,
             message=f"Timeout while loading mission '{mission_name}'.",
             server_name=server_name,
             mission_name=mission_name,
         )
+        return await _audited(ctx, result, server)
     except Exception as ex:
         log.exception("load_mission failed")
-        return MissionLoadResult(
+        result = MissionLoadResult(
             success=False,
             message=f"Failed to load mission: {ex}",
             server_name=server_name,
             mission_name=mission_name,
         )
+        return await _audited(ctx, result, server)
 
 
 # ── Mission rotation: making a configured mission the START one ──────────────
@@ -1095,9 +1249,11 @@ _R = TypeVar("_R", bound=ActionResult)
 async def _audited(ctx: Any, result: _R, server: Any = None) -> _R:
     """Write the trail for *result* and return it (design §5.3 D1).
 
-    ONE place, so every exit of :func:`message_player` and :func:`message_server` — the successes,
-    the typed refusals and the failed sends — leaves exactly one entry, and none of them can forget
-    the one mechanism.
+    ONE place, so every exit of :func:`message_player`, :func:`message_server` and the eight
+    lifecycle actions (``start_server`` / ``stop_server`` / ``restart_server`` / ``pause_mission`` /
+    ``unpause_mission`` / ``restart_mission`` / ``rotate_mission`` / ``load_mission``) — the
+    successes, the typed refusals and the failed sends — leaves exactly one entry, and none of them
+    can forget the one mechanism.
     """
     await audit_action(ctx, result, server=server)
     return result
@@ -1136,6 +1292,9 @@ SERVER_MESSAGE_LABELS: dict[str, str] = {
     "red": "the Red coalition",
     "blue": "the Blue coalition",
 }
+
+#: The name an operator's own chat record carries when the transport stated no sender.
+SERVER_MESSAGE_ANONYMOUS = "Server"
 
 
 def _recipient_choices(allowed: tuple[str, ...]) -> str:
@@ -1218,7 +1377,29 @@ async def message_server(ctx: Any, server_name: str, message: str, mode: str = "
         log.exception("message_server failed")
         result = ServerControlResult(success=False, message=f"Failed to send the message: {ex}",
                                      server_name=server_name)
+    if result.success:
+        chatlog.append(server, ucid="", name=sender or SERVER_MESSAGE_ANONYMOUS, side="",
+                       audience=recipient, text=body)
     return await _audited(ctx, result, server)
+
+
+@action(kind="read")
+async def chat_history(ctx: Any, server_name: str, after: int = 0) -> ActionResult:
+    """Read the chat lines the listener has recorded for one server, newest last.
+
+    ``after`` is a ``seq`` cursor: 0 reads the whole retained window, any other value reads only the
+    lines recorded after it. The listener records into the process's memory, so this read costs no
+    file IO and no DCS round trip — it is the same ring the ``onChatMessage`` event writes to.
+
+    A read: not audited. ``data["last_seq"]`` is the newest ``seq`` this server has, so a follower
+    that received nothing still knows where it stands.
+    """
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        return ActionResult(success=False, message=f"Server '{server_name}' not found.")
+    records = chatlog.lines(server.name, after=after)
+    return ActionResult(success=True, data={"server_name": server.name, "lines": records,
+                                            "last_seq": chatlog.last_seq(server.name)})
 
 
 # ── Player control: kick / ban / mute (W4b) ─────────────────────────────────
@@ -1761,7 +1942,7 @@ async def ban_ucid(ctx: Any, ucid: str, reason: str, days: str | int | None = No
     return await _audited(ctx, result)
 
 
-@action
+@action(kind="read")
 async def list_bans(ctx: Any) -> ActionResult:
     """The bans the caller may see, built FROM the caller's target set.
 
@@ -2275,7 +2456,7 @@ def _period_filter(node: Any, period: str) -> Any:
     return detected, wanted
 
 
-@action
+@action(kind="read")
 async def list_player_directory(ctx: Any, q: str = "", page: str | int | None = None,
                                 sort: str = "", direction: str = "",
                                 state: str = "all") -> ActionResult:
@@ -2348,7 +2529,7 @@ async def list_player_directory(ctx: Any, q: str = "", page: str | int | None = 
         "sort": key, "direction": wanted_direction, "state": wanted_state})
 
 
-@action
+@action(kind="read")
 async def get_player_detail(ctx: Any, ucid: str) -> ActionResult:
     """ONE player by UCID: identity, link, presence, totals, and both moderation states.
 
@@ -2432,7 +2613,7 @@ async def _active_ban(ctx: Any, ucids: list[str], servers: list[str] | None) -> 
     return max(mine, key=lambda entry: _entry_field(entry, "banned_at") or datetime.min)
 
 
-@action
+@action(kind="read")
 async def get_player_statistics(ctx: Any, ucid: str, period: str = "all") -> ActionResult:
     """The ``/statistics`` numbers of ONE player for ONE period — the statistics tab's read.
 
@@ -2514,7 +2695,7 @@ async def get_player_statistics(ctx: Any, ucid: str, period: str = "all") -> Act
     })
 
 
-@action
+@action(kind="read")
 async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
     """ONE player's infractions: the friendly-fire events, the penalty log and the ban history.
 
@@ -2642,7 +2823,7 @@ def _present_ucids(ctx: Any) -> list[str]:
     return out
 
 
-@action
+@action(kind="read")
 async def search_players(ctx: Any, query: str = "") -> ActionResult:
     """The players whose NAME or UCID matches *query* — the console's ban ADD autocompletes on it.
 
@@ -3084,7 +3265,7 @@ async def unmute_player(ctx: Any, server_name: str, ucid: str) -> PlayerActionRe
 
 # ── Queries ─────────────────────────────────────────────────────────────────
 
-@action
+@action(kind="read")
 async def list_missions(ctx: Any, server_name: str) -> MissionListResult:
     """List all available missions on a DCS server."""
     server = ctx.resolve_server(server_name)
@@ -3129,7 +3310,7 @@ async def list_missions(ctx: Any, server_name: str) -> MissionListResult:
         )
 
 
-@action
+@action(kind="read")
 async def get_mission_info(ctx: Any, server_name: str) -> MissionListResult:
     """Get info about the currently running mission."""
     server = ctx.resolve_server(server_name)
@@ -3457,6 +3638,8 @@ async def upload_mission(ctx: Any, server_name: str, name: str, source: bytes | 
 
     The order, and why it matters:
 
+    0. a BUSY state (:data:`MISSION_LIST_BUSY_STATES`) is refused FIRST — before the name check and
+       before any byte is read, staged or written — and the refusal is audited like any other;
     1. the NAME is validated here (:func:`_refuse_upload`), so a traversal or a non-``.miz`` name is
        refused before anything is written, whatever transport called;
     2. the DESTINATION is validated with ``utils.sanitize_filename`` against the server's
@@ -3502,6 +3685,11 @@ async def upload_mission(ctx: Any, server_name: str, name: str, source: bytes | 
         return MissionUploadResult(success=False, message=f"Server '{server_name}' not found.",
                                    server_name=server_name)
     display = _server_label(server, server_name)
+    if server.status in MISSION_LIST_BUSY_STATES:
+        # BEFORE the name check and before a byte is read or staged: nothing this attempt could write
+        # would survive DCS's own write of the settings file in these two states.
+        return await _audited_upload(ctx, MissionUploadResult(
+            success=False, message=MISSION_LIST_BUSY_REFUSAL, server_name=server_name), server=server)
     refusal = _refuse_upload(name)
     if refusal:
         return await _audited_upload(ctx, MissionUploadResult(
@@ -3618,6 +3806,11 @@ async def upload_mission(ctx: Any, server_name: str, name: str, source: bytes | 
         message = (f"Mission '{leaf}' is currently in use on server '{display}' and was not "
                    f"replaced.")
         success = False
+    elif rc == UploadStatus.BUSY:
+        # The state flipped between the pre-check and the write: the refusal is the SAME sentence
+        # every surface uses, not a status name wrapped into a failure line.
+        message = MISSION_LIST_BUSY_REFUSAL
+        success = False
     else:
         message = f"Failed to upload mission '{leaf}' to server '{display}' ({status})."
         success = False
@@ -3626,7 +3819,7 @@ async def upload_mission(ctx: Any, server_name: str, name: str, source: bytes | 
         filename=leaf, upload_status=status), server=server)
 
 
-@action
+@action(kind="read")
 async def download_mission(ctx: Any, server_name: str, mission: int | str) -> MissionDownloadResult:
     """Read ONE mission's BYTES — resolved by the newest-copy rule and validated before any read.
 
@@ -3695,7 +3888,7 @@ async def download_mission(ctx: Any, server_name: str, mission: int | str) -> Mi
         filename=os.path.basename(chosen["name"]), content=content)
 
 
-@action
+@action(kind="read")
 async def get_mission_list(ctx: Any, server_name: str) -> MissionListResult:
     """The Missions tab's list — 1-based, the newest copy named, and the rotation state.
 
@@ -3871,7 +4064,7 @@ def _parse_mission_document(payload: bytes, node: Any) -> dict:
             pass
 
 
-@action
+@action(kind="read")
 async def read_mission_weather(ctx: Any, server_name: str, mission: int | str = "",
                                original: bool = False) -> MissionWeatherResult:
     """The CURRENT mission's own weather, as a MizEdit preset document — a READ, never audited.
@@ -4007,7 +4200,7 @@ async def read_mission_weather(ctx: Any, server_name: str, mission: int | str = 
 _ADDABLE_SUFFIXES = (".miz", ".sav")
 
 
-@action
+@action(kind="read")
 async def get_addable_missions(ctx: Any, server_name: str) -> MissionListResult:
     """The missions in ``missions_dir`` that are NOT yet configured — the ADD picker's own list.
 
@@ -4104,6 +4297,10 @@ async def add_mission(ctx: Any, server_name: str, path: str, *, autostart: bool 
         return MissionListResult(success=False,
                                  message=f"Timeout while adding mission '{name}'.",
                                  server_name=server_name)
+    except RuntimeError as ex:
+        # the writer's OWN refusal sentence (a busy state), handed through verbatim — a normal
+        # refusal is not a failure and must not produce a traceback
+        return MissionListResult(success=False, message=str(ex), server_name=server_name)
     except Exception as ex:
         log.exception("add_mission failed")
         return MissionListResult(success=False,
@@ -4195,6 +4392,11 @@ async def delete_mission(ctx: Any, server_name: str, mission: int | str, *,
                                  message="Timeout while deleting mission.\n"
                                          "Please reconfirm that the deletion was successful.",
                                  server_name=server_name)
+    except RuntimeError as ex:
+        # the writer's OWN refusal sentence (a busy state), handed through verbatim — a normal
+        # refusal is not a failure and must not produce a traceback
+        return MissionListResult(success=False, message=str(ex), server_name=server_name,
+                                 missions=missions)
     except Exception as ex:
         log.exception("delete_mission failed")
         return MissionListResult(success=False,
@@ -4279,9 +4481,8 @@ MISSION_LIST_ONLINE_STATES = (Status.LOADING, Status.STOPPED, Status.PAUSED, Sta
 #: takes the FILE branch, so DCS reverts the removal on load. Every other state sticks.
 MISSION_DELETE_REFUSED_STATES = (Status.LOADING,)
 
-#: The sentence a ``LOADING`` bulk-removal POST is answered with — and the console's own copy of it
-#: (the generic web surface never imports a plugin module; a test pins the two together).
-MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."
+#: The sentence a ``LOADING`` bulk-removal POST is answered with — owned by
+#: :mod:`core.data.const` (imported at the top), the one home the console reads too.
 
 #: The sentence a mission write refuses with when the row the console rendered no longer names the
 #: mission the FRESH snapshot puts at that position — the list changed between render and POST.
@@ -4459,6 +4660,10 @@ async def delete_missions(ctx: Any, server_name: str, missions: list[int], *,
             refused.append(f"mission {name} could not be removed: {ex}")
         except (TimeoutError, asyncio.TimeoutError):
             refused.append(f"mission {name} could not be removed: timeout")
+        except RuntimeError as ex:
+            # the writer's OWN refusal sentence (a busy state), carried into the per-mission report
+            # verbatim — a normal refusal is not a failure and must not produce a traceback
+            refused.append(f"mission {name} could not be removed: {ex}")
         except Exception as ex:
             log.exception("delete_missions failed")
             refused.append(f"mission {name} could not be removed: {ex}")
@@ -4617,6 +4822,11 @@ async def _write_mission_order(server: Any, server_name: str, current: list[str]
     try:
         result_list = await server.setMissionList(reordered)
     except AttributeError as ex:
+        return MissionListResult(success=False, message=str(ex), server_name=server_name,
+                                 missions=current)
+    except RuntimeError as ex:
+        # the writer's OWN refusal sentence (a busy state), handed through verbatim — one rule must
+        # not read as two messages depending on which surface posted the move
         return MissionListResult(success=False, message=str(ex), server_name=server_name,
                                  missions=current)
     except (TimeoutError, asyncio.TimeoutError):

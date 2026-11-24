@@ -27,6 +27,21 @@ from .logger import CloudLoggingHandler
 _ = get_translation(__name__.split('.')[1])
 
 
+class CloudRefusal(aiohttp.ClientError):
+    """An HTTP refusal that carried a reason in its body.
+
+    A subclass of `aiohttp.ClientError` on purpose: every caller already handles that, and the body
+    — `Invalid token or expired token.`, `IP check failed: <why>` — is otherwise lost, which is how
+    a refused upload reported nothing but a status code.
+    """
+
+    def __init__(self, status: int, url: str, detail: str = ''):
+        super().__init__(f"{status} {url}: {detail or 'no reason given'}")
+        self.status = status
+        self.url = url
+        self.detail = detail
+
+
 class Cloud(Plugin[CloudListener]):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[CloudListener]):
@@ -48,12 +63,16 @@ class Cloud(Plugin[CloudListener]):
             headers = {
                 "Content-type": "application/json"
             }
-            if 'token' in self.config:
+            # An empty `token:` key must not be sent as `Bearer None`/`Bearer `: the cloud treats a
+            # present-but-invalid token as a refusal and does not fall back to the node address.
+            if self.config.get('token'):
                 headers['Authorization'] = f"Bearer {self.config['token']}"
             headers['X-Guild-Id'] = str(self.node.guild_id)
             self._session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
-                raise_for_status=True, headers=headers
+                # Not `raise_for_status`: the error body is the reason the cloud gives ("IP check
+                # failed: ...") and `_request_with_retry` needs to read it before raising.
+                raise_for_status=False, headers=headers
             )
         return self._session
 
@@ -137,15 +156,25 @@ class Cloud(Plugin[CloudListener]):
             try:
                 session_method = getattr(self.session, method)
                 async with session_method(url, proxy=proxy, proxy_auth=proxy_auth, **kwargs) as response:
-                    return await response.json()
+                    if response.status >= 400:
+                        detail = (await response.text())[:1000].strip()
+                        if response.status in (401, 403):
+                            # Not retried: the credential or the address is the answer, and the body
+                            # is what says which ("Invalid token or expired token." / "IP check
+                            # failed: ..."). Without it the log carried a bare status code.
+                            self.log.warning(f"Cloud refused {url} ({response.status}): "
+                                             f"{detail or response.reason}")
+                            raise CloudRefusal(response.status, url, detail)
+                        if response.status == 422:
+                            self.log.warning(f"Unprocessable Content: {url} - "
+                                             f"{detail or kwargs.get('json')}")
+                            raise CloudRefusal(response.status, url, detail)
+                        last_error = CloudRefusal(response.status, url, detail)
+                    else:
+                        return await response.json()
+            except CloudRefusal:
+                raise
             except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
-                if isinstance(ex, aiohttp.ClientResponseError):
-                    if ex.status in [401, 403]:
-                        raise ex
-                    elif ex.status == 422:
-                        self.log.warning(f"Unprocessable Content: {url} - {kwargs['json']}")
-                        raise ex
-
                 last_error = ex
 
                 if isinstance(ex, (aiohttp.ClientConnectorError, aiohttp.ServerDisconnectedError)):
@@ -153,9 +182,9 @@ class Cloud(Plugin[CloudListener]):
                         await self._session.close()
                     self._session = None
 
-                if attempt >= retries:
-                    self.log.warning(f"Cloud service unavailable: {last_error}")
-                    raise
+            if attempt >= retries and last_error is not None:
+                self.log.warning(f"Cloud service unavailable: {last_error}")
+                raise last_error
 
         if last_error:
             raise last_error
@@ -178,18 +207,17 @@ class Cloud(Plugin[CloudListener]):
         try:
             await self.get('discord-bans')
             message = _('Cloud connection established.')
-            if 'token' in self.config:
+            if self.config.get('token'):
                 try:
                     await self.get('verify')
                     message += _('\nCloud TOKEN configured and valid.')
                 except aiohttp.ClientError:
                     message += _('\nCloud TOKEN configured, but invalid!')
             elif self.config.get('register', True):
-                try:
-                    await self.get('verify')
-                    message += _('\nCloud sync configured and valid.')
-                except aiohttp.ClientError:
-                    message += _("\nYou need a cloud TOKEN, if you want to use cloud statistics!")
+                # `/verify` is token-only, so asking it here always says "invalid" for a node that
+                # has no token: uploads are admitted by this node's address instead.
+                message += _('\nNo cloud TOKEN configured: statistics uploads are admitted by '
+                             'this node\'s IP address, Discord auto-linking is off.')
             else:
                 message += _("\nCloud sync is disabled. Set 'register' to true in cloud.yaml to enable it.")
             await interaction.followup.send(message, ephemeral=ephemeral)
@@ -436,6 +464,10 @@ class Cloud(Plugin[CloudListener]):
                 if not rows:
                     return 0
 
+                # `/register_player/` is token-only, and the token is what links Discord users. A
+                # node without one must still upload its statistics: posting the link first raised
+                # 401 and aborted this player's whole sync before `/upload/` was reached.
+                has_token = bool(self.config.get('token'))
                 for row in rows:
                     await cursor.execute("""
                         SELECT DISTINCT x.name, x.discord_id, min(time) AS linked_at, max(time) AS last_seen FROM  
@@ -452,13 +484,14 @@ class Cloud(Plugin[CloudListener]):
                     """, {"ucid": row['ucid']})
                     async for player in cursor:
                         linked_at = player['linked_at'] or player['last_seen']
-                        await self.post('register_player', {
-                            "ucid": row['ucid'],
-                            "name": player['name'],
-                            "discord_id": player['discord_id'],
-                            "linked_at": linked_at.isoformat(),
-                            "last_seen": player['last_seen'].isoformat()
-                        })
+                        if has_token:
+                            await self.post('register_player', {
+                                "ucid": row['ucid'],
+                                "name": player['name'],
+                                "discord_id": player['discord_id'],
+                                "linked_at": linked_at.isoformat(),
+                                "last_seen": player['last_seen'].isoformat()
+                            })
 
                     await cursor.execute("""
                         SELECT s.player_ucid, m.mission_theatre, s.slot, 
@@ -603,6 +636,10 @@ class Cloud(Plugin[CloudListener]):
         # only auto-link players if we participate in cloud stats
         config = self.get_config()
         if not config.get('register', True):
+            return
+        # Auto-linking IS the token's job: `/player` is token-only, so without one this call can
+        # only be refused — and the warning it logged read like a cloud outage on every join.
+        if not config.get('token'):
             return
 
         ucid = await self.bot.get_ucid_by_member(member)

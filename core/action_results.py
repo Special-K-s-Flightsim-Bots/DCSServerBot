@@ -19,10 +19,17 @@ from typing import Any
 
 @dataclass
 class ActionResult:
-    """Base result for all actions."""
+    """Base result for all actions.
+
+    ``code`` is the MACHINE-readable outcome, empty for the action's own answer (a success, or a
+    domain refusal): a transport maps it to a status instead of parsing ``message``. It is a FIELD
+    and deliberately not part of :meth:`to_dict` — the console and the Discord renderer consume that
+    envelope and must not gain a key.
+    """
     success: bool
     message: str = ""
     data: dict[str, Any] = field(default_factory=dict)
+    code: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -30,6 +37,18 @@ class ActionResult:
             "message": self.message,
             **self.data,
         }
+
+
+#: The outcome codes :attr:`ActionResult.code` carries. Each names a refusal the ACTION SEAM made —
+#: never the action's own answer, which stays ``""``. The status a transport maps them to is that
+#: transport's business; these strings are the wire contract.
+
+#: the action is not registered in this installation (its plugin is not loaded)
+ACTION_UNAVAILABLE = "action_unavailable"
+#: the in-flight guard refused a second call against the same target
+TARGET_BUSY = "target_busy"
+#: the action raised — a bug, not a refusal
+ACTION_FAILED = "action_failed"
 
 
 @dataclass

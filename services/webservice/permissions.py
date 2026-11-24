@@ -1001,9 +1001,13 @@ def walk_mounts(app) -> list:
     return found
 
 
-#: Mounts the shell expects. EMPTY, and that is the point: the registrar serves assets through
-#: ``app.frontend`` (which runs the dependency chain), so a mount is always somebody's mistake.
-EXPECTED_MOUNTS: tuple[str, ...] = ()
+#: Mounts the shell expects. Every entry is a surface that does NOT run the dependency chain, so it
+#: must carry its own gate — the registrar serves assets through ``app.frontend`` (which runs it),
+#: so any other mount is somebody's mistake.
+#:
+#: ``/mcp`` is the MCP transport (``services/mcpservice``): a mount answers before the app's
+#: dependencies run, and its own ``_Bearer`` wrapper authenticates every request on it.
+EXPECTED_MOUNTS: tuple[str, ...] = ("/mcp",)
 
 
 def audit_mounts(app, *, context: str = "startup") -> list[str]:

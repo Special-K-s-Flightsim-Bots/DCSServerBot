@@ -176,6 +176,21 @@ class Extension(ABC):
             "version": self.version or 'n/a'
         }
 
+    async def render_public(self, param: dict | None = None) -> dict:
+        """The base dict only: ``_class``, ``name``, ``version`` and ``withheld: 0``.
+
+        Never carries a ``value`` key and never calls ``render()``; an extension that publishes more
+        overrides this.
+        """
+        if self.hidden:
+            raise NotImplementedError()
+        return {
+            "_class": self.__class__.__name__,
+            "name": self.name,
+            "version": self.version or 'n/a',
+            "withheld": 0
+        }
+
     async def get_config(self, **kwargs) -> dict:
         return self.config
 

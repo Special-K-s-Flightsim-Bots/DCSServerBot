@@ -600,18 +600,25 @@ function mission.onPlayerTrySendChat(from, message, to)
     -- Workaround DCS bug
     local side = net.get_player_info(from, 'side')
     if to == -2 and (side == 1 or side == 2) then
-        mission.onChatMessage(message, from, to)
+        local audience = 'all'
+        if side == 1 then
+            audience = 'red'
+        elseif side == 2 then
+            audience = 'blue'
+        end
+        mission.onChatMessage(message, from, to, audience)
     end
 end
 
-function mission.onChatMessage(message, from, to)
+function mission.onChatMessage(message, from, to, audience)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onChatMessage()')
     if from > 1 then
         local msg = {
             command = 'onChatMessage',
             message = message,
             from = from,
-            to = to
+            to = to,
+            audience = audience
         }
         utils.sendBotTable(msg, dcsbot.params.mission.channels.chat)
     end

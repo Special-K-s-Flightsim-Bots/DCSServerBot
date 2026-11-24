@@ -36,18 +36,14 @@ try:
     from ruamel.yaml import YAML
     yaml = YAML()
 except ModuleNotFoundError as ex:
-    import shutil
-    import subprocess
+    import deps
 
     print(f"Module {ex.name} is not installed, fixing ...")
-    if shutil.which('uv'):
-        cmd = ['uv', 'pip', 'sync', '--python', sys.executable, 'requirements.txt']
-        if os.path.exists("requirements.local"):
-            cmd.append("requirements.local")
-        subprocess.run(cmd)
-    else:
-        print("uv was not found in your PATH - install it from https://docs.astral.sh/uv/ to "
-              "repair the environment.")
+    # Synchronise unconditionally instead of going through the fingerprint: a stamp that matches
+    # only means the files did not change, and this branch exists because the environment does not
+    # match them anyway.
+    if deps.sync() == 0:
+        deps.write_stamp()
     exit(-1)
 
 LOGLEVEL = {

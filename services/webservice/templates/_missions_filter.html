@@ -1,0 +1,23 @@
+{#-  THE MISSIONS TAB'S NAME FILTER — the console's own GET search band (the players roster, the
+    audit trail and the log card carry the same shape), never a second control style.
+
+    IT IS SERVER-SIDE, and that is what makes the rest of the card honest: the page renders the
+    matching rows only, so the "All" box, the count and the removal selection can only ever name
+    rows that are on screen — with JavaScript off as well. A client-side hide would leave filtered
+    rows in the form, where a selection could delete missions the operator cannot see.
+
+    THE TAB RIDES AS A HIDDEN FIELD: a GET form REPLACES the action's query string, so the target
+    is the page's path and `tab=missions` travels in the body. "Clear" is the tab's own URL, which
+    drops the filter (and with it the selection, as the bar's Clear always has). -#}
+<form class="search" method="get" action="{{ missions_page_url }}" role="search">
+  <label for="missions-q">{% trans %}Filter missions{% endtrans %}</label>
+  <input type="search" id="missions-q" name="{{ missions_filter_field }}" size="24"
+         value="{{ missions_filter }}" autocomplete="off"
+         placeholder="{% trans %}name or path{% endtrans %}">
+  <input type="hidden" name="tab" value="missions">
+  <button type="submit">{% trans %}Search{% endtrans %}</button>
+  <a href="{{ missions_tab_url }}">{% trans %}Clear{% endtrans %}</a>
+</form>
+{% if missions_filtered %}
+<p class="sub search-state">{% trans query=missions_filter, shown=missions_shown, total=missions_total %}Filter: name or path contains {{ query }} · {{ shown }} of {{ total }} missions{% endtrans %}</p>
+{% endif %}

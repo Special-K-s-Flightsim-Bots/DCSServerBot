@@ -22,7 +22,8 @@ from __future__ import annotations
 
 from typing import Iterable
 
-__all__ = ["CHANNELS_ITEM", "MANAGER_DENIED", "MANAGER_DENIED_KEYS", "manager_denial"]
+__all__ = ["CHANNELS_ITEM", "WEB_PASSWORDS_ITEM", "MANAGER_DENIED", "MANAGER_DENIED_KEYS",
+           "manager_denial"]
 
 #: The reserved ITEM name for the CHANNELS WRITE (``set_server_channels``) taken as a WHOLE — never a
 #: DCS setting key. ``DCS_FIELDS`` has no ``channels`` field (the channels live in ``servers.yaml``,
@@ -30,19 +31,30 @@ __all__ = ["CHANNELS_ITEM", "MANAGER_DENIED", "MANAGER_DENIED_KEYS", "manager_de
 #: OPERATION token.
 CHANNELS_ITEM = "channels"
 
-#: THE DECLARATION. Each entry maps a denied ITEM (a config key, or :data:`CHANNELS_ITEM` for the
-#: channels write as a whole) to the typed sentence a manager is REFUSED with and the page shows beside
-#: the row.
+#: The reserved ITEM name for the PUBLIC-SITE PASSWORD write (``set_server_web_passwords``), taken as
+#: a WHOLE — the second operation token. It publishes a secret onto a page anyone can read, so a
+#: manager scoped to the server must not reach it either.
+WEB_PASSWORDS_ITEM = "web_passwords"
+
+#: The ITEM names that are OPERATIONS, not DCS setting keys — excluded from
+#: :data:`MANAGER_DENIED_KEYS`, which only ``set_server_config`` filters a submitted mapping against.
+OPERATION_ITEMS: tuple[str, ...] = (CHANNELS_ITEM, WEB_PASSWORDS_ITEM)
+
+#: THE DECLARATION. Each entry maps a denied ITEM (a config key, or one of :data:`OPERATION_ITEMS`
+#: for an operation as a whole) to the typed sentence a manager is REFUSED with and the page shows
+#: beside the row.
 MANAGER_DENIED: dict[str, str] = {
     "port": "Changing the server port requires the Admin role.",
     CHANNELS_ITEM: "Changing the Discord channels requires the Admin role.",
+    WEB_PASSWORDS_ITEM: ("Publishing a server's password on the public site requires the Admin "
+                         "role."),
 }
 
 #: The denied CONFIG KEYS — the subset of :data:`MANAGER_DENIED` that are DCS settings — which
 #: ``set_server_config`` filters a submitted ``values`` mapping against. DERIVED from the declaration,
 #: so it cannot drift from it.
 MANAGER_DENIED_KEYS: frozenset[str] = frozenset(
-    item for item in MANAGER_DENIED if item != CHANNELS_ITEM)
+    item for item in MANAGER_DENIED if item not in OPERATION_ITEMS)
 
 
 def manager_denial(items: Iterable[str]) -> str | None:

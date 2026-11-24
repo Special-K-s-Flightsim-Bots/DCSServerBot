@@ -301,3 +301,7 @@ class DKS(InstallableExtension):
         return ret | {
             "value": value
         }
+
+    @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        return await self.render(param)

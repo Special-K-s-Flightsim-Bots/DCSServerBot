@@ -31,6 +31,8 @@ from typing import Any, Mapping
 
 from core.utils import setup_config
 
+from ..auth.discord_oauth import DEFAULT_CLIENT_SECRET_KEY
+
 __all__ = [
     "TOKEN_KEY",
     "CLIENT_SECRET_KEY",
@@ -74,8 +76,9 @@ log = logging.getLogger(__name__)
 TOKEN_KEY = "token"
 
 #: the secret-store key the console's Discord login reads its client secret from
-#: (``config/.secret/discord_client_secret.pkl``; the schema example names it too).
-CLIENT_SECRET_KEY = "discord_client_secret"
+#: (``config/.secret/discord_client_secret.pkl``; the schema example names it too). ONE definition:
+#: the runtime reader resolves the same key when the config names none.
+CLIENT_SECRET_KEY = DEFAULT_CLIENT_SECRET_KEY
 
 #: How long the whole Discord read may take. The read is five REST calls; a hung DNS must fail the
 #: step, never hang the request handler.

@@ -248,6 +248,10 @@ class Lardoon(InstallableExtension):
             "value": value
         }
 
+    @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        return await self.render(param)
+
     @tasks.loop(minutes=1.0)
     async def _schedule(self):
         def run_subprocess(args):

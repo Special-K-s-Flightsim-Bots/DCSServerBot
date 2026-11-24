@@ -97,6 +97,68 @@
   </div>
 </div>
 {% endmacro %}
+{#-  THE CHAT CARD. The server's in-game chat, streamed to `/static/chat-log.js` over the event
+    stream the card carries. ONE card, the mockup's own shape:
+
+    * the HEAD carries the two server-side filters (`who` = sender, `q` = text; a GET, so the filter
+      survives a reload and the follower carries it), the `N of M lines` count while a filter is in
+      force, and the follow's status line;
+    * `#chat-body` is ALWAYS rendered — even while no lines have arrived yet — so the follower
+      starts from the empty state and the honest sentence (in `#chat-note`, beside the body) gives way
+      the moment real lines arrive;
+    * THE COMPOSER posts to the EXISTING `message_server` write route, carrying the page's one-shot
+      confirm token: one write path, one gate, one audit trail — and a POST without the token is
+      refused by that route. It is ABSENT while the server cannot take a message (`chat_can_send` is
+      the action's own status rule), and the card says why in its place.
+
+    THE FOOT IS A BLOCK (``chat.css``), not shell.css's flex row: the message field takes the card's
+    remaining width and Send sits at its bottom-right corner. -#}
+{% macro chat_card() %}
+<div class="card log-card chat-card" id="chat-card"
+     data-stream-url="{{ chat_stream_url }}" data-after="{{ chat_after }}"
+     data-who="{{ chat_who }}" data-q="{{ chat_q }}">
+  <div class="hd">
+    <h3>{% trans %}Game chat{% endtrans %}</h3>
+    <div class="spacer"></div>
+    <form class="chat-filter" method="get" action="{{ chat_tab_url }}">
+      <input type="hidden" name="tab" value="{{ chat_tab_key }}">
+      <label class="chat-vh" for="chat-who">{% trans %}Search sender{% endtrans %}</label>
+      <input id="chat-who" name="who" class="cfg-input f-who" type="search" value="{{ chat_who }}"
+             placeholder="{% trans %}Sender…{% endtrans %}" autocomplete="off">
+      <label class="chat-vh" for="chat-q">{% trans %}Search text{% endtrans %}</label>
+      <input id="chat-q" name="q" class="cfg-input f-text" type="search" value="{{ chat_q }}"
+             placeholder="{% trans %}Text…{% endtrans %}" autocomplete="off">
+      <button class="btn" type="submit">{% trans %}Search{% endtrans %}</button>
+    </form>
+    <span class="tag" id="chat-count">{{ chat_count }}</span>
+    <span class="live-status" id="chat-status">{% if chat_available %}{% trans %}following while this tab is open{% endtrans %}{% else %}{% trans %}not available{% endtrans %}{% endif %}</span>
+  </div>
+  <div class="log" id="chat-body">{% with lines = chat_lines %}{% include "_chat_lines.html" %}{% endwith %}</div>
+  <div class="bd" id="chat-note"{% if chat_lines %} hidden{% endif %}><p class="empty" id="chat-note-text">{{ _(chat_message) }}</p></div>
+  {% if chat_can_send %}
+  <div class="ft chat-foot">
+    <form class="chat-send" method="post" action="{{ chat_action_path }}" data-async>
+      <input type="hidden" name="{{ chat_server_field }}" value="{{ chat_server }}">
+      <input type="hidden" name="mode" value="{{ chat_mode }}">
+      <input type="hidden" name="{{ chat_confirm_field }}" value="{{ chat_confirm_token }}">
+      <input type="hidden" name="{{ chat_csrf_field }}" value="{{ chat_csrf_token }}">
+      <label class="chat-vh" for="chat-aud">{% trans %}Send to{% endtrans %}</label>
+      <select id="chat-aud" name="{{ chat_coalition_field }}" class="cfg-input sel-aud">
+        {% for option in chat_audiences %}<option value="{{ option.value }}">{{ _(option.label) }}</option>{% endfor %}
+      </select>
+      <label class="chat-vh" for="chat-msg">{% trans %}Message{% endtrans %}</label>
+      <textarea id="chat-msg" name="{{ chat_field }}" class="cfg-input msg" rows="3"
+                maxlength="{{ chat_message_max }}" data-counter="chat-cnt"
+                placeholder="{% trans %}Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line){% endtrans %}"></textarea>
+      <button class="btn primary" type="submit">{% trans %}Send{% endtrans %}</button>
+    </form>
+    <p class="chat-note">{{ _(chat_note_sentence) }} <span class="cnt" id="chat-cnt">0 / {{ chat_message_max }}</span></p>
+  </div>
+  {% else %}
+  <div class="ft chat-foot off"><span class="chat-off">{{ _(chat_off_sentence) }}</span></div>
+  {% endif %}
+</div>
+{% endmacro %}
 {% block title %}{{ page_title }} — DCSServerBot{% endblock %}
 {% block content %}
 
@@ -147,7 +209,7 @@
 <div class="st-head">
   <div>
     <div class="t1">
-      <a class="st-back" href="/fleet">&larr; {{ _('Servers') }}</a>
+      <a class="st-back" href="{{ console_url('/fleet') }}">&larr; {{ _('Servers') }}</a>
       <span class="st-crumb">&rsaquo; {{ _('Configuration') }}</span>
     </div>
     <div class="t1" style="margin-top:6px">
@@ -506,7 +568,15 @@
     {% include "_notice.html" %}
     {% if not missions_available %}
     <p class="empty">{{ _(missions_message) }}</p>
-    {% elif missions %}
+    {% else %}
+    {#-  THE NAME FILTER first: it decides WHICH rows this card draws, so it is read before the
+        selection form, the bar's "All" and the count are — they are all about the rows below it. -#}
+    {% include "_missions_filter.html" %}
+    {% if not missions_total %}
+    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% elif not missions %}
+    <p class="empty">{% trans %}No mission matches the filter.{% endtrans %}</p>
+    {% else %}
     {#- THE SELECTION FORM: the row boxes belong to it through ``form="missions-form"`` (the row's own
         controls are their OWN small forms, so nothing nests); the per-row stale-page map rides it as
         one hidden field per row, and it posts to the ONE dialog that asks the confirmation. -#}
@@ -517,8 +587,11 @@
       {% for m in missions %}<input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">{% endfor %}
     </form>
     {% endif %}
-    {% if missions_reorder_capable and not missions_offline %}
-    <div class="sub">{{ missions_offline_reason }}</div>
+    {#-  the reason the grip is absent, when it is: the process-down rule, or a filter in force — each
+        in its OWN sentence, never both, and only for a viewer who could otherwise have ordered the
+        list (a capability omission explains nothing). -#}
+    {% if missions_reorder_capable and not missions_drag_allowed %}
+    <div class="sub">{% if not missions_offline %}{{ missions_offline_reason }}{% else %}{{ missions_filter_reorder_reason }}{% endif %}</div>
     {% endif %}
     <div class="sub">{% trans %}Read through the mission plugin's own action — this page never opens a mission file.{% endtrans %}</div>
     {% if missions_drag_allowed %}
@@ -563,7 +636,12 @@
             {% if missions_select_allowed %}<div class="m-box" style="padding-top:2px"><input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box></div>{% endif %}
             <div class="m-fact" style="min-width:0">
               <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
-              <div class="hp mono">{{ m.path }}</div>
+              {#-  THE PATH IS A SECOND LINE ONLY WHEN IT SAYS SOMETHING NEW: the logical name and the
+                  physical copy's path are the same string for a mission at the top level of the
+                  missions folder, so a row differing only in font would read as a duplicate. It earns
+                  its line where the copy moved (`.dcssb/`, `.orig`) or the mission sits in a
+                  subfolder. -#}
+              {% if m.path != m.name %}<div class="hp mono">{{ m.path }}</div>{% endif %}
               {% if missions_select_allowed and m.current %}<div class="hp">{% trans %}The running mission can be set as the start mission, but it cannot be removed.{% endtrans %}</div>{% endif %}
             </div>
           </div>
@@ -607,8 +685,7 @@
       {{ editor.field_row('', m_lab, m_ctl, cls='row-active' if m.active else '', attrs=m_attrs) }}
       {% endfor %}
     </div>
-    {% else %}
-    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% endif %}
     {% endif %}
   </div>
 </div>
@@ -645,12 +722,24 @@
 
 {#- UPLOAD — a file coming from the OPERATOR's own computer into the server's missions directory.
     The label carries it: nothing here looks like an add, and nothing about an add
-    looks like this. -#}
+    looks like this.
+
+    OFFERED ONLY IN THE STATES DCS DOES NOT WRITE ``serverSettings.lua`` ITSELF
+    (``MISSIONS_UPLOAD_STATES``): while the server starts up or shuts down DCS owns that file, so an
+    uploaded mission would land in a write DCS overwrites. In those two states the card is ABSENT and
+    the refusal sentence stands where it would have been — never drawn disabled — and only for a
+    viewer who may upload at all: without ``missions.upload`` nothing here is drawn in ANY state.
+
+    THE FORM CARRIES THE SERVER IN THE QUERY BESIDE THE BODY: the route reads the query, so a busy
+    server is refused before anything is staged and before the action is called. The bytes have
+    already arrived by then — the route's CSRF dependency parses the whole form, file part included —
+    so what this gate saves is the staging and the action call, not the transfer. The hidden field
+    stays the write's own target — the query is the early gate's copy. -#}
 {% if missions_upload_allowed %}
 <div class="card">
   <div class="hd"><h3>{% trans %}Upload a mission file{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}from your computer{% endtrans %}</span></div>
   <div class="bd">
-    <form class="cfg-form" method="post" action="{{ missions_upload_path }}" enctype="multipart/form-data">
+    <form class="cfg-form" method="post" action="{{ missions_upload_path }}?{{ missions_server_field }}={{ missions_server|urlencode }}" enctype="multipart/form-data">
       <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
       <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
       {% set up_lab %}
@@ -681,6 +770,14 @@
     </form>
   </div>
 </div>
+{% elif missions_upload_capable %}
+{#- THE BUSY STATES: the card is OMITTED and the refusal says why, in the upload's OWN sentence
+    (never the reorder's, never a capability problem). Same three classes as the card above, no new
+    style. -#}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Upload a mission file{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}from your computer{% endtrans %}</span></div>
+  <div class="bd"><div class="sub">{{ missions_upload_reason }}</div></div>
+</div>
 {% endif %}
 
 {% else %}
@@ -689,7 +786,13 @@
   <div class="bd">
     {% if not missions_available %}
     <p class="empty">{{ _(missions_message) }}</p>
-    {% elif missions %}
+    {% else %}
+    {% include "_missions_filter.html" %}
+    {% if not missions_total %}
+    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% elif not missions %}
+    <p class="empty">{% trans %}No mission matches the filter.{% endtrans %}</p>
+    {% else %}
     <div class="sub">{% trans %}Read through the mission plugin's own action — this page never opens a mission file.{% endtrans %}</div>
     {% if missions_reorder_capable and not missions_offline %}
     <div class="sub">{{ missions_offline_reason }}</div>
@@ -703,15 +806,14 @@
           {#-  the same row anatomy without a box (a read-only viewer selects nothing)  -#}
           <div class="m-row" style="display:grid;grid-template-columns:minmax(0, 1fr);align-items:start;padding-left:9px"><div class="m-fact" style="min-width:0">
             <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
-            <div class="hp mono">{{ m.path }}</div>
+            {% if m.path != m.name %}<div class="hp mono">{{ m.path }}</div>{% endif %}
           </div></div>
       {% endset %}
       {% set ro_ctl %}<a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a>{% endset %}
       {{ editor.field_row('', ro_lab, ro_ctl, cls='row-active' if m.active else '') }}
       {% endfor %}
     </div>
-    {% else %}
-    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% endif %}
     {% endif %}
   </div>
 </div>
@@ -746,6 +848,13 @@
     for the server. A server the file configures no radio for never reaches this branch — the route
     refuses `?tab=music` with the same predicate that withholds the link. -#}
 {% include "music_body.html" %}
+
+{% elif tab == 'chat' %}
+{# ---------------------------------------------------------------- the Chat tab: this server's game chat #}
+{#-  THE SERVER'S IN-GAME CHAT: the mission plugin's JSONL history, filtered server-side by sender and
+    text. One macro renders the card. A server whose mission plugin is not registered never reaches
+    this branch — the route refuses `?tab=chat` with the same gate that withholds the link. -#}
+{{ chat_card() }}
 
 {% elif tab == 'log' %}
 {# ---------------------------------------------------------------- the Log tab: the server's own dcs.log #}
@@ -935,6 +1044,10 @@
 {% block head %}<link rel="stylesheet" href="/static/settings-scope.css">
 <link rel="stylesheet" href="/static/mods.css">
 <link rel="stylesheet" href="/static/scheduler.css">
+{#  THE CHAT PANE's delta (`static/chat.css`) is the Chat tab's own: the audience colouring, the filter
+    row and the composer in the card's foot. Linked only while that tab is in force, so every other tab
+    loads exactly what it loaded before.  #}
+{% if tab == 'chat' %}<link rel="stylesheet" href="/static/chat.css">{% endif %}
 {% if tab == 'statistics' %}<link rel="stylesheet" href="/static/{{ style }}">{% endif %}{% endblock %}
 
 {% block scripts %}<script src="/static/reveal.js" defer></script>
@@ -948,6 +1061,9 @@
 {#  THE SERVER LOG's follow + page-back: a progressive enhancement. With JavaScript off the tail
     the page rendered is all there is — the page is not live and "Load older" does nothing.  #}
 <script src="/static/server-log.js" defer></script>
+{#  THE CHAT follower (`static/chat-log.js`) — the same progressive enhancement for the Chat tab: with
+    JavaScript off the window the page rendered is all there is, and the page is not live.  #}
+{% if tab == 'chat' %}<script src="/static/chat-log.js" defer></script>{% endif %}
 {#  THE SERVER'S STATUS's own poll: a progressive enhancement. It keeps the status "at the top"
     (and the Overview card's copy) current on its OWN interval, on every tab — separate from the log
     follower on purpose, so one fact has one updater and the two can never drift.  #}

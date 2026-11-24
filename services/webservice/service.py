@@ -9,8 +9,8 @@ from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG, Port, PortType
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
-from pathlib import Path
 from services.servicebus import ServiceBus
+from services.webservice.auth.discord_oauth import secure_client_secret
 from services.webservice.shell import create_app, frontend_enabled, install_shell
 from starlette.requests import Request
 from typing_extensions import override
@@ -18,16 +18,67 @@ from uvicorn import Config
 
 from core.utils.yaml_helper import new_yaml
 
+#: The listener and port the service uses when the config states neither, and the values a config
+#: auto-created for the REST API plugin is written with.
+DEFAULT_LISTEN = '0.0.0.0'
+DEFAULT_PORT = 9876
+
+
+class DropCancellationRecords(logging.Filter):
+    """Drop a log record whose exception IS a cancellation.
+
+    A cancelled request carries no failure to act on and nothing to fix, and a forced server exit
+    (see :meth:`WebService.stop`) cancels every request in flight, so an open event stream ends in a
+    ``CancelledError`` raised inside ``receive()``. uvicorn logs any exception escaping an ASGI app
+    as ``Exception in ASGI application``; this keeps that shape out of the log without touching a
+    record that reports a real error. The filter sits on the logger, so it also stops the record
+    reaching the handlers the bot attached to the root logger.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        exc = record.exc_info[1] if record.exc_info else None
+        return not isinstance(exc, asyncio.CancelledError)
+
+
+def drop_cancellation_records(logger: logging.Logger | None = None) -> None:
+    """Install :class:`DropCancellationRecords` on uvicorn's error logger, once per process.
+
+    ``logger`` is for the tests; the service passes nothing and gets ``uvicorn.error``, the logger
+    every ASGI-app failure is reported through.
+    """
+    logger = logger if logger is not None else logging.getLogger("uvicorn.error")
+    if not any(isinstance(f, DropCancellationRecords) for f in logger.filters):
+        logger.addFilter(DropCancellationRecords())
+
 
 @ServiceRegistry.register(master_only=True, depends_on=[ServiceBus])
 class WebService(Service):
 
+    def _secure_client_secret(self) -> bool:
+        """Move ``auth.discord.client_secret`` into the secret store; True when it was moved.
+
+        Returns whether the config changed, and the caller writes the file. ``frontend: false``
+        does not exempt it: that switch skips the LOGIN, not the secret sitting in plain text.
+        """
+        block = self.locals.get(DEFAULT_TAG) or {}
+        auth = block.get('auth') if isinstance(block, dict) else None
+        discord = auth.get('discord') if isinstance(auth, dict) else None
+        if not secure_client_secret(discord, config_dir=self.node.config_dir):
+            return False
+        self.log.info(f"  - {self.name}: Discord client secret found, removing it from yaml ...")
+        return True
+
     def __init__(self, node: NodeImpl):
         super().__init__(node)
+        # installed before the server exists, and unconditionally: a config auto-created later, or an
+        # app rebuilt after a master/agent switch, is then still covered
+        drop_cancellation_records()
+        if self._secure_client_secret():
+            self.save_config()
         cfg = self.get_config()
         if not cfg:
-            old_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
-            if os.path.exists(old_config):
+            legacy_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
+            if os.path.exists(legacy_config):
                 self.install()
                 self.locals = self.read_locals()
                 cfg = self.get_config()
@@ -49,8 +100,8 @@ class WebService(Service):
             self.app = self._create_app()
             self.config = Config(
                 app=self.app,
-                host=cfg.get('listen', '0.0.0.0'),
-                port=cfg.get('port', 9876),
+                host=cfg.get('listen', DEFAULT_LISTEN),
+                port=cfg.get('port', DEFAULT_PORT),
                 workers=1,
                 log_level=logging.WARNING,
                 log_config=None,
@@ -63,26 +114,19 @@ class WebService(Service):
             self.app = None
 
     def install(self):
-        old_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
-        new_config = os.path.join(self.node.config_dir, 'services', 'webservice.yaml')
-        if os.path.exists(old_config) and not os.path.exists(new_config):
-            old = new_yaml().load(Path(old_config).read_text(encoding='utf-8'))
-            new = old.copy()
-            if 'prefix' in old.get(DEFAULT_TAG, {}):
-                old[DEFAULT_TAG] = {
-                    'prefix': new[DEFAULT_TAG].pop('prefix')
-                }
-            else:
-                old = {}
+        """Create the service config a REST API installation needs, and nothing else.
 
-            if old:
-                with open(old_config, mode='w', encoding='utf-8') as old_out:
-                    new_yaml().dump(old, old_out)
-            else:
-                os.remove(old_config)
-            if new:
-                with open(new_config, mode='w', encoding='utf-8') as new_out:
-                    new_yaml().dump(new, new_out)
+        The file carries the two keys that start the HTTP server, at the values the service itself
+        falls back to. A REST API's own settings — ``auth``, ``security``, ``endpoints``,
+        ``prefix`` — are NOT part of this file: they belong to ``plugins/restapi.yaml``, which is
+        the file the plugin reads, and this schema refuses them.
+        """
+        new_config = os.path.join(self.node.config_dir, 'services', 'webservice.yaml')
+        if os.path.exists(new_config):
+            return
+        os.makedirs(os.path.dirname(new_config), exist_ok=True)
+        with open(new_config, mode='w', encoding='utf-8') as new_out:
+            new_yaml().dump({DEFAULT_TAG: {'listen': DEFAULT_LISTEN, 'port': DEFAULT_PORT}}, new_out)
 
     def _create_app(self) -> FastAPI:
         """Create the FastAPI app and install the admin web shell on it.
@@ -356,6 +400,24 @@ class WebService(Service):
         except Exception:
             self.log.debug("WebService: the ready-time scope audit could not run.", exc_info=True)
 
+    def _close_in_flight_connections(self) -> None:
+        """Close the requests still open, so uvicorn's shutdown can actually finish.
+
+        ``force_exit`` skips uvicorn's wait-for-connections loop, but ``shutdown()`` ends by awaiting
+        ``wait_closed()`` on every listener, and that returns only once no connection is left. A live
+        update stream never ends on its own, so without this the stop waits out the whole graceful
+        timeout and then cancels the server task anyway. Closing the in-flight sockets is what makes
+        that wait short: the stream sees its disconnect and ends instead of being torn down.
+        """
+        server_state = getattr(self.server, 'server_state', None)
+        for connection in list(getattr(server_state, 'connections', ()) or ()):
+            try:
+                connection.transport.close()
+            except Exception:
+                # a connection that closed itself between the snapshot and the call is the same
+                # outcome this is asking for
+                continue
+
     @override
     async def stop(self):
         if self.scope_task:
@@ -396,6 +458,7 @@ class WebService(Service):
             # Explicitly trigger the shutdown of the uvicorn server
             if hasattr(self.server, 'force_exit'):
                 self.server.force_exit = True
+            self._close_in_flight_connections()
 
             # Give uvicorn a moment to shut down gracefully, then cancel if it hangs
             try:

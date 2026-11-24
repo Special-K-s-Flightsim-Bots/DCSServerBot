@@ -1029,3 +1029,43 @@ msgstr "Rozszerzenie {} skonfigurowane."
 
 msgid "No configuration available for extension {}"
 msgstr "Brak dostępnej konfiguracji dla rozszerzenia {}"
+
+#: plugins/admin/webadmin.py
+msgid "Public address (http:// if no SSL)"
+msgstr "Adres publiczny (http:// bez SSL)"
+
+#: plugins/admin/webadmin.py
+msgid "The session cookie is marked Secure when this address is https://, and left alone for http://. A Secure cookie is not sent back over plain HTTP, so the sign-in would not stick — use http:// while there is no certificate in front of the console."
+msgstr "Ciasteczko sesji jest oznaczane jako Secure, gdy ten adres to https://, a dla http:// pozostaje bez zmian. Ciasteczko Secure nie jest odsyłane przez zwykłe HTTP, więc logowanie by się nie utrzymało — używaj http://, dopóki przed konsolą nie ma certyfikatu."
+
+#: plugins/admin/webadmin.py
+msgid "Sign-in cookie"
+msgstr "Ciasteczko logowania"
+
+#: plugins/admin/webadmin.py
+msgid "The public address is not known yet, so whether the cookie's Secure flag matches it cannot be checked."
+msgstr "Adres publiczny nie jest jeszcze znany, więc nie można sprawdzić, czy flaga Secure ciasteczka do niego pasuje."
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is not a boolean ({}) — the service refuses the session block, so no cookie is set at all."
+msgstr "session.https_only nie jest wartością logiczną ({}) — usługa odrzuca blok session, więc żadne ciasteczko nie jest ustawiane."
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is set"
+msgstr "session.https_only jest ustawione"
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is not set, and a non-loopback listen makes it Secure"
+msgstr "session.https_only nie jest ustawione, a listen spoza loopback czyni je Secure"
+
+#: plugins/admin/webadmin.py
+msgid "The session cookie is marked Secure, but the address is {} ({}). A browser does not send a Secure cookie back over plain HTTP: the sign-in appears to work and the next page is signed out again. Set session.https_only: false in {}, or open the console over https://."
+msgstr "Ciasteczko sesji jest oznaczone jako Secure, ale adres to {} ({}). Przeglądarka nie odsyła ciasteczka Secure przez zwykłe HTTP: logowanie wygląda na udane, a następna strona jest znowu wylogowana. Ustaw session.https_only: false w {} albo otwórz konsolę przez https://."
+
+#: plugins/admin/webadmin.py
+msgid "The address is {} but the session cookie is not marked Secure ({}). It then travels in cleartext on any plain http hop in front of the reverse proxy. Set session.https_only: true in {}."
+msgstr "Adres to {}, ale ciasteczko sesji nie jest oznaczone jako Secure ({}). Wędruje więc otwartym tekstem na każdym zwykłym odcinku http przed reverse proxy. Ustaw session.https_only: true w {}."
+
+#: plugins/admin/webadmin.py
+msgid "The cookie's Secure flag matches {} — a sign-in sticks over this address."
+msgstr "Flaga Secure ciasteczka pasuje do {} — logowanie utrzymuje się na tym adresie."

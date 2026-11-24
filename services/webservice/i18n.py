@@ -25,6 +25,12 @@ THE LANGUAGE OF A REQUEST, highest precedence first:
 3. the ``language:`` key in ``main.yaml`` — today's install-wide setting, and the default when
    nothing else applies.
 
+PUBLIC SITE PAGES USE A SHORTER PRECEDENCE. A page served by :mod:`services.webservice.site_pages`
+resolves through :func:`resolve_site_language`: the stored ``dcssb_lang`` cookie first, then the
+site's declared ``site.lang``. ``Accept-Language`` and ``main.yaml`` are NOT consulted there — a
+site that declares German stays German for a visitor who has chosen nothing. The cookie is the SAME
+``dcssb_lang``, so one stored choice covers both surfaces and the two cannot drift apart.
+
 THE STORE, AND WHY IT CANNOT NAME AN UNKNOWN LANGUAGE. The stored choice is a **dedicated cookie**,
 not the authenticated session — for two reasons. It has to work **before login** (the login page is
 where a visitor first wants it), and the login and logout flows call ``request.session.clear()``
@@ -76,9 +82,11 @@ __all__ = [
     "MESSAGES_PATH", "JS_MESSAGES",
     "LANGUAGE_NAMES", "LANGUAGE_FLAGS", "FLAG_ASSET_PREFIX", "FLAG_NEUTRAL_ASSET", "flag_asset",
     "catalog_languages", "selectable_languages", "display_name",
-    "normalise_language", "default_language", "resolve_language", "translations_for",
+    "normalise_language", "default_language", "resolve_language", "resolve_site_language",
+    "translations_for",
     "SCHEMA_DOMAIN", "schema_text_for", "schema_text",
-    "environment_for_language", "environment_for", "language_control", "render", "render_fragment",
+    "environment_for_language", "environment_for", "language_control", "site_language_control",
+    "render", "render_fragment",
     "translator_for", "translate",
     "messages_for", "messages_for_language", "messages_script", "messages_script_for",
     "messages_capability",
@@ -334,6 +342,32 @@ def _header_of(request, name: str) -> str | None:
     return headers.get(name) if headers is not None else None
 
 
+def resolve_site_language(request, site_lang) -> str:
+    """The language a PUBLIC SITE page renders in: the stored choice, else the site's own.
+
+    PRECEDENCE, in this order and no other:
+
+    1. the visitor's stored choice — the shared ``dcssb_lang`` cookie, validated by
+       :func:`normalise_language`; an absent or unknown value is skipped;
+    2. ``site.lang`` — the language the site block declares (validated against the shipped
+       catalogs when the site is loaded).
+
+    ``Accept-Language`` is DELIBERATELY NOT consulted, and neither is ``main.yaml``: a site that
+    declares German stays German for a visitor who has chosen nothing. That is why this function
+    exists instead of :func:`resolve_language`, whose header and install-wide steps are wrong for a
+    site.
+
+    The cookie is the CONSOLE'S OWN (``dcssb_lang``, path ``/``), so one stored choice covers both
+    surfaces: a visitor who picks French on the public site sees the Command Center in French too,
+    and vice versa — one preference, one control, no second cookie to get out of step.
+    """
+    stored = normalise_language(_cookie_of(request))
+    if stored:
+        return stored
+    return normalise_language(site_lang) or BASE_LANGUAGE
+
+
+
 # ------------------------------------------------------------------- the per-language translator
 
 def translations_for(language: str) -> gettext.NullTranslations:
@@ -530,6 +564,40 @@ def language_control(request: Request) -> dict:
     }
 
 
+def site_language_control(request, resolved, language: str) -> dict:
+    """The PUBLIC SITE's language control — the same shape :func:`language_control` returns.
+
+    ``_language.html`` renders this unchanged, so the partial needs no site-specific branch.
+
+    ``language`` is the language IN FORCE for this render (what
+    :func:`resolve_site_language` answered), not :func:`resolve_language`'s answer: the tick and
+    the pill must name the language the page is actually written in, and the console's resolver
+    would consult ``Accept-Language`` and ``main.yaml`` and tick the wrong row.
+
+    ``action`` is the SITE's own switch path and ``next`` the current path inside THIS site
+    (both built through :mod:`services.webservice.site_pages`), so the switch returns to a page of
+    the site the control was rendered on rather than to a console path. ``next`` is validated
+    (:func:`site_pages.safe_return`), never trusted from the client.
+    """
+    # imported LAZILY: ``site_pages`` imports this module at top level, so a module-level import
+    # here would be a cycle. Both modules are loaded by the time a request runs.
+    from . import site_pages
+
+    url = getattr(request, "url", None)
+    path = (getattr(url, "path", None) or "/") if url is not None else "/"
+    options = [{"code": code, "name": display_name(code), "flag": flag_asset(code),
+                "active": code == language}
+               for code in selectable_languages()]
+    return {
+        "current": language,
+        "current_name": display_name(language),
+        "current_flag": flag_asset(language),
+        "action": site_pages.site_url(resolved, LANGUAGE_PATH),
+        "next": site_pages.safe_return(request, resolved, path),
+        "languages": options,
+    }
+
+
 def _return_path(request) -> str:
     """Where a language switch returns to: a page the console DECLARES, else the site root.
 
@@ -587,6 +655,9 @@ JS_MESSAGES: dict[str, str] = {
     "log.start_of_log": _("Start of log"),
     "log.following": _("following while this tab is open"),
     "log.paused": _("paused — this tab is hidden"),
+    # the chat stream (static/chat-log.js, on the Chat tab): its ring lives in the bot's memory, so a
+    # restart starts it empty — the sentence says so instead of calling it a rotation
+    "chat.restarted": _("— the bot restarted; the chat history starts again —"),
     # the missions selection bar (static/mission-select.js, on the Missions tab)
     "mission.count": _("{n} of {total} selected"),
     "mission.remove_selected": _("Remove selected…"),
@@ -603,6 +674,13 @@ JS_MESSAGES: dict[str, str] = {
     "yaml.checking": _("Checking…"),
     "yaml.ok": _("Valid."),
     "yaml.editing": _("editing"),
+    # the completion popup over the schema's tree (static/settings-yaml.js): the two marks a row can
+    # carry and the word that names the row inserting a block's example. They reuse the catalogs'
+    # EXISTING "required" and "set" msgids — those words are already translated everywhere — so only
+    # "example" is a new msgid in the nine catalogs.
+    "yaml.hint.required": _("required"),
+    "yaml.hint.set": _("set"),
+    "yaml.hint.example": _("example"),
 }
 
 #: the ONE substitution helper the served script installs. It LOOKS A KEY UP and replaces ``{name}``

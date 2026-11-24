@@ -25,6 +25,26 @@ from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
+#: Set once the non-concurrent refresh fallback has been reported, so the hourly job does not log it
+#: 24 times a day. Module-level: the condition is per process, not per plugin instance.
+_refresh_fallback_warned = False
+
+#: Every view the hourly refresh covers, in refresh order — the names the start-of-refresh log line
+#: reports. ``mv_statistics`` comes first because ``mv_serverstats`` is built from it. The statements
+#: are literal per view in ``refresh_views``; the log test compares the two, so a view added to one
+#: and not the other fails.
+_REFRESH_VIEWS: tuple[str, ...] = (
+    "mv_statistics",
+    "mv_serverstats",
+    "mv_site_activity",
+    "mv_site_pilots",
+    "mv_site_pilot_totals",
+    "mv_site_pilot_aircraft",
+    "mv_site_missions",
+    "mv_site_aircraft",
+    "mv_site_hours",
+)
+
 
 def parse_params(self, ctx, member: discord.Member | str | None, *params) \
         -> tuple[discord.Member | str, str]:
@@ -795,16 +815,43 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     @tasks.loop(hours=1)
     async def refresh_views(self):
+        global _refresh_fallback_warned
+        views = ", ".join(_REFRESH_VIEWS)
         try:
+            self.log.info("Refreshing materialized views (%s): %s", "concurrent", views)
             async with self.apool.connection() as conn:
-                await conn.execute("""
-                    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_statistics;
-                """)
+                await conn.set_autocommit(True)
+                try:
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_statistics;")
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_serverstats;")
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_site_activity;")
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_site_pilots;")
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_site_pilot_totals;")
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_site_pilot_aircraft;")
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_site_missions;")
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_site_aircraft;")
+                    await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_site_hours;")
+                finally:
+                    await conn.set_autocommit(False)
         except psycopg.errors.FeatureNotSupported:
+            if not _refresh_fallback_warned:
+                _refresh_fallback_warned = True
+                self.log.warning(
+                    "REFRESH MATERIALIZED VIEW CONCURRENTLY is unavailable; falling back to the "
+                    "non-concurrent refresh, which locks the views for its duration. This warning "
+                    "is logged once per process."
+                )
+            self.log.info("Refreshing materialized views (%s): %s", "locking", views)
             async with self.apool.connection() as conn:
-                await conn.execute("""
-                    REFRESH MATERIALIZED VIEW mv_statistics;
-                """)
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_statistics;")
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_serverstats;")
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_site_activity;")
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_site_pilots;")
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_site_pilot_totals;")
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_site_pilot_aircraft;")
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_site_missions;")
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_site_aircraft;")
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_site_hours;")
 
     @refresh_views.before_loop
     async def before_refresh_views(self):

@@ -1,0 +1,43 @@
+/* brass.css — the site's shipped look, as a theme sheet.
+ *
+ * The default, and the reference every other sheet is measured against: the values are the ones
+ * site.css declares, re-stated here so "Brass" is a file a site can point at like any other.
+ * Custom properties only.
+ */
+:root {
+  --ground:     #17120d;
+  --stage:      #110d09;
+  --band:       #241d14;
+  --panel:      #201a13;
+  --panel-2:    #261f18;
+  --line:       #3a3126;
+  --line-2:     #524634;
+  --black:      #000;
+
+  --fg:         #f5eee1;
+  --fg-2:       #d8ccb8;
+  --fg-3:       #b6a992;
+
+  --brass:      #d9a04a;
+  --brass-dim:  #8a6428;
+  --brass-wash: rgba(217, 160, 74, .10);
+  --brass-hi:   #eab871;
+  --sage:       #a9c7b4;
+
+  --wash:       rgba(245, 238, 225, .06);
+  --hair:       rgba(245, 238, 225, .06);
+  --hero-glow:  rgba(217, 160, 74, .17);
+  --hero-sage:  rgba(169, 199, 180, .05);
+  --pulse-ring: rgba(169, 199, 180, .55);
+  --pulse-none: rgba(169, 199, 180, 0);
+  --pulse-edge: rgba(169, 199, 180, .35);
+
+  --medal-ink:    #231a05;
+  --medal-gold:   linear-gradient(160deg, #f7df8b, #c9a227);
+  --medal-silver: linear-gradient(160deg, #e6e9ee, #9aa3ad);
+  --medal-bronze: linear-gradient(160deg, #e0a878, #a4682f);
+
+  --disp: "Ubuntu", "DejaVu Sans", sans-serif;
+  --body: "Ubuntu Sans", "Ubuntu", "DejaVu Sans", sans-serif;
+  --mono: "Ubuntu Mono", "DejaVu Sans Mono", monospace;
+}

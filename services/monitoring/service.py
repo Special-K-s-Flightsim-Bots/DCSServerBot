@@ -118,6 +118,38 @@ class MonitoringService(Service):
                    f"If the scheduler is configured for this server, it will relaunch it automatically."
         await self.bot.alert(title, message, server=server, filename=logfile)
 
+    def snapshot_log(self, server: Server, now: datetime) -> str | None:
+        """Copy the server's DCS log aside and return the copy's path, or ``None`` for no copy.
+
+        Candidates are tried in order and the FIRST non-empty one is copied: ``dcs.log``, then
+        ``dcs.log.old`` — DCS's own rotation name for the previous run. A crash inside the first
+        seconds after a (re)start leaves ``dcs.log`` existing but empty, because DCS re-creates it
+        at every start; what the operator wants is then still in ``dcs.log.old``.
+
+        No copy is written when every candidate is missing or empty: a zero-byte ``dcs-<ts>.log``
+        in the log directory would be offered by /download as if it were the crash log.
+
+        A copy that cannot be written (a file another process holds exclusively) is logged and
+        reported as no copy, so the crash warning itself is still delivered.
+        """
+        log_dir = os.path.join(server.instance.home, 'Logs')
+        for name in ('dcs.log', 'dcs.log.old'):
+            source = os.path.join(log_dir, name)
+            try:
+                if os.path.isfile(source) and os.path.getsize(source) > 0:
+                    break
+            except OSError:
+                continue
+        else:
+            return None
+        target = os.path.join(log_dir, f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log")
+        try:
+            shutil.copy2(source, target)
+        except OSError as ex:
+            self.log.warning(f"Could not copy {source} for the crash report: {ex}")
+            return None
+        return target
+
     async def check_popups(self):
         # check for blocked processes due to window popups
         for title in [
@@ -182,12 +214,7 @@ class MonitoringService(Service):
         else:
             await server.shutdown(True)
         server.process = None
-        dcs_log = os.path.join(server.instance.home, 'Logs', 'dcs.log')
-        if os.path.exists(dcs_log):
-            log_copy = os.path.join(server.instance.home, 'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log")
-            shutil.copy2(dcs_log, log_copy)
-        else:
-            log_copy = None
+        log_copy = self.snapshot_log(server, now)
 
         await self.bot.audit("Server killed due to a hung state.", server=server)
         server.status = Status.SHUTDOWN
@@ -208,15 +235,7 @@ class MonitoringService(Service):
                     return
                 # only escalate if the server was not stopped (maybe the process was manually shut down)
                 if server.status != Status.STOPPED:
-                    logfile = os.path.join(server.instance.home, 'Logs', 'dcs.log')
-                    if os.path.exists(logfile):
-                        now = datetime.now(timezone.utc)
-                        log_copy = os.path.join(
-                            server.instance.home, 'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log"
-                        )
-                        shutil.copy2(logfile, log_copy)
-                    else:
-                        log_copy = None
+                    log_copy = self.snapshot_log(server, datetime.now(timezone.utc))
                     title = f'Server "{server.name}" died!'
                     message = 'Setting state to SHUTDOWN.'
                     self.log.warning(title + ' ' + message)

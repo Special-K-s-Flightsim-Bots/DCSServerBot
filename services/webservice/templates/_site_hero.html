@@ -1,0 +1,24 @@
+{#-
+  THE HERO — one block, included by the overview and by the settings card's preview.
+
+  Both documents draw the same hero, so it lives here once: a change to the mark, the greeting or
+  the welcome cannot land on one page and miss the other.
+
+  THE MARK. `hero_mark` is the site's own mark (the uploaded file first, then `branding.logo`) or
+  nothing at all. With nothing, no mark element is drawn and `.in` keeps its shipped class, so the
+  hero is the document it was before the mark existed. `mark_side` is `left` or `right` and names
+  the grid placement; the mark's `alt` is empty because the headline beside it carries the name.
+
+  THE PARAGRAPH. `welcome` is the site's `branding.welcome` with `%(community)s` already
+  substituted in Python, or the shipped sentence. It is printed ESCAPED — never parsed as markup.
+-#}
+<section class="hero"><div class="in{% if hero_mark %} has-mark mark-{{ mark_side }}{% endif %}">
+  {%- if hero_mark %}
+  <div class="hero-mark"><img src="{{ hero_mark }}" alt=""></div>
+  {%- endif %}
+  <div class="eyebrow">{% trans %}Community record{% endtrans %}</div>
+  <h1>{{ greeting.lead }}{% if greeting.lead %}<br>{% endif %}<em>{{ greeting.name }}</em>{{ greeting.tail }}</h1>
+  <div class="hero-foot">
+    <p>{{ welcome }}</p>
+  </div>
+</div></section>

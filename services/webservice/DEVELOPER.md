@@ -215,7 +215,10 @@ writes follow the server rows' `scope_grants` rule, so a **manager** reaches the
   *Remove N missions…* once it takes over), while the dialog's own button reads *Remove missions*.
 * **upload**, `POST /actions/server/missions/upload` (`missions.upload`, `upload_mission`) — sends a
   `.miz` file from the operator's own computer into the server's missions directory and adds it.
-  Accepted in **every** state.
+  It **refuses `LOADING` and `SHUTTING_DOWN`** — every other state accepts — because DCS writes
+  `serverSettings.lua` itself in both of those windows, so an upload that adds a mission to the
+  rotation races its own copy of that file. In those two states the Missions tab omits the control
+  and states the refusal where it would have been.
 * **load**, `POST /actions/server/missions/load` (`missions.load`, `load_mission`) — starts the chosen
   mission now; offered only in `RUNNING` / `PAUSED` / `STOPPED`.
 * **set the start mission**, `POST /actions/server/missions/activate` (`missions.activate`,
@@ -610,6 +613,63 @@ faithful widget falls back to an editable value flagged **validate on save**, an
 validation on the write is the final word.
 
 ---
+
+## The public site
+
+The site surface is the console's separate, unauthenticated face: one route tree per site in the
+`webservice.yaml` `sites:` block, registered under the owner `site` with an EMPTY prefix
+(`site_pages.register`), so the console's mount never moves a site path. Every route below is
+declared `public` (`permissions.PUBLIC`): no session, no capability and no scope — an anonymous
+visitor and a signed-in member read the same page, and the only per-identity difference is the
+shell's chip and the figures of `/me`.
+
+`<site>` in the table is the site's own prefix: `""` for the root site and `/<slug>` for a group
+site, so `/rankings` is the root site's leaderboard page and `/group1/rankings` the same page of
+`group1`. Every path is built by `site_pages.site_url`; no page module spells a site root.
+
+No site path may be one the legacy REST API claims: `plugins/restapi` registers its surface at its
+configured `prefix:`, which defaults to `""` (the site root), and a peer's normal route WINS a shared
+path over a site page's low-priority route. The addresses in `site_pages.NAV_PATHS` therefore stay off
+that surface — the leaderboard page is at `/rankings`, not at the API's `/leaderboard` — and
+`tests/test_webui_site_public_route.py` compares every declared address with the plugin's own route
+list, so a page added on an API path fails instead of answering the API's refusal.
+
+| Page | Route | Capability | Read |
+|------|-------|------------|------|
+| Overview | `GET <site>/` | `public` | `community_totals`, `activity_over_time`, `server_board`, `leaderboard` (playtime / all) and `squadrons` (`services/webservice/site_reads.py`), all bounded to the site's servers |
+| Leaderboard | `GET <site>/rankings` | `public` | `leaderboard` (metric, period, offset, sort column and sort direction from the query string; the column and direction are whitelisted in the read) |
+| Servers | `GET <site>/fleet` | `public` | `server_list` (the live roster plus `mv_serverstats`' all-time figures, bounded to the site's servers) |
+| Fleet live cells | `GET <site>/fleet.json` | `public` | `fleet_live` (the roster half alone: state, players, mission, clocks — no statement and no RPC, so the page polls it). `?server=<name>` narrows it to one server of the site and adds its cached live read's state, which is what that server's own page polls |
+| One server | `GET <site>/fleet/{name}` | `public` | `server_detail` (built on `server_list`), plus the cached live read (`live_read`) for the weather and extension blocks |
+| Pilot search | `GET <site>/players` | `public` | `pilot_search` (query, offset from the query string) |
+| Pilot profile | `GET <site>/player/{ucid}` | `public` | `pilot_profile` for one UCID |
+| My statistics | `GET <site>/me` | `public` | `my_statistics` for the request's own identity; anonymous visitors get the sign-in control, never a redirect |
+
+Two asset routes exist beside the pages: `GET <site>/theme.css` serves the site's palette sheet
+(the `theme.preset` sheet, or the `theme.expert` block wrapped in one `:root` rule) and
+`GET <site>/logo.png` serves `branding.logo` (a raster suffix only). Both are `public`; the logo
+route reads one file from the config directory per request.
+
+**The per-server page's two live blocks are cached reads.** Weather (`getFog`) and the public
+extensions render are RPCs to the game server, so `site_reads.live_read` answers the snapshot the
+process holds and refreshes it in the background on a 300 s window — the same window the bot's
+status embed caches `getFog` under. A `down` or `failed` snapshot stands for 20 s only, and one that
+contradicts the roster is never served at all: a server that has started since the read is refreshed
+at once rather than reported as off. The weather itself comes from the mission object the read holds;
+when that block is EMPTY — a page served by a process whose mission copy carries the name, map and
+slots but not the weather — the read asks the game server `getWeatherInfo` (the command the bot's
+own listener uses) under the same short bound, and recomposes the block again on every view so a
+mission that publishes its figures late cannot hide them for a whole window. A page view never waits
+on any of it, and a block with nothing to read states why in one sentence instead of drawing empty
+instruments.
+
+**There is NO write route on this surface.** The site reads; a visitor cannot post, change or
+store anything through it, and the only interactive element that leaves the page is the sign-in
+control, which uses the console's existing auth routes. A write belongs to the console, behind its
+capability and scope gates.
+
+The nav is declared once in `site_pages` (`NAV_PATHS`, `NAV_LABELS`, `SERVED_NAV_IDS`): a site's
+`nav:` list selects and orders the ids, and an id without a served page renders no entry.
 
 ## The Statistics page (GET /statistics)
 

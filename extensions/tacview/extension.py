@@ -267,6 +267,34 @@ class Tacview(InstallableExtension):
         }
 
     @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        """The address/status lines only; ``withheld`` counts the password lines left out."""
+        if not self.locals:
+            raise NotImplementedError()
+
+        ret = await super().render_public(param)
+        withheld = 0
+        if not self.locals.get('tacviewModuleEnabled', True):
+            value = 'disabled'
+        else:
+            host = self.config.get('host', self.node.public_ip)
+            value = ''
+            if self.locals.get('tacviewRealTimeTelemetryEnabled', True):
+                value += f"- {host}:{self.locals.get('tacviewRealTimeTelemetryPort', 42674)}\n"
+                withheld += 1 if self.locals.get('tacviewRealTimeTelemetryPassword') else 0
+            if int(self.locals.get('tacviewPlaybackDelay', 0)) > 0:
+                value += f"- Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}\n"
+            if self.locals.get('tacviewRemoteControlEnabled', False):
+                value += f"**Remote Ctrl [{self.locals.get('tacviewRemoteControlPort', 42675)}]**\n"
+                withheld += 1 if self.locals.get('tacviewRemoteControlPassword') else 0
+            if len(value) == 0:
+                value = 'enabled'
+        return ret | {
+            "value": value,
+            "withheld": withheld
+        }
+
+    @override
     def is_available(self) -> bool:
         return self.get_inst_path() is not None
 

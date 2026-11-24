@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
-from core.action_results import ActionResult
+from core.action_results import (ACTION_FAILED, ACTION_UNAVAILABLE, TARGET_BUSY, ActionResult)
 
 if TYPE_CHECKING:
     from core import NodeImpl, Server
@@ -37,27 +37,66 @@ log = logging.getLogger(__name__)
 # a REST call and an MCP tool all reach the same function through it. Plugins simply decorate their
 # action functions — no hard-coded imports needed.
 
+#: The two action kinds. A READ changes nothing it is asked about; a WRITE changes something that
+#: outlives the call. The kind states WHAT the action does — domain metadata, never an HTTP shape.
+ACTION_KIND_READ = "read"
+ACTION_KIND_WRITE = "write"
+ACTION_KINDS = (ACTION_KIND_READ, ACTION_KIND_WRITE)
+
 _ACTIONS: dict[str, Callable] = {}
 
+#: ``qualname`` → kind, written by the same decorator as :data:`_ACTIONS` and read through
+#: :func:`kind_of`. A SEPARATE mapping so :func:`action_registry` keeps returning
+#: ``dict[str, Callable]``: no consumer of the registry changes.
+_ACTION_KINDS: dict[str, str] = {}
 
-def action(fn: Callable) -> Callable:
+
+def action(fn: Callable | None = None, *, kind: str = ACTION_KIND_WRITE) -> Callable:
     """Decorator: register a function as an ACTION this installation can offer.
 
-    Usage in any plugin's actions.py::
+    Two spellings, ONE registry::
 
         from core.actions import action
 
-        @action
+        @action                                      # a WRITE — the default
         async def start_server(ctx: Any, server_name: str) -> ServerControlResult:
+            ...
+
+        @action(kind="read")                         # a READ
+        async def list_missions(ctx: Any, server_name: str) -> MissionListResult:
             ...
 
     The declaration is transport-neutral: the MCP service, the admin web console and the Discord
     commands all read the same registry this fills, so adding a plugin's action needs no edit on any
     of them. Discovery scans loaded plugins' actions.py modules and auto-registers every decorated
     function.
+
+    An action registered WITHOUT ``kind`` reports :data:`ACTION_KIND_WRITE` — the fail-safe
+    direction, because a write presented as a read would take the paths a read takes, while a read
+    presented as a write only demands more than it needs. Any other ``kind`` value raises
+    ``ValueError`` at import time, so a typo cannot register a third state.
     """
-    _ACTIONS[fn.__qualname__] = fn
-    return fn
+    if kind not in ACTION_KINDS:
+        raise ValueError(f"@action: kind must be one of {ACTION_KINDS}, got {kind!r}")
+
+    def register(target: Callable) -> Callable:
+        _ACTIONS[target.__qualname__] = target
+        _ACTION_KINDS[target.__qualname__] = kind
+        return target
+
+    return register if fn is None else register(fn)
+
+
+def kind_of(qualname: str) -> str:
+    """The kind *qualname* declares: :data:`ACTION_KIND_READ` or :data:`ACTION_KIND_WRITE`.
+
+    Answers for EVERY registered action, and answers :data:`ACTION_KIND_WRITE` for a name that is
+    not registered — an action absent from this process declares nothing, and the fail-safe
+    direction is the one a caller must assume.
+    """
+    if qualname not in _ACTIONS:
+        return ACTION_KIND_WRITE
+    return _ACTION_KINDS.get(qualname, ACTION_KIND_WRITE)
 
 
 def action_registry() -> dict[str, Callable]:
@@ -390,12 +429,14 @@ async def call_action(qualname: str, ctx: ActionContext, /, *, audit_result: boo
         return ActionResult(
             success=False,
             message=f"Action '{qualname}' is not available in this installation.",
+            code=ACTION_UNAVAILABLE,
         )
     target, key = _normalise_target(params)
     if key is not None and key in _in_flight:
         return ActionResult(
             success=False,
             message=f"Another action on {target} is still running. Wait and retry.",
+            code=TARGET_BUSY,
         )
     if key is not None:
         _in_flight.add(key)
@@ -403,7 +444,8 @@ async def call_action(qualname: str, ctx: ActionContext, /, *, audit_result: boo
         result = await fn(ctx, **params)
     except Exception as ex:
         log.exception("Action '%s' failed", qualname)
-        return ActionResult(success=False, message=f"Action '{qualname}' failed: {ex}")
+        return ActionResult(success=False, message=f"Action '{qualname}' failed: {ex}",
+                            code=ACTION_FAILED)
     finally:
         if key is not None:
             _in_flight.discard(key)
@@ -441,12 +483,14 @@ async def read_action(qualname: str, ctx: ActionContext, /, **params) -> ActionR
         return ActionResult(
             success=False,
             message=f"Action '{qualname}' is not available in this installation.",
+            code=ACTION_UNAVAILABLE,
         )
     try:
         result = await fn(ctx, **params)
     except Exception as ex:
         log.exception("Action '%s' failed", qualname)
-        return ActionResult(success=False, message=f"Action '{qualname}' failed: {ex}")
+        return ActionResult(success=False, message=f"Action '{qualname}' failed: {ex}",
+                            code=ACTION_FAILED)
     if not isinstance(result, ActionResult):
         result = ActionResult(success=bool(result), message=str(result))
     return result
@@ -647,13 +691,20 @@ class ActionContext:
         return ctx
 
     @classmethod
-    def from_service(cls, service) -> ActionContext:
-        """Create context from a Service (e.g. MCPService)."""
+    def from_service(cls, service, *, actor: str | None = None) -> ActionContext:
+        """Create context from a Service (e.g. MCPService).
+
+        ``actor`` is the audit token of the caller this context is built for; ``None`` keeps the
+        transport's own label ``"MCP"``, so a caller that names no actor audits exactly as before.
+        The token's variable part is neutralised through :func:`_audit_token` where the token is
+        BUILT (``from_web`` does the same for its subject): the brackets of a declared token are
+        structural, so sanitising the assembled string would destroy it.
+        """
         from services.servicebus import ServiceBus
         from core.services.registry import ServiceRegistry
 
         ctx = cls(node=service.node, bus=ServiceRegistry.get(ServiceBus))
-        ctx._audit_user = "MCP"  # or pass explicitly per-call
+        ctx._audit_user = actor if actor is not None else "MCP"
         ctx._transport = TRANSPORT_SERVICE
         return ctx
 

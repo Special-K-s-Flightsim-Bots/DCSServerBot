@@ -68,7 +68,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Stre
 from core.action_results import ActionResult
 from core.actions import ActionContext, action_available, audit_action, call_action, read_action
 
-from .. import i18n, permissions, readmodels, session
+from .. import i18n, mount, permissions, readmodels, session
 from ..registry import NavItem
 from . import actions as actions_page
 from . import dashboard as dashboard_page
@@ -338,6 +338,11 @@ declare()
 
 # ── the urls ──────────────────────────────────────────────────────────────
 
+def _music_root() -> str:
+    """The playlist tree's address as the browser must use it — the console's mount prefix included."""
+    return mount.url(MUSIC_PATH)
+
+
 def _quoted(name: str) -> str:
     """One path segment holding *name*."""
     return quote(str(name or ""), safe="")
@@ -345,32 +350,32 @@ def _quoted(name: str) -> str:
 
 def playlist_url(name: str) -> str:
     """The editor URL of one playlist name."""
-    return f"{MUSIC_PATH}/{_quoted(name)}"
+    return f"{_music_root()}/{_quoted(name)}"
 
 
 def add_url(name: str) -> str:
     """The add route of one playlist."""
-    return f"{MUSIC_PATH}/{_quoted(name)}/add"
+    return f"{_music_root()}/{_quoted(name)}/add"
 
 
 def remove_url(name: str) -> str:
     """The remove route of one playlist."""
-    return f"{MUSIC_PATH}/{_quoted(name)}/remove"
+    return f"{_music_root()}/{_quoted(name)}/remove"
 
 
 def move_url(name: str) -> str:
     """The single-step move route of one playlist: one row one place, the whole order written."""
-    return f"{MUSIC_PATH}/{_quoted(name)}/move"
+    return f"{_music_root()}/{_quoted(name)}/move"
 
 
 def reorder_url(name: str) -> str:
     """The drag route of one playlist — the whole new order in one POST."""
-    return f"{MUSIC_PATH}/{_quoted(name)}/reorder"
+    return f"{_music_root()}/{_quoted(name)}/reorder"
 
 
 def upload_url(name: str) -> str:
     """The library card's upload route of one playlist — one multipart POST per file."""
-    return f"{MUSIC_PATH}/{_quoted(name)}/upload"
+    return f"{_music_root()}/{_quoted(name)}/upload"
 
 
 def _upload_cap_message() -> str:
@@ -384,15 +389,15 @@ def _upload_cap_message() -> str:
 def dialog_url(name: str, verb: str = "") -> str:
     """The dialog URL of one playlist: ``verb`` empty is the "play on…" dialog."""
     if not verb:
-        return f"{MUSIC_PATH}/{_quoted(name)}/play"
-    return f"{MUSIC_PATH}/{_quoted(name)}/dialog/{_quoted(verb)}"
+        return f"{_music_root()}/{_quoted(name)}/play"
+    return f"{_music_root()}/{_quoted(name)}/dialog/{_quoted(verb)}"
 
 
 def run_url(name: str, verb: str = "") -> str:
     """The write URL behind one playlist dialog."""
     if not verb:
-        return f"{MUSIC_PATH}/{_quoted(name)}/play/run"
-    return f"{MUSIC_PATH}/{_quoted(name)}/run/{_quoted(verb)}"
+        return f"{_music_root()}/{_quoted(name)}/play/run"
+    return f"{_music_root()}/{_quoted(name)}/run/{_quoted(verb)}"
 
 
 # ── small readers ─────────────────────────────────────────────────────────
@@ -593,20 +598,20 @@ def _playlist_rows(playlists: list[dict], radios_by_pair: dict, *, request: Requ
         row = {
             "name": name,
             "url": playlist_url(name),
-            # the row's ONE door names what it does: the name and this glyph both open the editor
             "edit_title": {"msgid": EDIT_TITLE, "params": {"name": name}},
             "tracks": int(entry.get("tracks") or 0),
             "length": _span(entry.get("seconds")),
             "missing": int(entry.get("missing") or 0),
-            "missing_sentence": (i18n.translate(request, FACT_MISSING,
-                                                count=int(entry.get("missing") or 0))
-                                 if entry.get("missing") else ""),
+            "missing_sentence": (
+                i18n.translate(request, FACT_MISSING, count=int(entry.get("missing") or 0))
+                if entry.get("missing") else ""
+            ),
             "used": [f"{_text(pair.get('server'))} › {_text(pair.get('radio'))}" for pair in used],
             "on_air": on_air,
-            "controls": [],
+            "controls": _playlist_controls(
+                request, name, token=token, may_write=may_write, may_control=may_control, running=running
+            )
         }
-        row["controls"] = _playlist_controls(request, name, token=token, may_write=may_write,
-                                             may_control=may_control, running=running)
         rows.append(row)
     return rows
 
@@ -871,7 +876,8 @@ def _live_context(request: Request) -> dict | None:
     """
     if not live_page.dashboard_config(request.app).enabled:
         return None
-    return {"stream": MUSIC_STREAM_PATH, "fragments": MUSIC_FRAGMENTS_PATH}
+    return {"stream": mount.url(MUSIC_STREAM_PATH),
+            "fragments": mount.url(MUSIC_FRAGMENTS_PATH)}
 
 
 async def overview_context(request: Request) -> dict:

@@ -1,0 +1,66 @@
+{% extends "site_base.html" %}
+{#-
+  The public site's pilot search — the page the top bar's search box submits to.
+
+  Every row is a value `pages/site_players.view()` composed from `site_reads.pilot_search`'s
+  answer. The match is a contains term, and the copy says so; a name that does not exist is an
+  empty state, never a refusal. Each row links to that pilot's public profile.
+-#}
+{% block title %}{% trans %}Pilots{% endtrans %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}Pilot search{% endtrans %}</div>
+      <h1>{% trans %}Pilots{% endtrans %}</h1>
+      <p class="sub">{% trans %}Type the first letters of a name in the search box above. The search matches the beginning of a pilot's name, not any part of it.{% endtrans %}</p>
+    </div>
+    {% if model.searched %}
+    <div class="side">
+      <div class="lbl">{% trans %}Page{% endtrans %}</div>
+      <div class="big">{{ model.page }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <section class="panel">
+      <div class="hd"><h2>{% if model.searched %}{% trans query=model.query %}Pilots whose name contains “{{ query }}”{% endtrans %}{% else %}{% trans %}Find a pilot{% endtrans %}{% endif %}</h2><span class="meta">{% if model.rows %}{% trans first=model.first, last=model.last %}rows {{ first }} – {{ last }}{% endtrans %}{% endif %}</span></div>
+      {% if model.unavailable %}
+      <p class="note">{% trans %}The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected.{% endtrans %}</p>
+      {% elif model.rows %}
+      <table class="tbl">
+        <thead><tr><th>{% trans %}Pilot{% endtrans %}</th><th class="r">{% trans %}Last seen{% endtrans %}</th></tr></thead>
+        <tbody>
+          {% for row in model.rows %}
+          <tr><td>{% if row.href %}<a class="nm" href="{{ row.href }}">{{ row.name }}</a>{% else %}<span class="nm">{{ row.name }}</span>{% endif %}</td><td class="r">{{ row.last_seen or "—" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% elif not model.searched %}
+      <p class="note">{% trans %}No search yet: type part of a pilot's name in the search box above.{% endtrans %}</p>
+      {% elif model.past_end %}
+      <p class="note">{% trans %}This page holds no rows; the result ends earlier.{% endtrans %} <a href="{{ model.first_href }}">{% trans %}Back to the first page{% endtrans %}</a>.</p>
+      {% else %}
+      <p class="note">{% trans %}No pilot's name contains that. Try fewer letters.{% endtrans %}</p>
+      {% endif %}
+    </section>
+
+    {% if model.rows %}
+    <div class="segments" style="margin-top:var(--sp-3)">
+      <div class="seg"><span class="lbl">{% trans %}Page{% endtrans %}</span>
+        {% if model.prev_href %}<a href="{{ model.prev_href }}">← {% trans %}Previous{% endtrans %}</a>{% endif %}
+        <a class="on" aria-current="page">{{ model.page }}</a>
+        {% if model.next_href %}<a href="{{ model.next_href }}">{% trans %}Next{% endtrans %} →</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <p class="note"><b>{% trans %}Public data.{% endtrans %}</b></p>
+  </section>
+</main>
+{% endblock %}

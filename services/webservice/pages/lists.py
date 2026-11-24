@@ -53,7 +53,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
-from .. import i18n, permissions, readmodels, scope
+from .. import mount, i18n, permissions, readmodels, scope
 from ..registry import NavItem
 from . import dashboard as dashboard_page
 from . import live as live_page
@@ -190,12 +190,15 @@ def page_context(request: Request, page: ListPage, *, rows=None, notice: bool = 
     state = readmodels.overview(dashboard_page.request_source(request),
                                 level=dashboard_page.log_level(request))
     params = readmodels.view_params(request.query_params)
-    view = list_view(request, state, page.path)
+    # the page's own declared path, moved under the console's mount: every URL built below — the
+    # sort/search links, the search form's target and a write's origin — lands on the mounted page
+    page_path = mount.url(page.path)
+    view = list_view(request, state, page_path)
     live = live_context(request, page)
     if rows is not None:
         # the PAGE-ONLY table: the rows are the page's own, so they are shaped here through the one
         # sort layer — never re-derived in the template.
-        table = readmodels.table_view(page.path, page.table, rows,
+        table = readmodels.table_view(page_path, page.table, rows,
                                       sort=params.sort_for(page.table), direction=params.direction,
                                       params=view.params, label=page.title)
     else:
@@ -210,8 +213,8 @@ def page_context(request: Request, page: ListPage, *, rows=None, notice: bool = 
         "empty": dashboard_page.empty_messages(state),
         # the search form posts back to the page it is on, and its only hidden state is what this
         # page carries (nothing: there is no log column and no tab here to preserve)
-        "search_action": page.path,
-        "search_clear": page.path,
+        "search_action": page_path,
+        "search_clear": page_path,
         "search_hidden": {},
         "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
                                                 current=page.path,
@@ -238,12 +241,12 @@ def page_context(request: Request, page: ListPage, *, rows=None, notice: bool = 
         # tab (Defect 1). Built from THIS request on every call, so a live tick re-resolves the
         # caller's capability and scope and re-reads the pending-write store: the streamed row keeps
         # the marker the page drew (``in_flight`` / ``busy``) and drops it when the state moves.
-        context["row_controls"] = actions_page.controls_for(request, page.table, page.path)
+        context["row_controls"] = actions_page.controls_for(request, page.table, page_path)
         # THE PAGE-LEVEL control (the Servers page's "Add server"): asked for BY TABLE for the same
         # reason, and ``None`` for a table that has none — so the table component's own condition
         # decides whether the card header carries a control, never the page's name. It is handed to
         # ``_table.html`` as ``card_action``: the card it acts on is the card whose header shows it.
-        context["card_action"] = actions_page.page_controls(request, page.table, page.path)
+        context["card_action"] = actions_page.page_controls(request, page.table, page_path)
     else:
         #: defined for EVERY page, so a template that reads it never meets StrictUndefined
         context["card_action"] = None
@@ -278,7 +281,8 @@ def live_context(request: Request, page: ListPage) -> dict | None:
     stream, fragments = stream_paths(page)
     query = urlencode(readmodels.view_params(request.query_params).carry(table=page.table))
     suffix = f"?{query}" if query else ""
-    return {"stream": f"{stream}{suffix}", "fragments": f"{fragments}{suffix}"}
+    return {"stream": mount.url(f"{stream}{suffix}"),
+            "fragments": mount.url(f"{fragments}{suffix}")}
 
 
 def _allowed(request: Request, page: ListPage) -> bool:

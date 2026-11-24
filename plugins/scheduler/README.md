@@ -385,6 +385,22 @@ instance4:
       mission_id: 2
       shutdown: true
 
+spare:
+  warn:                                           
+    times:                                        
+    - 300
+    - 60
+    - 10
+  load_balancing:                                 # Start this server if the condition on another server matches
+    reference: instance3                          # Reference instance to check for the condition
+    min: 25                                       # Shut down if the reference is below 25% of load
+    max: 80                                       # Start up if the reference is above 80% of load
+  action:                                         # Restart every 5 hrs
+    method: restart
+    shutdown: true
+    mission_time: 240
+    populated: true                              
+
 mission:
   schedule:
     18-00: NNNNNNY                                # our mission server will only run on Sundays from 18h - midnight local time

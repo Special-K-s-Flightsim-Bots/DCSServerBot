@@ -16,6 +16,7 @@ from pathlib import Path
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING, Callable, Coroutine, cast, Any
 
+from . import chatlog
 from .menu import read_menu_config, filter_menu
 from ..missionstats.commands import MissionStatistics
 
@@ -239,6 +240,20 @@ class MissionEventListener(EventListener["Mission"]):
             else:
                 self.mission_stats[server.name] = False
         return self.mission_stats[server.name]
+
+    @event(name="onChatMessage")
+    async def onChatMessage(self, server: Server, data: dict) -> None:
+        player = server.get_player(id=data['from'], active=True)
+        if not player or not data.get('message'):
+            return
+        # The audience is the SENDER's own side on a coalition-only line and "all" on a broadcast.
+        # The Lua states it explicitly; a Lua that predates that field sends only ``to``, so the
+        # fallback derives the same answer from DCS's net constants: -2 (net.CHAT_TEAM) is the
+        # coalition channel, -1 (net.CHAT_ALL) the server-wide broadcast.
+        side = player.side.name.lower()
+        audience = data.get('audience') or (side if data.get('to') == -2 else "all")
+        chatlog.append(server, ucid=player.ucid, name=player.name, side=side,
+                       audience=audience, text=data['message'])
 
     @event(name="sendMessage")
     async def sendMessage(self, server: Server, data: dict) -> None:

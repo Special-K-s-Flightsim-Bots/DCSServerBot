@@ -127,9 +127,12 @@ async def refresh_srs_ports(service: "Dashboard") -> None:
                 continue
             try:
                 ports = await server.run_on_extension('SRS', 'get_ports')
-            except ValueError:
-                # the extension, or its get_ports, is not there (yet): the row keeps the em dash
-                _srs_failed(service, server, "the SRS extension is not there")
+            except ValueError as ex:
+                if "Extension SRS not found" in str(ex):
+                    service.srs_ports[server.name] = PORT_PLACEHOLDER
+                    service.srs_retry.pop(server.name, None)
+                    continue
+                _srs_failed(service, server, str(ex))
                 continue
             except Exception as ex:
                 _srs_failed(service, server, str(ex))

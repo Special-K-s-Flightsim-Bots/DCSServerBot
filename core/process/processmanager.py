@@ -517,7 +517,7 @@ class ProcessManager:
                 )
 
             if added:
-                logger.info("Shared affinity backfill: %s reused core(s) %s", process_name, sorted(added))
+                logger.debug("Shared affinity backfill: %s reused core(s) %s", process_name, sorted(added))
 
     def _rank_preference(self, quality: int):
         """Sort key over logical CPUs: demanding work wants the most capable core, background the least."""

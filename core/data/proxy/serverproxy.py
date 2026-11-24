@@ -13,6 +13,7 @@ __all__ = ["ServerProxy"]
 @dataclass
 class ServerProxy(Server):
     _extensions: list[dict] | None = field(compare=False, default=None)
+    _public_extensions: list[dict] | None = field(compare=False, default=None)
 
     @override
     def __post_init__(self):
@@ -291,16 +292,26 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=60)
 
     @override
-    async def render_extensions(self) -> list[dict]:
+    async def render_extensions(self, *, public: bool = False) -> list[dict]:
+        if public:
+            if not self._public_extensions:
+                self._public_extensions = await self._render_extensions_remote(public=True)
+            return self._public_extensions
         if not self._extensions:
-            timeout = 60 if not self.node.slow_system else 120
-            self._extensions = await self.bus.send_to_node_sync({
-                "command": "rpc",
-                "object": "Server",
-                "method": "render_extensions",
-                "server_name": self.name
-            }, timeout=timeout, node=self.node.name)
+            self._extensions = await self._render_extensions_remote(public=False)
         return self._extensions
+
+    async def _render_extensions_remote(self, *, public: bool) -> list[dict]:
+        timeout = 60 if not self.node.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "render_extensions",
+            "server_name": self.name,
+            "params": {
+                "public": public
+            }
+        }, timeout=timeout, node=self.node.name)
 
     @override
     async def is_running(self) -> bool:

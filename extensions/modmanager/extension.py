@@ -41,3 +41,7 @@ class ModManager(Extension):
         return ret | {
             "value": '\n'.join([f"- {mod}" for mod in mods])
         }
+
+    @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        return await self.render(param)

@@ -1,6 +1,9 @@
 # Web Frontend – Windows
 
 > Running the bot on Linux? Use the [Linux guide](webservice-frontend-linux.md) instead.
+> **In a hurry?** The [Quick Start](webservice-quickstart.md) gets a working login page in about five
+> minutes with the `/webadmin setup` wizard, and puts HTTPS on top of it. This page is the full
+> reference: every option, and every step explained.
 
 DCSServerBot comes with a web frontend that lets you manage your nodes and servers from a browser.
 It is part of the **WebService** and is turned off by default.
@@ -22,6 +25,15 @@ What people can do once logged in depends on their role:
 ---
 
 ## Step 0 – Pick your login method
+
+> [!TIP]
+> **Do you just want it running?** `/webadmin setup` in Discord does Steps 0 and 1 for you: it asks
+> for the address, the port and the login, generates the session secret, writes
+> `config/services/webservice.yaml` and offers to rebuild the console. The wizard is described in the
+> [Quick Start](webservice-quickstart.md#step-1-let-the-bot-write-the-configuration-recommended).
+> Everything below is the same setup done by hand, with the reasons.
+>
+> ![The /webadmin setup message](../assets/images/webservice-wizard-message.webp){ loading=lazy width="380" }
 
 There are two ways for people to log in. Pick **one**:
 
@@ -70,12 +82,17 @@ Copy the long line it prints. You'll paste it into `webservice.yaml` below.
 2. Go to **OAuth2**.
 3. Copy the **Client ID**.
 4. Copy the **Client Secret**. You may have to press **Reset Secret** to see it.
-5. Under **Redirects**, press **Add Redirect** (or "Add another") and enter:
+5. Under **Redirects**, press **Add Another** (older versions of the portal call it *Add Redirect*) and enter:
    ```
    https://your-dns-name/auth/discord/callback
    ```
    Replace `your-dns-name` with your real domain. It must match `public_base_url` in the next step **exactly**: same `https://`, same spelling, no trailing slash.
 6. Press **Save Changes**.
+
+![The OAuth2 page of the Developer Portal](../assets/images/webservice-discord-oauth2.webp){ loading=lazy }
+
+*Client ID and Client Secret at the top, the redirect list below them. The values in this screenshot are
+blanked out — yours are specific to your application.*
 
 ### A2. Edit `config/services/webservice.yaml`
 
@@ -166,6 +183,19 @@ netsh advfirewall firewall add rule name="DCSServerBot Web" dir=in action=allow 
 
 > [!CAUTION]
 > **Never forward port 9876 on your router.** If you want access from outside your home or network, use Step 3.
+
+### 2.1 What you should see
+
+The sign-in page, on the address you configured:
+
+![The sign-in page of the web frontend](../assets/images/webservice-login.webp){ loading=lazy }
+
+After logging in, the dashboard — every server of every node, its state, mission and players:
+
+![The dashboard of the web frontend](../assets/images/webservice-dashboard.webp){ loading=lazy }
+
+A page that renders but refuses the login, or a browser that cannot connect at all, is covered in
+[Troubleshooting](#troubleshooting) at the end of this page.
 
 ---
 

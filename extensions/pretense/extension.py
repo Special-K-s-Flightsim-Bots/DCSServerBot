@@ -62,6 +62,10 @@ class Pretense(Extension):
         }
 
     @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        return await self.render(param)
+
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         return await super().startup(quiet=True)
 

@@ -200,21 +200,24 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
 .brand small { display: block; color: var(--text-3); font-size: 11px; margin-top: 1px; }
 
 .nav { padding: 10px 8px; overflow: auto; flex: 1; }
-.nav .grp { display: flex; align-items: center; gap: 10px; color: var(--text-3);
-  font-size: 10.5px; text-transform: uppercase; letter-spacing: .11em;
-  padding: 14px 10px 6px; }
+.nav .grp { display: block; color: var(--text-3);
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em;
+  padding: 17px 2px 5px; border-top: 1px solid var(--line); }
+/* the rail opens under the brand's own border: the first heading keeps the air and loses the
+ * hairline, because a second line just below the brand's would read as a box around the brand */
+.nav .grp:first-child { padding-top: 4px; border-top: 0; }
+/* the last entry of a group keeps the rail's own breathing room above the next heading */
+.nav a + .grp { margin-top: 6px; }
 .nav a { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
   border-radius: var(--radius-s); color: var(--text-2); }
-/* THE ICON COLUMN — one fixed 18px column for a heading's glyph and for an entry's glyph, so every
- * label in the rail starts on the same x whichever group it is in, and an entry whose glyph name is
- * unknown keeps its label aligned on an EMPTY column (`_icons.html` emits the span, not a broken
- * image). The drawing itself is 15px inside it, in `currentColor`, so it follows the hover colour and
- * the active row; a heading's glyph is drawn at 12px and dimmed a step, so the headings read as
- * structure rather than as two more links. */
-.nav a .ic, .nav .grp .g { width: 18px; height: 18px; display: grid; place-items: center;
+/* THE ENTRY'S ICON COLUMN — one fixed 18px column per row, so every entry's label starts on the
+ * same x whichever group it is in, and an entry whose glyph name is unknown keeps its label aligned
+ * on an EMPTY column (`_icons.html` emits the span, not a broken image). The drawing itself is 15px
+ * inside it, in `currentColor`, so it follows the hover colour and the active row. A group heading
+ * is a bare label on the rail's own gutter and takes no column. */
+.nav a .ic { width: 18px; height: 18px; display: grid; place-items: center;
   flex: 0 0 auto; }
 .nav a .ic { opacity: .9; }
-.nav .grp .g { opacity: .55; }
 .nav .nav-ic { width: 15px; height: 15px; display: block; fill: none; stroke: currentColor;
   stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .nav .grp .nav-ic { width: 12px; height: 12px; stroke-width: 1.5; }
@@ -1046,7 +1049,11 @@ html.dlg-gate .dlg-temp, html.dlg-gate .dlg-pick { display: none; }
  * immediately above, shared with the ADD/UPLOAD submit buttons); the focus ring is drawn on that label
  * when the clipped input has it (so a keyboard user can see where they are); and `.file-name` is where
  * `/static/filepick.js` writes the chosen file's name. */
-.file-pick-control { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto;
+/* THE HOLDER IS THE CLIPPED INPUT'S POSITIONING CONTEXT. `.file-input-sr` is absolutely positioned;
+ * with a `static` holder it has no containing block in the card, lands at its raw static offset in
+ * document coordinates past the scroll container, and stretches the document's scroll height by that
+ * offset — a page that scrolls into empty ground. */
+.file-pick-control { position: relative; display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto;
   min-width: 0; justify-content: flex-end; }
 .file-input-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -1275,17 +1282,21 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
  * Which rule wins where: Firefox — the standard pair (the only pair it understands); Chromium and
  * Safari — the WebKit pair (and they never even parse the standard pair, because the @supports
  * condition is false there); any engine with neither — its own default bar.
+ *
+ * THE THREE READERS are the log, `.sbar` (a box that scrolls on both axes) and the completion popup
+ * (`ul.CodeMirror-hints`, a body-level element the addon builds and the editor never contains), so
+ * the popup's bar is this same widget rather than the platform's white one.
  */
 @supports not selector(::-webkit-scrollbar) {
-  :is(.log, .sbar) { scrollbar-width: thin;
+  :is(.log, .sbar, ul.CodeMirror-hints) { scrollbar-width: thin;
     scrollbar-color: var(--sbar-thumb) var(--sbar-track); }
 }
-:is(.log, .sbar)::-webkit-scrollbar { width: var(--sbar); height: var(--sbar); }
-:is(.log, .sbar)::-webkit-scrollbar-track { background: var(--sbar-track); }
-:is(.log, .sbar)::-webkit-scrollbar-thumb { background: var(--sbar-thumb);
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar { width: var(--sbar); height: var(--sbar); }
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar-track { background: var(--sbar-track); }
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar-thumb { background: var(--sbar-thumb);
   border: 2px solid var(--sbar-track); border-radius: 6px; background-clip: padding-box; }
-:is(.log, .sbar)::-webkit-scrollbar-corner { background: var(--sbar-track); }
-:is(.log, .sbar)::-webkit-scrollbar-button { width: 0; height: 0; display: none; }
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar-corner { background: var(--sbar-track); }
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar-button { width: 0; height: 0; display: none; }
 /* ===========================================================================
    THE SCHEMA-DRIVEN CONFIG PAGE (the Settings page): the generated form, its
    controls, and the YAML panel (read-only, or the Expert Mode editor).
@@ -1412,8 +1423,11 @@ button.cfg-add:focus-visible, summary.cfg-add:focus-visible {
 .cfg-pick:hover { color: var(--accent); }
 .cfg-pkey { font-size: .8rem; }
 .cfg-pkind { color: var(--text-3); font-size: .72rem; }
-/* A control the picker ADDED. It is not in the file yet, so its own trashcan removes it INSTANTLY. */
-.cfg-added { position: relative; }
+/* A control the picker ADDED. It is not in the file yet, so its own trashcan removes it INSTANTLY.
+ * The trashcan takes a GUTTER on the right: `.cfg-added-x` is pinned to this wrapper's right edge, so
+ * without the gutter it lands on the control it removes — a boolean's checkbox and a text input's right
+ * end both sit exactly there. The row keeps its own control column; it just ends before the gutter. */
+.cfg-added { position: relative; padding-right: 2.4rem; }
 .cfg-added-x { position: absolute; top: .3rem; right: 0; }
 /* THE TRASHCAN a shown, optional, already-set field or block carries. It never removes on the first
  * press: the inline warning names what will be discarded and only confirming it posts the removal. */
@@ -1504,6 +1518,34 @@ pre.yaml { background: var(--ground-2); border: 1px solid var(--line); border-ra
 .cfg-editor .CodeMirror .cm-def, .cfg-editor .CodeMirror .cm-variable { color: var(--text); }
 .cfg-editor .CodeMirror .cm-meta { color: var(--pause); }
 .cfg-editor .CodeMirror .cm-error { color: var(--danger); }
+
+/* THE COMPLETION POPUP (the vendored `show-hint` addon): the list, its rows and the selected row,
+ * restated from the shell's own tokens — the vendored stylesheet paints a white menu and is not
+ * touched. The vendored `max-height: 20em` and `overflow-y: auto` are left alone, so a long list
+ * scrolls inside the popup rather than growing it.
+ *
+ * THE POPUP IS A BODY-LEVEL ELEMENT, NOT A CHILD OF THE EDITOR. The addon builds
+ * `<ul class="CodeMirror-hints">` and appends it to `document.body` (its `container` option defaults
+ * to null and nothing in this console sets one), so `.cfg-editor` is never among its ancestors: a
+ * rule written `.cfg-editor .CodeMirror-hints` matches nothing, however plausible it reads. These
+ * selectors therefore START AT THE LIST.
+ *
+ * THE ELEMENT QUALIFIER IS LOAD-BEARING. shell.css is linked before the addon's own sheet (the page's
+ * `head` block comes after the base's), so at equal specificity the vendored literal wins the tie —
+ * which is why the old `.cfg-editor` step was not merely wrong but load-bearing. One element on the
+ * left (`ul`, `li`) adds the 0,0,1 that keeps the palette in front without re-introducing an
+ * ancestor the popup does not have.
+ *
+ * A ROW CARRIES TWO LINES IN ONE TEXT NODE — the key line (`key · label · required · set`) and the
+ * field's schema prose beneath it — so the key line is coloured by `::first-line` and the prose by
+ * the row's own colour; there are no per-line elements to reach for. */
+ul.CodeMirror-hints { background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius); color: var(--text-2); font-family: var(--font-mono);
+  font-size: .74rem; line-height: 1.45; box-shadow: 0 6px 18px var(--elev-sm); }
+ul.CodeMirror-hints li.CodeMirror-hint { color: var(--text-2); white-space: pre;
+  padding: .1rem .35rem; border-radius: var(--radius-s); }
+ul.CodeMirror-hints li.CodeMirror-hint::first-line { color: var(--text); }
+ul.CodeMirror-hints li.CodeMirror-hint-active { background: var(--sel-wash2); color: var(--text); }
 
 /* ================================================================================ SETTINGS TILES
  * The Settings LANDING page: a grid of tiles in place of the old list of YAML filenames. Namespaced
@@ -1623,6 +1665,17 @@ pre.yaml { background: var(--ground-2); border: 1px solid var(--line); border-ra
 .st-sw:hover { color: var(--text); }
 .st-sw.off-fixed { cursor: default; color: var(--text-3); }
 .st-sw.off-fixed .bx { opacity: .55; }
+/* THE SWITCH IN FLIGHT: the action runs in the background (an extension install can take minutes), so
+ * the control is a statement, not a button — it pulses. The pulse is the whole animation: a 12 px knob
+ * rotating inside an 18 px track reads as nothing moving. NO CLOCK is drawn beside the label: on a
+ * narrow card the time squeezed the label to "E…" and widened the foot past the card, so the label is
+ * the one part that may give way and nothing else takes its room. */
+.st-sw.busy { cursor: progress; color: var(--text-2); min-width: 0; }
+.st-sw.busy .bx { animation: st-sw-pulse 1.15s ease-in-out infinite; }
+.st-sw.busy .st-sw-label { min-width: 6ch; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+@keyframes st-sw-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .st-sw.busy .bx { animation: none; opacity: .7; } }
 
 .st-cog { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; font: inherit;
   font-size: 11.5px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);
