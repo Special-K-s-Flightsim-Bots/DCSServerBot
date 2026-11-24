@@ -258,7 +258,7 @@ class MissionIDFilter(StatisticsFilter):
         return period and period.startswith('mission_id:')
 
     def filter(self, bot: DCSServerBot) -> str:
-        mission_id = utils.sanitize_string(self.period[11:].strip())
+        mission_id = int(self.period[11:].strip())
         return f"m.id = {mission_id}"
 
     def format(self, bot: DCSServerBot) -> str:
