@@ -199,14 +199,16 @@ class Olympus(InstallableExtension):
                            f"server {type(self)._server_ports[server_port]}!")
             return False
         type(self)._server_ports[server_port] = self.server.name
+
         client_port = self.config.get(self.frontend_tag, {}).get('port', 3000)
         if type(self)._client_ports.get(client_port, self.server.name) != self.server.name:
             self.log.error(f"  => {self.server.name}: {self.name} client.port {client_port} already in use by "
                            f"server {type(self)._client_ports[client_port]}!")
             return False
         type(self)._client_ports[client_port] = self.server.name
+
         ws_port = self.config.get('audio', {}).get('WSPort', 4000)
-        if type(self)._ws_ports.get(client_port, self.server.name) != self.server.name:
+        if type(self)._ws_ports.get(ws_port, self.server.name) != self.server.name:
             self.log.error(f"  => {self.server.name}: {self.name} audio.WSPort {ws_port} already in use by "
                            f"server {type(self)._ws_ports[ws_port]}!")
             return False
@@ -281,19 +283,35 @@ class Olympus(InstallableExtension):
     async def startup(self, *, quiet: bool = False) -> bool:
 
         def log_output(pipe, level=logging.INFO):
-            for line in iter(pipe.readline, ''):
-                self.log.log(level, "{name}: {message}".format(
-                    name=self.name, message=ANSI_ESCAPE_RE.sub('', line.rstrip())))
+            if pipe is None:
+                self.log.debug(f"{self.name}: No process pipe available for log output.")
+                return
+            self.log.debug(f"{self.name}: Starting process output logger with level {logging.getLevelName(level)}.")
+            try:
+                for line in iter(pipe.readline, ''):
+                    self.log.log(level, "{name}: {message}".format(
+                        name=self.name, message=ANSI_ESCAPE_RE.sub('', line.rstrip())))
+            except Exception as ex:
+                self.log.exception(f"{self.name}: Error while reading process output: {ex}")
+            finally:
+                self.log.debug(f"{self.name}: Process output logger stopped.")
 
         def run_subprocess() -> psutil.Process | None:
-            out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
-            err = subprocess.PIPE if self.config.get('debug', False) else subprocess.STDOUT
+            debug = self.config.get('debug', False)
+            self.log.debug(f"{self.name}: Starting Olympus subprocess preparation. Debug output is {'enabled' if debug else 'disabled'}.")
+            out = subprocess.PIPE if debug else subprocess.DEVNULL
+            err = subprocess.PIPE if debug else subprocess.STDOUT
             path = os.path.expandvars(
                 self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
+            self.log.debug(f"{self.name}: Using frontend path: {path}")
+            self.log.debug(f"{self.name}: Using Node.js executable: {self.nodejs}")
+            self.log.debug(f"{self.name}: Using config file: {self.config_path}")
+            self.log.debug(f"{self.name}: Detected Olympus version: {self.version}")
             if self.version.startswith('2.0'):
                 frontend_exe = os.path.join(path, 'build', 'www.js')
             else:
                 frontend_exe = os.path.join(path, 'bin', 'www')
+            self.log.debug(f"{self.name}: Resolved frontend entry point: {frontend_exe}")
             if not os.path.exists(frontend_exe):
                 raise AttributeError(f"Path {frontend_exe} does not exist, can't launch Olympus!")
             args = [self.nodejs, frontend_exe, '--config', self.config_path]
@@ -310,33 +328,42 @@ class Olympus(InstallableExtension):
                 quality=self.config.get('auto_affinity', {}).get('quality', 1),
                 instance=self.server.instance.name
             )
-            if self.config.get('debug', False):
-                Thread(target=log_output, args=(proc.stdout,logging.DEBUG), daemon=True).start()
-                Thread(target=log_output, args=(proc.stderr,logging.ERROR), daemon=True).start()
+            self.log.debug(f"{self.name}: Process launched with PID {proc.pid}.")
+            if debug:
+                Thread(target=log_output, args=(proc.stdout, logging.DEBUG), daemon=True).start()
+                Thread(target=log_output, args=(proc.stderr, logging.ERROR), daemon=True).start()
             return proc
 
         try:
             async with self.lock:
                 if self.is_running():
+                    self.log.debug(f"{self.name}: Startup skipped, process is already running with PID {self.process.pid}.")
                     return True
                 try:
                     self.process = await asyncio.to_thread(run_subprocess)
-                except (AttributeError, psutil.NoSuchProcess):
-                    self.log.error(f"Failed to start Olympus server, enable debug in the extension.")
+                except (AttributeError, psutil.NoSuchProcess) as ex:
+                    if self.config.get('debug', False):
+                        self.log.exception(f"Failed to start Olympus server. Check the log output above for details: {ex}")
+                    else:
+                        self.log.error(f"Failed to start Olympus server: {ex}. Enable debug in the extension for more details.")
                     return False
                 atexit.register(self.terminate)
         except OSError as ex:
-            self.log.error("Error while starting Olympus: " + str(ex))
+            self.log.exception("Error while starting Olympus: " + str(ex))
             return False
         if sys.platform == 'win32':
             from os import system
             system(f"title DCSServerBot v{self.server.node.bot_version}.{self.server.node.sub_version}")
         # Give the Olympus server 10s to start
-        for _ in range(0, 10):
+        self.log.debug(f"{self.name}: Waiting up to 10 seconds for Olympus process to become ready.")
+        for attempt in range(0, 10):
             if self.is_running():
+                self.log.debug(f"{self.name}: Olympus process is running after {attempt} second(s).")
                 break
+            self.log.debug(f"{self.name}: Olympus process is not running yet, retrying in 1 second.")
             await asyncio.sleep(1)
         else:
+            self.log.error(f"{self.name}: Olympus process did not become ready within 10 seconds.")
             return False
         return await super().startup()
 
