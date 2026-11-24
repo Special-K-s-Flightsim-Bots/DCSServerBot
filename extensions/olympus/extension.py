@@ -239,6 +239,8 @@ class Olympus(InstallableExtension):
             self.locals[self.frontend_tag]['mapLayers'] = frontend['mapLayers']
         if 'mapMirrors' in frontend:
             self.locals[self.frontend_tag]['mapMirrors'] = frontend['mapMirrors']
+        # TODO: remove after security fix
+        self.locals[self.frontend_tag]['autoconnectWhenLocal'] = False
         extension = cast(SRS, self.server.extensions.get('SRS'))
         if extension:
             self.locals['audio'] = {
