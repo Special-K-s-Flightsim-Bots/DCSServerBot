@@ -109,8 +109,11 @@ def seat_fleet():
 
 
 def row_of(html: str, name: str) -> str:
-    """The rendered ``<tr>`` whose name cell carries *name*."""
-    match = re.search(r"<tr>(?:(?!</tr>).)*?<b>" + re.escape(name) + r"</b>.*?</tr>", html, re.S)
+    """The rendered ``<tr>`` whose name cell carries *name* — plain, or as the link a list draws."""
+    cell = ("<b>" + re.escape(name) + "</b>"
+            "|<b><a [^>]*>" + re.escape(name) + "</a></b>"
+            "|>" + re.escape(name) + "</a>")
+    match = re.search(r"<tr>(?:(?!</tr>).)*?(?:" + cell + r").*?</tr>", html, re.S)
     assert match, f"no row rendered for {name}:\n{html}"
     return match.group(0)
 

@@ -6493,6 +6493,10 @@ msgstr "Sortite volate"
 msgid "recorded takeoffs"
 msgstr "decolli registrati"
 
+#: services/webservice/pages/site_player.py:257
+msgid "every flight that got airborne"
+msgstr "ogni volo che si è alzato in aria"
+
 msgid "Sessions recorded"
 msgstr "Sessioni registrate"
 
@@ -6522,9 +6526,6 @@ msgstr "piloti questa settimana"
 
 msgid "Hours in the air"
 msgstr "Ore in volo"
-
-msgid "The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected."
-msgstr "Il database delle statistiche non è ancora disponibile, quindi questa pagina non mostra cifre. Si riempie appena il bot si collega."
 
 msgid "%(count)s vs. last week"
 msgstr "%(count)s rispetto alla settimana scorsa"
@@ -6616,9 +6617,6 @@ msgstr "Bersagli aerei"
 msgid "Airframe hours"
 msgstr "Ore per aeromobile"
 
-msgid "Also known as"
-msgstr "Conosciuto anche come"
-
 msgid "Back to the first page"
 msgstr "Torna alla prima pagina"
 
@@ -6628,20 +6626,11 @@ msgstr "Torna alla classifica"
 msgid "Bars are scaled to this pilot's own flying, so the longest bar is the airframe they fly most."
 msgstr "Le barre sono rapportate alle ore di questo pilota: la più lunga è l'aeromobile che usa di più."
 
-msgid "Discord link"
-msgstr "Collegamento Discord"
-
-msgid "Either the address is mistyped, or this pilot has no session on this site's servers. Search for a pilot by name instead."
-msgstr "O l'indirizzo è sbagliato, oppure questo pilota non ha sessioni sui server di questo sito. Cerca invece un pilota per nome."
-
 msgid "Find a pilot"
 msgstr "Trova un pilota"
 
 msgid "Ground Targets"
 msgstr "Bersagli terrestri"
-
-msgid "Is this you?"
-msgstr "Sei tu?"
 
 msgid "KD-Ratio"
 msgstr "Rapporto K/D"
@@ -6679,9 +6668,6 @@ msgstr "Ricerca piloti"
 msgid "Pilots whose name contains “%(query)s”"
 msgstr "Piloti il cui nome contiene «%(query)s»"
 
-msgid "Public profile."
-msgstr "Profilo pubblico."
-
 msgid "Public record · no account needed"
 msgstr "Registro pubblico · nessun account necessario"
 
@@ -6697,20 +6683,8 @@ msgstr "Classifica · %(metric)s"
 msgid "Sessions per server"
 msgstr "Sessioni per server"
 
-msgid "The same Discord account has flown under more than one player ID. Each name opens that profile."
-msgstr "Lo stesso account Discord ha volato con più di un ID giocatore. Ogni nome apre quel profilo."
-
 msgid "The three windows are the statistics engine's own month, quarter and year, offered as 30, 90 and 365 days."
 msgstr "Le tre finestre sono mese, trimestre e anno del motore statistiche, offerti come 30, 90 e 365 giorni."
-
-msgid "This is what anybody sees for a pilot without signing in: name, squadron, playtime and the combat figures."
-msgstr "Questo è ciò che chiunque vede di un pilota senza accedere: nome, squadriglia, tempo di volo e le cifre di combattimento."
-
-msgid "This page holds no rows; the board ends earlier."
-msgstr "Questa pagina non ha righe; la classifica finisce prima."
-
-msgid "This page holds no rows; the result ends earlier."
-msgstr "Questa pagina non ha righe; il risultato finisce prima."
 
 msgid "Type the first letters of a name in the search box above. The search matches the beginning of a pilot's name, not any part of it."
 msgstr "Digita le prime lettere di un nome nel campo qui sopra. La ricerca confronta l'inizio del nome, non una parte qualsiasi."
@@ -6729,9 +6703,6 @@ msgstr "ultimo volo %(when)s"
 
 msgid "on this site's servers"
 msgstr "sui server di questo sito"
-
-msgid "one Discord account, several player IDs"
-msgstr "un account Discord, più ID giocatore"
 
 msgid "recorded"
 msgstr "registrate"
@@ -6775,17 +6746,8 @@ msgstr "Accesso effettuato"
 msgid "Signed out"
 msgstr "Accesso terminato"
 
-msgid "The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not."
-msgstr "L'account con cui hai effettuato l'accesso non è collegato a nessun ID giocatore che abbia volato sui server di questo sito. Un altro sito di questa comunità può avere i tuoi dati; questo no."
-
-msgid "The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history."
-msgstr "Le cifre qui sopra sono le stesse che chiunque legge sul tuo profilo pubblico: nome, tempo di volo e cifre di combattimento. Nessun ID Discord, nessun indirizzo IP (nemmeno il suo hash), nessuna email, nessuno stato di ban o watch, nessuna cronologia di moderazione."
-
 msgid "The same sessions counted by the server they ran on. Only this site's servers appear."
 msgstr "Le stesse sessioni, contate per il server su cui si sono svolte. Compaiono solo i server di questo sito."
-
-msgid "This installation has no sign-in method enabled."
-msgstr "Questa installazione non ha alcun metodo di accesso attivo."
 
 msgid "This is you"
 msgstr "Sei tu"
@@ -6801,9 +6763,6 @@ msgstr "Cosa voli"
 
 msgid "Where you fly"
 msgstr "Dove voli"
-
-msgid "Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot."
-msgstr "Dove sono finite le tue ore, modulo per modulo, come il plugin delle statistiche le registra per slot."
 
 msgid "these figures are yours, counted on this site's servers."
 msgstr "queste cifre sono tue, contate sui server di questo sito."
@@ -6834,19 +6793,14 @@ msgstr "%(count)s piloti"
 msgid "%(hours)s h"
 msgstr "%(hours)s h"
 
-#: services/webservice/templates/site_overview.html:194
-#, python-format
-msgid "%(sorties)s sorties"
-msgstr "%(sorties)s sortite"
-
 #: services/webservice/templates/site_overview.html:111
 #, python-format
 msgid "%(weeks)s weeks"
 msgstr "%(weeks)s settimane"
 
-#: services/webservice/pages/site_overview.py:501
-msgid "Average sortie"
-msgstr "Sortita media"
+#: services/webservice/pages/site_overview.py:511
+msgid "Average session"
+msgstr "Sessione media"
 
 #: services/webservice/templates/site_overview.html:215
 msgid "Busiest day"
@@ -6861,10 +6815,6 @@ msgid "Every bar is one UTC hour: flight time is split across the hours each ses
 msgstr "Ogni barra è un'ora UTC: il tempo di volo è suddiviso tra le ore effettivamente coperte da ogni sessione."
 
 #: services/webservice/templates/site_leaderboard.html:18
-msgid "Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column."
-msgstr "Tutti i piloti di questi server, con i numeri dietro la posizione. Scegli una metrica o ordina qualsiasi colonna."
-
-#: services/webservice/pages/site_overview.py:505
 msgid "Flew this week"
 msgstr "Ha volato questa settimana"
 
@@ -6884,9 +6834,10 @@ msgstr "Su questi server non è ancora stato volato nessun velivolo."
 msgid "No sortie has been recorded on these servers yet."
 msgstr "Su questi server non è ancora stata registrata nessuna sortita."
 
-#: services/webservice/templates/site_overview.html:143
-msgid "One bar per week of the same window, the current week drawn in the brighter fill."
-msgstr "Una barra per settimana dello stesso periodo, con la settimana corrente nel riempimento più chiaro."
+#: services/webservice/templates/site_overview.html:146
+msgid "Every flight counts — a takeoff, or an air start where the event log records it. One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "Ogni volo conta: un decollo, o un inizio in volo dove il registro eventi lo rileva. Una barra per settimana della stessa finestra, la settimana corrente nel riempimento più chiaro."
+
 
 #: services/webservice/templates/site_overview.html:76
 msgid "Our pilots' time in the air on these servers, from the first mission to today."
@@ -6963,9 +6914,6 @@ msgstr "ore di volo per ora · UTC"
 msgid "vs. the first week"
 msgstr "rispetto alla prima settimana"
 
-msgid "%(count)s deaths"
-msgstr "%(count)s perdite"
-
 msgid "%(count)s recorded"
 msgstr "%(count)s registrate"
 
@@ -7001,9 +6949,6 @@ msgstr "Come volano"
 
 msgid "Last flights"
 msgstr "Ultimi voli"
-
-msgid "One rating per pilot, held by the competitive plugin. It has no server column, so it is the same value on every site."
-msgstr "Una valutazione per pilota, gestita dal plugin competitivo. Non ha una colonna server, quindi è lo stesso valore su ogni sito."
 
 msgid "PvE community"
 msgstr "Community PvE"
@@ -8582,3 +8527,113 @@ msgstr "Il colore dice chi può leggerlo: tutti, solo rosso, solo blu — i gioc
 msgid "Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line)"
 msgstr "Scrivi una riga ai giocatori su questo server…  (Invio invia, Maiusc+Invio va a capo)"
 
+#: services/webservice/pages/site_overview.py:505
+msgid "Every pilot on these servers, with the numbers behind the rank. Pick a figure to rank by, or sort the table."
+msgstr "Ogni pilota su questi server, con i numeri dietro la posizione. Scegli un valore per la classifica o ordina la tabella."
+
+msgid "Statistics are not available yet. They appear as soon as the servers report in."
+msgstr "Le statistiche non sono ancora disponibili. Compaiono non appena i server si annunciano."
+
+msgid "running"
+msgstr "in corso"
+
+msgid "%(count)s campaigns"
+msgstr "%(count)s campagne"
+
+msgid "Badge"
+msgstr "Distintivo"
+
+msgid "Campaign"
+msgstr "Campagna"
+
+msgid "Campaigns"
+msgstr "Campagne"
+
+msgid "Credits"
+msgstr "Crediti"
+
+msgid "Credits and badges"
+msgstr "Crediti e distintivi"
+
+msgid "Either the address is mistyped, or this pilot has not flown on these servers. Search for a pilot by name instead."
+msgstr "O l'indirizzo è sbagliato, o questo pilota non ha volato su questi server. Cerca invece un pilota per nome."
+
+msgid "If you want to see your own statistics with more details, make sure to link your account and sign in with Discord."
+msgstr "Se vuoi vedere le tue statistiche con più dettaglio, collega il tuo account e accedi con Discord."
+
+msgid "Rates are of your own sorties; the bar is the rate, not a rank against other pilots."
+msgstr "Le percentuali sono sulle tue sortite; la barra è la percentuale, non una posizione rispetto agli altri piloti."
+
+msgid "The credits you earned and the badge you were awarded in the campaigns run on this site's servers."
+msgstr "I crediti che hai guadagnato e il distintivo ricevuto nelle campagne su questi server."
+
+msgid "The line is your own history. Every pilot has one rating, and it is the same on every site of this community."
+msgstr "La linea è il tuo storico. Ogni pilota ha una sola valutazione, la stessa su ogni sito di questa comunità."
+
+msgid "This page is empty — the board ends on an earlier page."
+msgstr "Questa pagina è vuota — la classifica finisce in una pagina precedente."
+
+msgid "This page is empty — the list ends on an earlier page."
+msgstr "Questa pagina è vuota — l'elenco finisce in una pagina precedente."
+
+msgid "Your own statistics"
+msgstr "Le tue statistiche"
+
+msgid "Your public profile shows the name, the playtime and the combat figures — the same numbers as above, without the discipline, the recent sorties and the rating history."
+msgstr "Il tuo profilo pubblico mostra il nome, il tempo di gioco e i numeri di combattimento — gli stessi numeri di sopra, senza la disciplina, le sortite recenti e lo storico della valutazione."
+
+msgid "Your Discord account is not connected to any pilot who has flown here. Another site of this community may have your record; this one does not."
+msgstr "Il tuo account Discord non è collegato a nessun pilota che abbia volato qui. Un altro sito di questa comunità può avere il tuo profilo; questo no."
+
+msgid "Signing in is not available on this site."
+msgstr "L'accesso non è disponibile su questo sito."
+
+msgid "Where your hours went, airframe by airframe."
+msgstr "Dove sono andate le tue ore, aeromobile per aeromobile."
+
+msgid "How you fly"
+msgstr "Come voli"
+
+msgid "Every pilot has one rating, and it is the same on every site of this community."
+msgstr "Ogni pilota ha una sola valutazione, la stessa su ogni sito di questa comunità."
+
+msgid "Your progress"
+msgstr "I tuoi progressi"
+
+msgid "Returned"
+msgstr "Rientrati"
+
+msgid "Lost"
+msgstr "Persi"
+
+msgid "flown in this period"
+msgstr "volati in questo periodo"
+
+msgid "ended otherwise"
+msgstr "terminati altrimenti"
+
+
+msgid "{count} kills"
+msgstr "{count} abbattimenti"
+
+#: services/webservice/templates/site_me.html:147
+msgid "A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero."
+msgstr "Una sortita è un volo: conta dal momento in cui il velivolo è in aria, sia decollato sia iniziato in volo, e finisce come finisce — rientrato, perso o interrotto. Una settimana senza voli è disegnata a zero."
+
+msgid "No flight is recorded in this period."
+msgstr "Nessun volo registrato in questo periodo."
+
+msgid "No sortie was lost in this period, so there is no ratio to draw."
+msgstr "Nessuna sortita è andata persa in questo periodo, quindi non c'è un rapporto da tracciare."
+
+msgid "kills per lost sortie"
+msgstr "abbattimenti per sortita persa"
+
+msgid "per month"
+msgstr "al mese"
+
+msgid "per week"
+msgstr "alla settimana"
+
+msgid "{count} returned"
+msgstr "{count} rientrati"

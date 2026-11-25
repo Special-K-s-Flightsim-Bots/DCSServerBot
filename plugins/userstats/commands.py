@@ -320,8 +320,18 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
         await interaction.response.defer(ephemeral=ephemeral)
         async with interaction.client.apool.connection() as conn:
-            cursor = await conn.execute("SELECT role FROM squadrons WHERE id = %s", (squadron_id,))
-            role = (await cursor.fetchone())[0]
+            cursor = await conn.execute("SELECT role, co_ucid FROM squadrons WHERE id = %s", (squadron_id,))
+            row = await cursor.fetchone()
+            role = row[0]
+            # CO / XO decide who commands the squadron, so only the CO or a DCS Admin may hand those
+            # ranks out -- an XO naming itself CO would take the squadron from its commander.
+            if rank and rank.upper() in ['CO', 'XO']:
+                caller_ucid = await self.bot.get_ucid_by_member(interaction.user)
+                if caller_ucid != row[1] and not utils.check_roles(interaction.client.roles['DCS Admin'],
+                                                                  interaction.user):
+                    await interaction.followup.send("Only the CO or a DCS Admin can assign CO / XO.",
+                                                    ephemeral=True)
+                    return
             if isinstance(user, str):
                 member = await self.bot.get_member_by_ucid(ucid=user, verified=True)
                 ucid = user

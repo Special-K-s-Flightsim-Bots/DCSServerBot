@@ -19,7 +19,7 @@ from fastapi import APIRouter, Request
 from jinja2 import UndefinedError
 
 from conftest import asgi_client, create_app, install_shell, permissions, session
-from services.webservice import templating
+from services.webservice import mount, templating
 from services.webservice.auth import local as local_auth
 from services.webservice.auth import routes as auth_routes
 
@@ -27,6 +27,13 @@ PASSWORD = "correct horse battery staple"
 SESSION_SECRET = "s" * 40
 COOKIE_NAME = "dcssb_test_session"
 BOT_YAML = "roles:\n  Admin:\n    - specialk\n"
+
+#: a SERVED public site at the root: the console moves to ``/console`` (see ``services.webservice.mount``)
+SITE_SERVED = {"frontend": True, "sites": {"root": {}}}
+
+#: a Discord-only install (the one configuration where signing out lands on the login page)
+DISCORD_CLIENT_ID = "1234567890"
+DISCORD_CLIENT_SECRET = "shhh"
 
 #: the chip's own class, used to slice the control's container out of the page
 WHO_CLASS = 'class="who"'
@@ -285,3 +292,106 @@ async def test_the_sign_out_control_needs_no_javascript(config_dir):
     form = _forms(page.text)[0]
     assert "<button" in form and "type=\"submit\"" in form, form
     assert "onclick" not in form and "onsubmit" not in form and "<script" not in form, form
+
+
+# ---------------------------------------------------------------- where signing out lands
+
+def _build_app(config_dir, config: dict):
+    app = create_app()
+    install_shell(app, node=_node(config_dir), config=config)
+    return app
+
+
+def _discord_only_config(*, auto_start: bool) -> dict:
+    """Discord as the ONLY door: the one configuration that lands on the login page."""
+    return {
+        "session": {"secret": SESSION_SECRET, "cookie_name": COOKIE_NAME, "max_age": 600},
+        "auth": {"public_base_url": "http://localhost:9876",
+                 "local": {"enabled": False, "users": []},
+                 "discord": {"enabled": True, "client_id": DISCORD_CLIENT_ID,
+                             "client_secret": DISCORD_CLIENT_SECRET, "auto_start": auto_start}},
+    }
+
+
+def _csrf_probe() -> APIRouter:
+    """A page that mints the session's CSRF token (a Discord-only install renders no form)."""
+    router = APIRouter()
+
+    @router.get("/probe/csrf")
+    async def csrf(request: Request):
+        return {"token": session.get_csrf_token(request)}
+
+    return router
+
+
+async def _sign_out(client, console_path: str):
+    """Sign in, submit the console's own sign-out form, and return its response."""
+    await _login(client)
+    assert client.cookies.get(COOKIE_NAME), "the login must set the configured cookie"
+    page = await client.get(console_path)
+    assert page.status_code == 200, page.text[:200]
+    form = _forms(page.text)[0]
+    field, token = HIDDEN.search(form).groups()
+    return await client.post(ACTION.search(form).group(1), data={field: token})
+
+
+def _assert_cookie_deleted(response) -> None:
+    assert response.headers["set-cookie"].startswith(f"{COOKIE_NAME}="), \
+        "logout must delete the cookie the login set"
+    assert "Max-Age=0" in response.headers["set-cookie"] or \
+        "1970" in response.headers["set-cookie"]
+
+
+@pytest.mark.asyncio
+async def test_signing_out_on_a_served_site_lands_on_the_site_root(config_dir):
+    """A served root site moves the console to ``/console``; the way out is still the site root.
+
+    ``mount.url("/")`` would answer ``/console/`` — the console's own root — which refuses an
+    anonymous visitor and answers the login page. Signing out must land on ``/``.
+    """
+    config = _config()
+    config.update(SITE_SERVED)
+    app = _build_app(config_dir, config)
+    assert mount.console_prefix(app) == mount.CONSOLE_PREFIX, \
+        "the harness must serve a root site: the console is mounted at /console"
+
+    async with asgi_client(app) as client:
+        response = await _sign_out(client, mount.CONSOLE_PREFIX)
+
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert location == "/", f"sign-out must land on the site root, not {location!r}"
+    assert mount.CONSOLE_PREFIX not in location, "never the console's own mount"
+    assert location != auth_routes.LOGIN_PATH, "the login page is not the way out"
+    _assert_cookie_deleted(response)
+
+
+@pytest.mark.asyncio
+async def test_signing_out_with_the_console_at_the_root_lands_on_the_site_root(config_dir):
+    """CONTROL: no site is served, so ``/`` IS the console's start page and the way out is
+    unchanged."""
+    app = _build_app(config_dir, _config())
+    assert mount.console_prefix(app) == "", "the harness must keep the console at the site root"
+
+    async with asgi_client(app) as client:
+        response = await _sign_out(client, "/")
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    _assert_cookie_deleted(response)
+
+
+@pytest.mark.asyncio
+async def test_signing_out_with_discord_auto_start_lands_on_the_login_page(config_dir):
+    """``auth.discord.auto_start`` is the deliberate exception: the root would bounce an anonymous
+    visitor straight back into the OAuth flow, so the destination is the login page."""
+    app = _build_app(config_dir, _discord_only_config(auto_start=True))
+    app.state.webui_registrar.register_pages("probe", _csrf_probe(),
+                                             capabilities={"/probe/csrf": permissions.PUBLIC})
+    async with asgi_client(app) as client:
+        token = (await client.get("/probe/csrf")).json()["token"]
+        response = await client.post(auth_routes.LOGOUT_PATH, data={session.CSRF_FIELD: token})
+
+    assert response.status_code == 303
+    assert response.headers["location"] == auth_routes.LOGIN_PATH
+    _assert_cookie_deleted(response)

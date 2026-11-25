@@ -6,6 +6,7 @@ import psycopg
 from core import Plugin, PluginRequiredError, utils, Report, Status, Server, command, get_translation
 from datetime import datetime, timedelta
 from discord import app_commands
+from discord.ext import tasks
 from io import BytesIO
 from openpyxl.utils import get_column_letter
 from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter, PeriodTransformer, PeriodFilter, \
@@ -16,6 +17,14 @@ from services.bot import DCSServerBot
 from .listener import MissionStatisticsEventListener
 
 _ = get_translation(__name__.split('.')[1])
+
+#: Set once the non-concurrent view refresh fallback has been reported, so the hourly job does not
+#: log it 24 times a day. Module-level: the condition is per process, not per plugin instance.
+_air_starts_refresh_fallback_warned = False
+
+#: The materialized view this plugin owns: the site's sortie starts per server, pilot and ISO week,
+#: aggregated over ``missionstats`` once an hour instead of once per page request.
+_SITE_AIR_STARTS_VIEW = "mv_site_air_starts"
 
 
 async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -61,6 +70,47 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
 
 
 class MissionStatistics(Plugin[MissionStatisticsEventListener]):
+
+    async def cog_load(self) -> None:
+        await super().cog_load()
+        utils.safe_start(self.refresh_air_starts)
+
+    async def cog_unload(self) -> None:
+        await utils.safe_cancel(self.refresh_air_starts)
+        await super().cog_unload()
+
+    @tasks.loop(hours=1)
+    async def refresh_air_starts(self):
+        """Rebuild the site's air-start aggregate from the event stream once an hour.
+
+        The concurrent refresh holds no read lock, so a page read keeps answering the previous rows
+        while it runs; the non-concurrent form (the only one a connection inside a transaction
+        block accepts) locks the view for its duration and is logged once per process.
+        """
+        global _air_starts_refresh_fallback_warned
+        try:
+            self.log.debug("Refreshing materialized view (%s): %s", "concurrent", _SITE_AIR_STARTS_VIEW)
+            async with self.apool.connection() as conn:
+                await conn.set_autocommit(True)
+                try:
+                    await conn.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {_SITE_AIR_STARTS_VIEW};")
+                finally:
+                    await conn.set_autocommit(False)
+        except psycopg.errors.FeatureNotSupported:
+            if not _air_starts_refresh_fallback_warned:
+                _air_starts_refresh_fallback_warned = True
+                self.log.warning(
+                    "REFRESH MATERIALIZED VIEW CONCURRENTLY is unavailable; falling back to the "
+                    "non-concurrent refresh, which locks the view for its duration. This warning "
+                    "is logged once per process."
+                )
+            self.log.debug("Refreshing materialized view (%s): %s", "locking", _SITE_AIR_STARTS_VIEW)
+            async with self.apool.connection() as conn:
+                await conn.execute(f"REFRESH MATERIALIZED VIEW {_SITE_AIR_STARTS_VIEW};")
+
+    @refresh_air_starts.before_loop
+    async def before_refresh_air_starts(self):
+        await self.bot.wait_until_ready()
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         if new_version == '3.5':

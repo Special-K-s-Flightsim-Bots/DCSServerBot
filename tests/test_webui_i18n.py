@@ -1550,3 +1550,61 @@ def _request(app, *, language: str | None = None, header: str | None = None,
     request.headers = {"accept-language": header} if header else {}
     request.url = types.SimpleNamespace(path=path, query=query)
     return request
+
+
+# --------------------------------------------------- one entry per msgid, one placeholder style
+
+def _placeholder_styles(text: str) -> set[str]:
+    """Which formatter a string expects: ``str.format`` braces, gettext ``%(name)s``, or neither.
+
+    The style is chosen by the CALL SITE, not by taste: a sentence record (``say``) runs
+    ``gettext(msgid).format(**params)`` and needs braces; a ``{% trans count=x %}`` block and the
+    ``translate(...) % {...}`` sites need ``%(count)s``. A msgid and its translation in different
+    styles means one of the two renders its placeholder verbatim.
+    """
+    styles = set()
+    if re.search(r"%\([A-Za-z_]", text):
+        styles.add("percent")
+    if re.search(r"\{[A-Za-z_]", text):
+        styles.add("brace")
+    return styles
+
+
+def test_every_catalog_holds_one_entry_per_msgid_with_one_placeholder_style():
+    """A repeated msgid silently wins or loses depending on the compiled order, and a translation
+    whose placeholders are in the other style prints them on the page."""
+    from babel.messages.pofile import read_po
+
+    for language in ("de", "es"):
+        path = REPO / "locale" / language / "LC_MESSAGES" / "webui.po"
+        with path.open("rb") as handle:
+            catalog = read_po(io.BytesIO(handle.read().replace(b"\r\n", b"\n")))
+        seen: set[str] = set()
+        for message in catalog:
+            if getattr(message, "obsolete", False) or not message.id:
+                continue
+            ids = message.id if isinstance(message.id, tuple) else (message.id,)
+            for msgid in ids:
+                assert msgid not in seen, f"{language}: {msgid!r} is in the catalog twice"
+                seen.add(msgid)
+            if isinstance(message.string, tuple) or not message.string:
+                continue
+            assert _placeholder_styles(message.id) == _placeholder_styles(message.string), (
+                f"{language}: {message.id!r} and its translation {message.string!r} use different "
+                f"placeholder styles")
+
+
+#: every catalog on disk — a string nothing extracts any more is dead in all of them
+_ALL_CATALOGS = ("de", "es", "ru", "cn", "tr", "fr", "it", "pl", "pt")
+
+
+def test_no_catalog_keeps_a_string_the_code_no_longer_asks_for(tmp_path):
+    """A msgid nothing extracts any more is dead weight: it survives every ``pybabel update``,
+    ships in the ``.mo``, and hides the fact that the sentence a page now shows is untranslated.
+    Removing a string therefore means removing its entry from every catalog, not just the two the
+    equality gate covers."""
+    extracted = _extract(tmp_path / "webui.pot") | _template_msgids()
+    for language in _ALL_CATALOGS:
+        catalog = _catalog_msgids(language, tmp_path / "webui.pot")
+        dead = sorted(catalog - extracted)
+        assert not dead, f"{language}: {len(dead)} dead entries, e.g. {dead[:3]}"

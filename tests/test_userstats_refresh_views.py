@@ -178,35 +178,42 @@ def _refreshed_views(conn: _FakeConnection) -> set[str]:
 
 @pytest.mark.asyncio
 async def test_the_concurrent_path_logs_one_line_first_naming_the_views_and_the_mode(caplog):
-    """A stall is found in the log only if the window is announced before the refresh runs."""
-    caplog.set_level(logging.INFO, logger="tests.userstats.refresh")
+    """A stall is found in the log only if the window is announced before the refresh runs.
+
+    The line's LEVEL is the product's choice (it has moved between DEBUG and INFO), so this pin reads
+    the announcement at DEBUG and asserts what a stall-hunter needs: one line, its mode, the views,
+    and that it comes before the first refresh.
+    """
+    caplog.set_level(logging.DEBUG, logger="tests.userstats.refresh")
     pool = _FakePool()
 
     await _run(_plugin(pool))
 
-    infos = [record for record in caplog.records if record.levelno == logging.INFO]
-    assert len(infos) == 1, f"one start line per tick, got {[r.message for r in infos]!r}"
-    line = infos[0].getMessage()
+    starts = [record for record in caplog.records
+              if "Refreshing materialized views" in record.getMessage()]
+    assert len(starts) == 1, f"one start line per tick, got {[r.getMessage() for r in starts]!r}"
+    line = starts[0].getMessage()
     assert "concurrent" in line and "locking" not in line
-    assert caplog.records[0] is infos[0], "the line is logged at the start, before any refresh ran"
+    assert caplog.records[0] is starts[0], "the line is logged at the start, before any refresh ran"
     for view in _refreshed_views(pool.connections[0]):
         assert view in line, f"the start line does not name {view}"
 
 
 @pytest.mark.asyncio
 async def test_the_fallback_logs_its_own_start_line_with_the_locking_mode(caplog):
-    caplog.set_level(logging.INFO, logger="tests.userstats.refresh")
+    caplog.set_level(logging.DEBUG, logger="tests.userstats.refresh")
     pool = _FakePool(refuse_concurrently=True)
 
     await _run(_plugin(pool))
 
-    infos = [record for record in caplog.records if record.levelno == logging.INFO]
-    assert len(infos) == 2, f"one line per path taken, got {[r.message for r in infos]!r}"
-    assert "concurrent" in infos[0].getMessage()
-    locking = infos[1].getMessage()
+    starts = [record for record in caplog.records
+              if "Refreshing materialized views" in record.getMessage()]
+    assert len(starts) == 2, f"one line per path taken, got {[r.getMessage() for r in starts]!r}"
+    assert "concurrent" in starts[0].getMessage()
+    locking = starts[1].getMessage()
     assert "locking" in locking and "concurrent" not in locking
     warning = next(r for r in caplog.records if r.levelno == logging.WARNING)
-    assert caplog.records.index(infos[1]) == caplog.records.index(warning) + 1, \
+    assert caplog.records.index(starts[1]) == caplog.records.index(warning) + 1, \
         "the locking line is logged at the start of the fallback, right after the warning"
     for view in _refreshed_views(pool.connections[1]):
         assert view in locking, f"the fallback's start line does not name {view}"

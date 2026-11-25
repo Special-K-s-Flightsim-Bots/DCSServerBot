@@ -48,15 +48,17 @@
     <input type="search" id="q" name="q" value="{{ search_value }}" placeholder="{{ _('Find a pilot') }}" aria-label="{{ _('Find a pilot') }}">
     <button type="submit" aria-label="{{ _('Search') }}">{{ _('Search') }}</button>
   </form>
+  <div class="cluster">
   {% if chip %}
-  <span class="who"><a href="{{ chip.me_href }}" title="{{ _('My statistics') }}">{{ chip.name }}</a></span>
-  {% if chip.console_href %}<a class="btn btn-sm" href="{{ chip.console_href }}">{% trans %}Command Center{% endtrans %}</a>{% endif %}
-  {% elif sign_in_href %}<a class="btn btn-sm" href="{{ sign_in_href }}">{% trans %}Sign in{% endtrans %}</a>
+  <span class="who"><a href="{{ chip.me_href }}" title="{{ _('My statistics') }}"><span class="nm">{{ chip.name }}</span></a></span>
+  {% if chip.console_href %}<a class="btn btn-door" href="{{ chip.console_href }}" aria-label="{{ _('Command Center') }}" title="{{ _('Command Center') }}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M13.5 15h4"/></svg><span class="door-lbl">{% trans %}Command Center{% endtrans %}</span></a>{% endif %}
+  {% elif sign_in_href %}<a class="btn btn-door" href="{{ sign_in_href }}">{% trans %}Sign in{% endtrans %}</a>
   {% endif %}
-  {#- the language pill and its popover, beside the sign-in chip; `language_control` is the SITE's
-      own control (site_pages.render_site_page), and the partial's own `is defined` guard keeps a
+  {#- the language pill and its popover close the cluster; `language_control` is the SITE's own
+      control (site_pages.render_site_page), and the partial's own `is defined` guard keeps a
       standalone render without a request from drawing a control that has nowhere to point. -#}
   {% if language_control is defined and language_control %}{% with language = language_control %}{% include "_language.html" %}{% endwith %}{% endif %}
+  </div>
 </div></header>
 
 {% block content %}{% endblock %}

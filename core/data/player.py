@@ -80,15 +80,19 @@ class Player(DataObject):
                        CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, 
                        p.vip,
                        p.muted 
-                FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
+                FROM players p 
+                LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                      AND (b.server_name IS NULL OR b.server_name = %s)
+                     AND (
+                         b.banned_until IS NULL
+                         OR b.banned_until >= (now() AT TIME ZONE 'utc')
+                     )
                 LEFT OUTER JOIN coalitions c 
                      ON p.ucid = c.player_ucid 
                      AND c.server_name = %s 
                      AND c.coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
                 LEFT OUTER JOIN watchlist w ON p.ucid = w.player_ucid
                 WHERE p.ucid = %s 
-                AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
             """, (self.server.name, self.server.name, self.ucid))
             # existing member found?
             row = await cursor.fetchone()

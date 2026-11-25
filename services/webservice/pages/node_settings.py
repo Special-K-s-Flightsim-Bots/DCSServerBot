@@ -1288,7 +1288,9 @@ def _extension_add_plan(ext_name: str, fields, scope: str) -> tuple[configgen.Fi
     * a required LEAF no dict declares a default for is a requirement;
     * a declared ``default`` the schema's own ``func`` REJECTS is not seedable either, so it is one;
     * a required FIXED-ALTERNATIVE container is one, which is the requirement pykwalify reports as a
-      missing ``regex;`` key (``Cannot find required key 'regex;(backend|server)'``).
+      missing ``regex;`` key (``Cannot find required key 'regex;(backend|server)'``);
+    * a required MAP with no declared ``default`` is one: its keys belong to the schema, so the seeded
+      block can never satisfy it (``Cannot find required key 'backend'``).
 
     ``enabled`` is never a requirement: it is not a value the schema requires of a new block.
 
@@ -1308,9 +1310,16 @@ def _extension_add_plan(ext_name: str, fields, scope: str) -> tuple[configgen.Fi
             if field.section_required and "default" not in spec:
                 plan.append(field)
             continue
-        if key == "enabled" or field.kind not in _ADD_ASKABLE_KINDS:
+        required = spec.get("required") if spec else field.required
+        if key == "enabled" or not required:
             continue
-        if not (spec.get("required") if spec else field.required):
+        if field.kind == configgen.KIND_MAP:
+            # a required map cannot be seeded: its keys are the schema's, not the add's, so a one-click
+            # add writes a block pykwalify then refuses for the missing key
+            if "default" not in spec:
+                plan.append(field)
+            continue
+        if field.kind not in _ADD_ASKABLE_KINDS:
             continue
         if "default" not in spec or not _default_accepted(field, spec["default"]):
             plan.append(field)

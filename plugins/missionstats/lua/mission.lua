@@ -37,6 +37,8 @@ dcsbot.eventHandler = dcsbot.eventHandler or {}
 local event_by_id = {}
 --local marker_num = 1
 
+local WEAPONS = {}
+
 local function get_distance(point1, point2)
     local y1, y2
 
@@ -734,10 +736,11 @@ function onMissionEvent(event)
         msg.weapon.id = event.weapon.id_
         if event.weapon:isExist() then
             msg.weapon.name = event.weapon:getTypeName()
-        elseif event.weapon_name ~= nil then
+            WEAPONS[event.weapon.id_] = msg.weapon.name
+        elseif event.weapon_name then
             msg.weapon.name = event.weapon_name
         else
-            msg.weapon.name = 'Gun'
+            msg.weapon.name = WEAPONS[event.weapon.id_]
         end
         -- msg.weapon.category = event.weapon:getDesc().category
         if msg.weapon.name == nil or msg.weapon.name == '' then

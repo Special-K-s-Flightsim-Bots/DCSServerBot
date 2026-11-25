@@ -1,0 +1,71 @@
+{#-
+  The competitive rating's recorded history: the band, the μ line, the ticks and the dates.
+
+  Included by the SIGNED-IN page only. The public profile shows the current figure and nothing
+  else, so a visitor reads the rating without the series that led to it. Three shapes come from
+  `model.rating`: `chart` (two or more updates), `single` (one update — a ±σ bar, no line) and
+  neither, which renders the empty sentence.
+
+  The partial carries its own date macro: it is included from a page whose content block does not
+  define one, and a macro defined in the INCLUDING template is not visible here.
+-#}
+{% macro rcdate(label) -%}
+{{- _(label.pattern).format(day=label.day, year=label.year) -}}
+{%- endmacro %}
+{%- if model.rating.chart %}
+{%- set chart = model.rating.chart %}
+{%- set when = rcdate(chart.aria_move.date) %}
+<figure class="rc">
+  <div class="rc-legend" aria-hidden="true">
+    <span class="k"><i class="sw"></i>μ</span>
+    <span class="k"><i class="sw band"></i>±σ</span>
+  </div>
+  <div class="rc-frame" role="img" aria-label="{{ _(chart.aria_head.pattern).format(mu=chart.aria_head.mu, sigma=chart.aria_head.sigma) }} {{ _(chart.aria_move.pattern).format(delta=chart.aria_move.delta, date=when) }}">
+    <div class="rc-y" aria-hidden="true">
+      {%- for tick in chart.ticks %}
+      <span class="tick" style="top:{{ tick.top }}%"></span>
+      {%- endfor %}
+      {%- for tick in chart.ticks %}
+      <span class="v" style="top:{{ tick.top }}%">{{ tick.text }}</span>
+      {%- endfor %}
+    </div>
+    <div class="rc-plot" aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+        <path class="rc-band" d="{{ chart.band }}"/>
+        <polyline class="rc-line" points="{{ chart.line }}"/>
+      </svg>
+      <span class="rc-mark" style="left:{{ chart.point.x }}%;top:{{ chart.point.y }}%"></span>
+    </div>
+    <div class="rc-x" aria-hidden="true">
+      {%- for label in chart.labels %}
+      <span class="{{ label.place }}" style="left:{{ label.at }}%">{{ rcdate(label) }}</span>
+      {%- endfor %}
+    </div>
+  </div>
+  <figcaption>{{ _(chart.caption.pattern) }} {{ _(chart.caption.move.pattern).format(delta=chart.caption.move.delta) }}</figcaption>
+</figure>
+{%- elif model.rating.single %}
+{%- set single = model.rating.single %}
+<figure class="rc">
+  <div class="rc-frame" role="img" aria-label="{{ _(single.aria.pattern).format(mu=single.aria.mu, sigma=single.aria.sigma, date=rcdate(single.aria.date)) }}">
+    <div class="rc-y" aria-hidden="true">
+      {%- for tick in single.ticks %}
+      <span class="tick" style="top:{{ tick.top }}%"></span>
+      {%- endfor %}
+      {%- for tick in single.ticks %}
+      <span class="v" style="top:{{ tick.top }}%">{{ tick.text }}</span>
+      {%- endfor %}
+    </div>
+    <div class="rc-plot" aria-hidden="true">
+      <span class="rc-whisk" style="left:{{ single.point.x }}%;top:{{ single.bar.top }}%;height:{{ single.bar.height }}%"></span>
+      <span class="rc-mark" style="left:{{ single.point.x }}%;top:{{ single.point.y }}%"></span>
+    </div>
+    <div class="rc-x" aria-hidden="true">
+      <span class="{{ single.label.place }}" style="left:{{ single.label.at }}%">{{ rcdate(single.label) }}</span>
+    </div>
+  </div>
+  <figcaption>{{ _(single.caption) }}</figcaption>
+</figure>
+{%- else %}
+<p class="rc-empty">{{ _(model.rating.empty_text) }}</p>
+{%- endif %}

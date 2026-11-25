@@ -148,14 +148,14 @@ class StubPool:
 
         if "WITH page AS MATERIALIZED" in statement:
             rows = [{"ucid": ucid, "name": pilot["name"], "value": pilot["playtime"],
-                     "playtime": pilot["playtime"], "sorties": pilot.get("sessions", 0),
+                     "playtime": pilot["playtime"], "sorties": pilot.get("takeoffs", 0),
                      "takeoffs": pilot.get("takeoffs", 0), "landings": pilot.get("landings", 0),
                      "kills": pilot.get("kills", 0), "pvp": pilot.get("pvp", 0),
                      "crashes": pilot.get("crashes", 0), "ejections": pilot.get("ejections", 0),
                      "aircraft": (pilot.get("aircraft") or [{}])[0].get("aircraft", "")}
                     for ucid, pilot in PILOTS.items() if on_site(pilot)]
             rows += [{"ucid": f"u-many-{index}", "name": name, "value": 60, "playtime": 60,
-                      "sorties": 1, "takeoffs": 1, "landings": 1, "kills": 1, "pvp": 0,
+                      "sorties": 1, "landings": 1, "kills": 1, "pvp": 0,
                       "crashes": 0, "ejections": 0, "aircraft": ""}
                      for index, name in enumerate(MANY, start=1)]
             return _window(rows, params)
@@ -428,7 +428,7 @@ def test_the_table_prints_every_column_in_the_mockups_order(config_dir, bus):
     app, _ = build(config_dir)
     markup = get(app, "/rankings").text
     head = _head(markup)
-    labels = ["Pilot", "Playtime", "Sorties", "Takeoffs", "Landings", "Kills", "PvP", "Crashes",
+    labels = ["Pilot", "Playtime", "Sorties", "Landings", "Kills", "PvP", "Crashes",
               "Ejections", "Most flown"]
     positions = [head.index(label) for label in labels]
     assert positions == sorted(positions), "the columns are not in the mockup's order"
@@ -438,7 +438,7 @@ def test_the_table_prints_every_column_in_the_mockups_order(config_dir, bus):
 def test_every_figure_column_is_a_sort_link_and_the_rank_and_airframe_are_not(config_dir, bus):
     app, _ = build(config_dir)
     head = _head(get(app, "/rankings").text)
-    for key in ("name", "playtime", "sorties", "takeoffs", "landings", "kills", "pvp", "crashes",
+    for key in ("name", "playtime", "sorties", "landings", "kills", "pvp", "crashes",
                 "ejections"):
         assert f"sort={key}" in head, f"the {key} column is not a sort link"
     assert "sort=aircraft" not in head and "sort=rank" not in head
@@ -490,7 +490,7 @@ def test_the_pager_keeps_the_sort_so_page_two_is_the_same_order(config_dir, bus)
 def test_the_wide_row_renders_every_figure_and_the_airframe(config_dir, bus):
     app, _ = build(config_dir)
     markup = get(app, "/rankings").text
-    for figure in ("111", "1,111", "1,119", "1,121", "1,113", "1,115", "1,123", "1,125"):
+    for figure in ("111", "1,119", "1,121", "1,113", "1,115", "1,123", "1,125"):
         assert figure in markup, f"the figure {figure} did not reach the wide row"
     assert "F-16C_50" in markup, "the favourite airframe did not reach the row"
 
@@ -677,8 +677,10 @@ def test_the_profile_renders_totals_airframes_servers_and_the_link(config_dir, b
     assert response.status_code == 200
     markup = response.text
     for expected in ("Root One", "111", "1,111", "1,113", "1,119", "F-16C_50", "Root-1",
-                     "2026-11-06", "Root One Alt", 'href="/player/u-root-1b"'):
+                     "2026-11-06"):
         assert expected in markup, f"'{expected}' did not reach the profile"
+    # a pilot has ONE player ID: the second UCID of the same Discord link is not listed here
+    assert "Root One Alt" not in markup and 'href="/player/u-root-1b"' not in markup
 
 
 def test_the_profile_never_renders_a_discord_id_or_a_clock_time(config_dir, bus):
@@ -719,7 +721,7 @@ def test_no_database_renders_the_empty_state_on_every_page(config_dir):
     for path in ("/rankings", "/player/u-root-1", "/players?q=Root"):
         response = get(app, path)
         assert response.status_code == 200, path
-        assert "The statistics database is not available yet" in response.text, path
+        assert "Statistics are not available yet" in response.text, path
 
 
 # ------------------------------------------------------------------------------- the search
@@ -856,7 +858,7 @@ def test_the_pages_render_in_the_sites_own_language(config_dir, bus):
     app, _ = build(config_dir, config=config)
     assert "Kennzahl" in get(app, "/rankings").text
     assert "Pilotensuche" in get(app, "/players").text
-    assert "Auch bekannt als" in get(app, "/player/u-root-1").text
+    assert "Wie sie fliegen" in get(app, "/player/u-root-1").text
 
 
 def test_the_stored_language_cookie_beats_the_sites_declared_language(config_dir, bus):
@@ -1064,16 +1066,15 @@ def test_the_players_list_keeps_its_short_lead_and_no_withheld_inventory(config_
 
 
 def test_the_public_profile_states_what_it_shows_and_no_link_state(config_dir, bus):
-    """``Public profile.`` plus the sentence naming what IS shown, the character tag kept — and no
-    tag saying whether the pilot has a Discord account, neither for a linked nor a lone pilot."""
+    """The character tag is the profile's only statement about the pilot, and no tag says whether
+    they have a Discord account — neither for a linked nor a lone pilot. The profile carries no
+    "what is withheld" inventory: a list of things a page does NOT store reads as things it does."""
     app, _ = build(config_dir)
     for ucid in ("u-root-1", "u-root-2"):  # linked and not linked
         markup = get(app, f"/player/{ucid}").text
         for fragment in WITHHELD_FRAGMENTS:
             assert fragment not in markup, f"{fragment!r} is printed on {ucid}'s profile"
     markup = get(app, "/player/u-root-1").text
-    assert "Public profile." in markup, "the profile lost its short lead"
-    assert ("This is what anybody sees for a pilot without signing in: name, squadron, playtime "
-            "and the combat figures.") in markup, "the profile lost the sentence naming what it shows"
+    assert "no session has been recorded" not in markup.lower(), "the inventory is back"
     tags = re.findall(r'<span class="tag">([^<]*)</span>', markup)
     assert tags == ["PvP and PvE community"], f"the tag row carries more than the character: {tags}"

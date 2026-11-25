@@ -347,11 +347,12 @@ async def test_olympus_on_an_instance_tab_is_a_link_to_that_instance_s_tab(node_
         assert control["kind"] == "link", f"Olympus is offered as a one-click write: {control}"
         target = await _get(client, control["href"])
     assert control["href"] == _scope_url("dcs-a-01", "Olympus", "Syria"), control["href"]
-    # the destination IS the Syria instance's scope, with both required sections offered as choices
+    # the destination IS the Syria instance's scope, with both required sections offered there
     assert 'name="f.dcs-a-01.instances.Syria.extensions.Olympus.' in target
     assert _note(target) == node_settings_page.NODE_EXTENSION_CREATE_NOTE
-    picks = re.findall(r'data-cfg-sectionpick data-cfg-all="([^"]+)"', target)
-    assert picks == ["backend,server", "frontend,client"], picks
+    for section in ("backend", "frontend"):
+        assert f'name="f.dcs-a-01.instances.Syria.extensions.Olympus.{section}.' in target, \
+            f"the destination does not offer the {section} section"
 
 
 @pytest.mark.asyncio

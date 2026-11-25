@@ -168,25 +168,24 @@ def test_alternatives_parses_the_fixed_lists_and_rejects_the_patterns():
         assert configgen.alternatives(pattern) == (), pattern
 
 
-def test_the_olympus_instance_block_carries_its_section_names():
-    """The reported example: Olympus's ``regex;(frontend|client)``/``(backend|server)`` are alternatives.
-
-    Read from the REAL extension schema, through the node schema the console renders (which pulls every
-    ``extensions/**/*_schema.yaml``). Both names are the schema's own list, never hardcoded here.
+def test_the_olympus_instance_block_offers_both_of_its_sections():
+    """Read from the REAL extension schema: the shipped Olympus block offers ``backend`` and
+    ``frontend`` as sections, however it spells them — literally, or as the ``regex;(…)``
+    alternatives an older Olympus needed. The names are the schema's own, never hardcoded here.
     """
     from services.webservice import scopes as scopes_module
 
     schema, _node_partial, instance_partial = scopes_module.extension_schema_parts("Olympus")
     assert instance_partial, "Olympus declares no instance partial"
-
-    root = configgen.describe(configgen.Schema(
-        root={"type": "map", "mapping": {"DEFAULT": {"include": instance_partial}}},
-        partials=schema.partials, included_files=schema.included_files, primary=schema.primary))
-    found = {field.regex: field.alternatives
-             for field in configgen.flatten(root)
-             if field.kind == configgen.KIND_REGEX and field.alternatives}
-    assert found.get("(frontend|client)") == ("frontend", "client")
-    assert found.get("(backend|server)") == ("backend", "server")
+    mapping = schema.partials[instance_partial].get("mapping") or {}
+    offered: set[str] = set()
+    for key, rule in mapping.items():
+        name = str(key)
+        if name in ("backend", "frontend"):
+            offered.add(name)
+        elif name.startswith("regex;"):
+            offered.update(configgen.alternatives(name[len("regex;"):]))
+    assert {"backend", "frontend"} <= offered, f"Olympus offers {sorted(offered)}"
 
 
 # ------------------------------------------------------------- 2. the page renders TYPED sections
@@ -452,13 +451,12 @@ def olympus_data(olympus_dir, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_the_olympus_extension_page_renders_its_sections(olympus_dir, olympus_data):
-    """The reported example end to end: Olympus's ``frontend`` renders as a typed SECTION.
+    """Olympus's ``frontend`` renders as a typed SECTION on the real page.
 
-    Both containers carry ``func: one_of`` — frontend/client are two SPELLINGS of ONE section, as are
-    backend/server — so the file's ``frontend`` renders as a ``st-block`` keyed by the name (the same
-    markup a literal map produces) and offers NO second spelling. The ABSENT ``(backend|server)``
-    container is a "+ Add" CHOICE naming the schema's own list, so its names appear as a picker row,
-    not as a rendered section — and never leak into the frontend block.
+    The section block is keyed by the name and carries its leaves, which is the markup a literal map
+    produces. A ``regex;`` container that carries fixed alternatives renders the same way, and its
+    picker rows are pinned on the schemas this file owns — the shipped Olympus block does not depend
+    on that spelling, so nothing here asserts a picker.
     """
     from test_webui_node_page import _fleet_source
 
@@ -469,17 +467,8 @@ async def test_the_olympus_extension_page_renders_its_sections(olympus_dir, olym
         await _login(client, "specialk")
         page = (await client.get("/nodes/dcs-a-01/extensions/Olympus")).text
 
-    assert "data-cfg-sections" in page
     assert 'name="f.dcs-a-01.instances.Syria.extensions.Olympus.frontend.path"' in page
     assert ">frontend<" in page
- # Both containers are ``func: one_of``. The (frontend|client) container carries ``frontend``, so it
- # renders that block and offers NO second spelling. The ABSENT (backend|server) container is a
- # "+ Add" CHOICE naming the schema's own list — its names appear as a picker row, never as a
- # rendered section, and never leak into the frontend block.
-    assert _picker_options(page, 0) == ["backend", "server"]
-    assert _picker_options(page, 1) == [], "one_of: the present spelling offers no second picker"
-    assert 'data-cfg-all="backend,server"' in page, "the picker carries the schema's FULL name list"
-    assert "backend | server" in page
 
 
 # ------------------------------------------------------------- 6. the shipped front-end carries it

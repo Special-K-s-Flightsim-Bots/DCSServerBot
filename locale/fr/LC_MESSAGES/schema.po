@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-22 17:53+0100\n"
+"POT-Creation-Date: 2026-11-24 22:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -17,7 +17,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.18.0\n"
+"Generated-By: Babel 2.17.0\n"
 
 #. punishment_schema:schema;element_schema.exemptions.discord.[0]
 #: plugins/punishment/schemas/punishment_schema.yaml:230
@@ -129,7 +129,7 @@ msgstr "Ajoute un piège qui expulse les bots réagissant au message."
 msgid "Add the current METAR to the mission briefing."
 msgstr "Ajoute le METAR actuel au briefing de mission."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers
 #: extensions/olympus/schemas/olympus_schema.yaml:294
 msgid "Additional map layer providers (Olympus 2.0)."
 msgstr "Fournisseurs de couches de carte supplémentaires (Olympus 2.0)."
@@ -311,7 +311,7 @@ msgstr "Nom d'hôte alternatif affiché dans l'embed d'état du serveur."
 msgid "Alternative directory holding the Tacview files."
 msgstr "Dossier alternatif contenant les fichiers Tacview."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapMirrors
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapMirrors
 #: extensions/olympus/schemas/olympus_schema.yaml:327
 msgid "Alternative map tile sources (Olympus 2.0)."
 msgstr "Sources alternatives de tuiles de carte (Olympus 2.0)."
@@ -497,7 +497,7 @@ msgstr "Arguments transmis à la commande ou à l'événement de jeu."
 msgid "Arguments passed to the command; supports placeholders."
 msgstr "Arguments transmis à la commande ; prend en charge les placeholders."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).attribution
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).attribution
 #: extensions/olympus/schemas/olympus_schema.yaml:322
 msgid "Attribution text displayed on this map layer."
 msgstr "Texte d'attribution affiché sur cette couche de carte."
@@ -570,7 +570,7 @@ msgstr "Annule automatiquement les plans de vol obsolètes au démarrage de la m
 msgid "Auto-complete an active plan on landing at the destination."
 msgstr "Clôt automatiquement un plan actif lors de l'atterrissage à destination."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).autoconnectWhenLocal
+#. olympus_schema:schema;instance_olympus_schema.frontend.autoconnectWhenLocal
 #: extensions/olympus/schemas/olympus_schema.yaml:335
 msgid "Auto-connect the client when it runs on the same host."
 msgstr "Connecte automatiquement le client lorsqu'il s'exécute sur le même hôte."
@@ -787,7 +787,7 @@ msgstr "Niveau de batterie (%) qui arrête tout le PC."
 msgid "Battery level (%) that warns the players."
 msgstr "Niveau de batterie (%) qui avertit les joueurs."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).address
+#. olympus_schema:schema;instance_olympus_schema.backend.address
 #: extensions/olympus/schemas/olympus_schema.yaml:177
 msgid "Bind address for the Olympus backend service."
 msgstr "Adresse de liaison du service backend Olympus."
@@ -2204,7 +2204,7 @@ msgstr "Activer l'enregistrement des données de vol Tacview."
 msgid "Enable automatic CPU affinity for this node."
 msgstr "Activer l'affinité CPU automatique pour ce nœud."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.enabled
+#. olympus_schema:schema;instance_olympus_schema.frontend.customAuthHeaders.enabled
 #: extensions/olympus/schemas/olympus_schema.yaml:255
 msgid "Enable custom authentication headers."
 msgstr "Activer les en-têtes d'authentification personnalisés."
@@ -2776,7 +2776,7 @@ msgstr "Intensité de la turbulence au sol."
 msgid "Group name or Lua pattern that this restriction matches."
 msgstr "Nom de groupe ou motif Lua auquel cette restriction correspond."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.group
+#. olympus_schema:schema;instance_olympus_schema.frontend.customAuthHeaders.group
 #: extensions/olympus/schemas/olympus_schema.yaml:267
 msgid "Group sent in the authentication header."
 msgstr "Groupe envoyé dans l'en-tête d'authentification."
@@ -2786,7 +2786,7 @@ msgstr "Groupe envoyé dans l'en-tête d'authentification."
 msgid "Grow a process only above this load per assigned core."
 msgstr "Agrandir un processus uniquement au-delà de cette charge par cœur attribué."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).proxyHeader
+#. olympus_schema:schema;instance_olympus_schema.frontend.proxyHeader
 #: extensions/olympus/schemas/olympus_schema.yaml:341
 msgid "HTTP header used to detect the client behind a proxy."
 msgstr "En-tête HTTP utilisé pour détecter le client derrière un proxy."
@@ -2846,7 +2846,7 @@ msgstr "Masquer ce préréglage du menu de l'éditeur de missions."
 msgid "Highest wind direction in degrees."
 msgstr "Direction de vent la plus élevée en degrés."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).maxZoom
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).maxZoom
 #: extensions/olympus/schemas/olympus_schema.yaml:316
 msgid "Highest zoom level this map layer is shown at."
 msgstr "Niveau de zoom maximal auquel cette couche de carte est affichée."
@@ -3266,7 +3266,7 @@ msgstr "Texte d'aide plus long décrivant ce que fait la commande."
 msgid "Lowest wind direction in degrees."
 msgstr "Direction de vent la plus basse en degrés."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).minZoom
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).minZoom
 #: extensions/olympus/schemas/olympus_schema.yaml:311
 msgid "Lowest zoom level this map layer is shown at."
 msgstr "Niveau de zoom minimal auquel cette couche de carte est affichée."
@@ -4471,7 +4471,7 @@ msgstr "Mot de passe du rôle Red Tactical Commander."
 msgid "Password for the Tacview remote control."
 msgstr "Mot de passe du contrôle à distance Tacview."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.password
+#. olympus_schema:schema;instance_olympus_schema.frontend.elevationProvider.password
 #: extensions/olympus/schemas/olympus_schema.yaml:289
 msgid "Password for the elevation provider, if required."
 msgstr "Mot de passe du fournisseur d'altitude, si requis."
@@ -4528,7 +4528,7 @@ msgstr "Chemin de l'installation de DCS World sur ce nœud."
 msgid "Path to the Lardoon executable."
 msgstr "Chemin de l'exécutable Lardoon."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).path
+#. olympus_schema:schema;instance_olympus_schema.frontend.path
 #: extensions/olympus/schemas/olympus_schema.yaml:235
 msgid "Path to the Olympus frontend installation."
 msgstr "Chemin de l'installation du frontend Olympus."
@@ -5952,7 +5952,7 @@ msgstr "Camp auquel cette restriction s'applique, 0 les deux, 1 rouge, 2 bleu."
 msgid "Sign-in page style; fancy (animated scene) or simple (plain)."
 msgstr ""
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders
+#. olympus_schema:schema;instance_olympus_schema.frontend.customAuthHeaders
 #: extensions/olympus/schemas/olympus_schema.yaml:246
 msgid "Single sign-on header configuration (Olympus 2.0)."
 msgstr "Configuration de l'en-tête d'authentification unique (Olympus 2.0)."
@@ -6165,7 +6165,7 @@ msgstr "Approbation, expiration et limites par joueur des tâches."
 msgid "Temperature generation."
 msgstr "Génération de la température."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider
+#. olympus_schema:schema;instance_olympus_schema.frontend.elevationProvider
 #: extensions/olympus/schemas/olympus_schema.yaml:272
 msgid "Terrain elevation data provider (Olympus 2.0)."
 msgstr "Fournisseur de données d'altitude du terrain (Olympus 2.0)."
@@ -6429,12 +6429,12 @@ msgstr "URL du serveur proxy."
 msgid "URL or slug of the GoFundMe campaign."
 msgstr "URL ou slug de la campagne GoFundMe."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.provider
+#. olympus_schema:schema;instance_olympus_schema.frontend.elevationProvider.provider
 #: extensions/olympus/schemas/olympus_schema.yaml:281
 msgid "URL template of the elevation data source."
 msgstr "Modèle d'URL de la source de données d'altitude."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).urlTemplate
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).urlTemplate
 #: extensions/olympus/schemas/olympus_schema.yaml:306
 msgid "URL template of this map layer's tiles."
 msgstr "Modèle d'URL des tuiles de cette couche de carte."
@@ -6444,12 +6444,12 @@ msgstr "Modèle d'URL des tuiles de cette couche de carte."
 msgid "URL-safe path segment of the site; the root site's is empty."
 msgstr ""
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).port
+#. olympus_schema:schema;instance_olympus_schema.backend.port
 #: extensions/olympus/schemas/olympus_schema.yaml:183
 msgid "Unique TCP port for Olympus internal communication."
 msgstr "Port TCP unique pour la communication interne d'Olympus."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).port
+#. olympus_schema:schema;instance_olympus_schema.frontend.port
 #: extensions/olympus/schemas/olympus_schema.yaml:241
 msgid "Unique TCP port the Olympus web client connects to."
 msgstr "Port TCP unique auquel se connecte le client web Olympus."
@@ -6607,7 +6607,7 @@ msgstr "Utilisateur pour se connecter au serveur NUT (facultatif)."
 msgid "Username and password login for the console."
 msgstr "Identifiant et mot de passe de connexion pour la console."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.username
+#. olympus_schema:schema;instance_olympus_schema.frontend.elevationProvider.username
 #: extensions/olympus/schemas/olympus_schema.yaml:285
 msgid "Username for the elevation provider, if required."
 msgstr "Nom d'utilisateur pour le fournisseur d'altitude, si nécessaire."
@@ -6622,7 +6622,7 @@ msgstr "Nom d'utilisateur pour le proxy, s'il nécessite une authentification."
 msgid "Username of the emergency Admin account."
 msgstr "Nom d'utilisateur du compte administrateur d'urgence."
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.username
+#. olympus_schema:schema;instance_olympus_schema.frontend.customAuthHeaders.username
 #: extensions/olympus/schemas/olympus_schema.yaml:261
 msgid "Username sent in the authentication header."
 msgstr "Nom d'utilisateur envoyé dans l'en-tête d'authentification."

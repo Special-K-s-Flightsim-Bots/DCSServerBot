@@ -106,6 +106,7 @@ def test_the_all_time_leaderboard_reads_the_aggregate():
         sort_expr=site_reads._sort_expression("playtime", site_reads._METRIC_VIEW),
         detail_aggregates=site_reads._detail_aggregates(site_reads._METRIC_VIEW),
         detail_list=site_reads._detail_list(),
+        starts="", starts_join="",
         direction="DESC")
     assert f"FROM {VIEW}" in statement
     assert "FROM mv_statistics" not in statement

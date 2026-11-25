@@ -9946,6 +9946,10 @@ msgstr "出动架次"
 msgid "recorded takeoffs"
 msgstr "已记录的起飞"
 
+#: services/webservice/pages/site_player.py:257
+msgid "every flight that got airborne"
+msgstr "每一次升空的飞行"
+
 msgid "Sessions recorded"
 msgstr "已记录会话"
 
@@ -9975,9 +9979,6 @@ msgstr "名飞行员本周在线"
 
 msgid "Hours in the air"
 msgstr "飞行小时"
-
-msgid "The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected."
-msgstr "统计数据库尚不可用，因此本页不显示任何数字。机器人连接后就会填充。"
 
 msgid "%(count)s vs. last week"
 msgstr "较上周 %(count)s"
@@ -10069,9 +10070,6 @@ msgstr "空中目标"
 msgid "Airframe hours"
 msgstr "机型小时"
 
-msgid "Also known as"
-msgstr "又名"
-
 msgid "Back to the first page"
 msgstr "返回第一页"
 
@@ -10081,20 +10079,11 @@ msgstr "返回排行榜"
 msgid "Bars are scaled to this pilot's own flying, so the longest bar is the airframe they fly most."
 msgstr "条形按该飞行员自己的飞行时间缩放，最长的一条是他飞得最多的机型。"
 
-msgid "Discord link"
-msgstr "Discord 关联"
-
-msgid "Either the address is mistyped, or this pilot has no session on this site's servers. Search for a pilot by name instead."
-msgstr "要么地址输错了，要么该飞行员从未在本站服务器上飞行。请改用姓名搜索飞行员。"
-
 msgid "Find a pilot"
 msgstr "查找飞行员"
 
 msgid "Ground Targets"
 msgstr "地面目标"
-
-msgid "Is this you?"
-msgstr "这是你吗？"
 
 msgid "KD-Ratio"
 msgstr "击杀/死亡比"
@@ -10132,9 +10121,6 @@ msgstr "飞行员搜索"
 msgid "Pilots whose name contains “%(query)s”"
 msgstr "名字包含“%(query)s”的飞行员"
 
-msgid "Public profile."
-msgstr "公开资料。"
-
 msgid "Public record · no account needed"
 msgstr "公开记录 · 无需账号"
 
@@ -10150,20 +10136,8 @@ msgstr "排名 · %(metric)s"
 msgid "Sessions per server"
 msgstr "各服务器场次"
 
-msgid "The same Discord account has flown under more than one player ID. Each name opens that profile."
-msgstr "同一个 Discord 账号使用过多个玩家 ID。每个名字都会打开对应的资料页。"
-
 msgid "The three windows are the statistics engine's own month, quarter and year, offered as 30, 90 and 365 days."
 msgstr "三个时段是统计引擎自身的月、季度和年，分别以 30、90 和 365 天呈现。"
-
-msgid "This is what anybody sees for a pilot without signing in: name, squadron, playtime and the combat figures."
-msgstr "任何人无需登录就能看到这些：名字、中队、飞行时长和战斗数据。"
-
-msgid "This page holds no rows; the board ends earlier."
-msgstr "本页没有数据行；榜单在更早的页面结束。"
-
-msgid "This page holds no rows; the result ends earlier."
-msgstr "本页没有数据行；结果在更早的页面结束。"
 
 msgid "Type the first letters of a name in the search box above. The search matches the beginning of a pilot's name, not any part of it."
 msgstr "在上方搜索框中输入名字的前几个字母。搜索只匹配名字的开头，不匹配中间部分。"
@@ -10182,9 +10156,6 @@ msgstr "最近飞行 %(when)s"
 
 msgid "on this site's servers"
 msgstr "在本站服务器上"
-
-msgid "one Discord account, several player IDs"
-msgstr "一个 Discord 账号，多个玩家 ID"
 
 msgid "recorded"
 msgstr "已记录"
@@ -10228,17 +10199,8 @@ msgstr "已登录"
 msgid "Signed out"
 msgstr "已退出"
 
-msgid "The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not."
-msgstr "你登录的账号没有关联任何在本站服务器上飞行过的玩家 ID。这个社区的其它站点也许有你的记录；本站没有。"
-
-msgid "The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history."
-msgstr "上面的数字就是任何人在你的公开资料页上看到的数字：名字、飞行时长和战斗数字。没有 Discord ID，没有 IP 地址（连它的哈希也没有），没有邮箱，没有封禁或监视状态，没有管理历史。"
-
 msgid "The same sessions counted by the server they ran on. Only this site's servers appear."
 msgstr "同样的会话按它们所在的服务器统计。只显示本站的服务器。"
-
-msgid "This installation has no sign-in method enabled."
-msgstr "此安装没有启用任何登录方式。"
 
 msgid "This is you"
 msgstr "这就是你"
@@ -10254,9 +10216,6 @@ msgstr "你飞什么"
 
 msgid "Where you fly"
 msgstr "你在哪里飞"
-
-msgid "Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot."
-msgstr "你的时长去了哪里，按机型逐一统计，正如统计插件按 slot 记录的那样。"
 
 msgid "these figures are yours, counted on this site's servers."
 msgstr "这些数字属于你，按本站服务器统计。"
@@ -10278,19 +10237,14 @@ msgstr "%(count)s 名飞行员"
 msgid "%(hours)s h"
 msgstr "%(hours)s 小时"
 
-#: services/webservice/templates/site_overview.html:194
-#, python-format
-msgid "%(sorties)s sorties"
-msgstr "%(sorties)s 架次"
-
 #: services/webservice/templates/site_overview.html:111
 #, python-format
 msgid "%(weeks)s weeks"
 msgstr "%(weeks)s 周"
 
-#: services/webservice/pages/site_overview.py:501
-msgid "Average sortie"
-msgstr "平均出击"
+#: services/webservice/pages/site_overview.py:511
+msgid "Average session"
+msgstr "平均会话"
 
 #: services/webservice/templates/site_overview.html:215
 msgid "Busiest day"
@@ -10305,10 +10259,6 @@ msgid "Every bar is one UTC hour: flight time is split across the hours each ses
 msgstr "每根柱子代表一个 UTC 小时：飞行时间按每次会话实际跨越的小时拆分。"
 
 #: services/webservice/templates/site_leaderboard.html:18
-msgid "Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column."
-msgstr "这些服务器的所有飞行员，以及排名背后的数字。选择一个指标，或按任意列排序。"
-
-#: services/webservice/pages/site_overview.py:505
 msgid "Flew this week"
 msgstr "本周飞行"
 
@@ -10328,9 +10278,10 @@ msgstr "这些服务器上还没有人飞过任何机型。"
 msgid "No sortie has been recorded on these servers yet."
 msgstr "这些服务器上还没有记录任何架次。"
 
-#: services/webservice/templates/site_overview.html:143
-msgid "One bar per week of the same window, the current week drawn in the brighter fill."
-msgstr "同一时间范围内每周一根柱子，当前一周用更亮的填充。"
+#: services/webservice/templates/site_overview.html:146
+msgid "Every flight counts — a takeoff, or an air start where the event log records it. One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "每一次飞行都算——起飞，或在事件日志记录下的空中开始。同一时间窗每周一根柱子，当前周用更亮的填充。"
+
 
 #: services/webservice/templates/site_overview.html:76
 msgid "Our pilots' time in the air on these servers, from the first mission to today."
@@ -10408,9 +10359,6 @@ msgstr "按小时统计的飞行时长 · UTC"
 msgid "vs. the first week"
 msgstr "与第一周相比"
 
-msgid "%(count)s deaths"
-msgstr "被击落 %(count)s 次"
-
 msgid "%(count)s recorded"
 msgstr "已记录 %(count)s 次"
 
@@ -10446,9 +10394,6 @@ msgstr "如何飞行"
 
 msgid "Last flights"
 msgstr "最近飞行"
-
-msgid "One rating per pilot, held by the competitive plugin. It has no server column, so it is the same value on every site."
-msgstr "每位飞行员一个评分，由竞技插件维护。它没有服务器列，因此在每个站点上都是同一数值。"
 
 msgid "PvE community"
 msgstr "PvE 社区"
@@ -11977,3 +11922,113 @@ msgstr "颜色表示谁能读到：所有人、仅红方、仅蓝方 — 玩家�
 msgid "Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line)"
 msgstr "给此服务器上的玩家写一句话…（回车发送，Shift+回车换行）"
 
+#: services/webservice/pages/site_overview.py:505
+msgid "Every pilot on these servers, with the numbers behind the rank. Pick a figure to rank by, or sort the table."
+msgstr "这些服务器上的每位飞行员，以及名次背后的数字。选择一项指标排序，或对表格排序。"
+
+msgid "Statistics are not available yet. They appear as soon as the servers report in."
+msgstr "统计尚不可用。服务器一上报就会显示。"
+
+msgid "running"
+msgstr "进行中"
+
+msgid "%(count)s campaigns"
+msgstr "%(count)s 场战役"
+
+msgid "Badge"
+msgstr "徽章"
+
+msgid "Campaign"
+msgstr "战役"
+
+msgid "Campaigns"
+msgstr "战役"
+
+msgid "Credits"
+msgstr "积分"
+
+msgid "Credits and badges"
+msgstr "积分和徽章"
+
+msgid "Either the address is mistyped, or this pilot has not flown on these servers. Search for a pilot by name instead."
+msgstr "要么地址输错了，要么这位飞行员没有在这些服务器上飞过。请改为按姓名搜索飞行员。"
+
+msgid "If you want to see your own statistics with more details, make sure to link your account and sign in with Discord."
+msgstr "如果你想更详细地查看自己的统计，请关联账户并使用 Discord 登录。"
+
+msgid "Rates are of your own sorties; the bar is the rate, not a rank against other pilots."
+msgstr "比例为占你自己架次的比例；条形显示的是比例，不是与其他飞行员的排名。"
+
+msgid "The credits you earned and the badge you were awarded in the campaigns run on this site's servers."
+msgstr "你在本站服务器上的战役中获得的积分和徽章。"
+
+msgid "The line is your own history. Every pilot has one rating, and it is the same on every site of this community."
+msgstr "这条线是你自己的历史。每位飞行员只有一个评分，在本社区的每个站点上都相同。"
+
+msgid "This page is empty — the board ends on an earlier page."
+msgstr "此页为空——排行榜在更早的页面结束。"
+
+msgid "This page is empty — the list ends on an earlier page."
+msgstr "此页为空——列表在更早的页面结束。"
+
+msgid "Your own statistics"
+msgstr "你的统计"
+
+msgid "Your public profile shows the name, the playtime and the combat figures — the same numbers as above, without the discipline, the recent sorties and the rating history."
+msgstr "你的公开资料显示姓名、游戏时长和战斗数据——与上面相同的数字，但不含飞行纪律、最近的架次和评分历史。"
+
+msgid "Your Discord account is not connected to any pilot who has flown here. Another site of this community may have your record; this one does not."
+msgstr "你的 Discord 账户未关联任何在此飞行过的飞行员。本社区的其他站点可能有你的记录；本站没有。"
+
+msgid "Signing in is not available on this site."
+msgstr "本站不提供登录。"
+
+msgid "Where your hours went, airframe by airframe."
+msgstr "你的时间花在哪里，按机型分。"
+
+msgid "How you fly"
+msgstr "你的飞行方式"
+
+msgid "Every pilot has one rating, and it is the same on every site of this community."
+msgstr "每位飞行员只有一个评分，在本社区的每个站点上都相同。"
+
+msgid "Your progress"
+msgstr "你的进步"
+
+msgid "Returned"
+msgstr "返航"
+
+msgid "Lost"
+msgstr "损失"
+
+msgid "flown in this period"
+msgstr "本期内起飞"
+
+msgid "ended otherwise"
+msgstr "以其他方式结束"
+
+
+msgid "{count} kills"
+msgstr "{count} 次击杀"
+
+#: services/webservice/templates/site_me.html:147
+msgid "A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero."
+msgstr "一个架次就是一次飞行：从飞机升空那一刻起计算——无论是起飞还是在空中开始——并按它的结局结束：返航、损失或中途离开。没有飞行的周画作零。"
+
+msgid "No flight is recorded in this period."
+msgstr "本期没有任何飞行记录。"
+
+msgid "No sortie was lost in this period, so there is no ratio to draw."
+msgstr "本期没有损失任何架次，因此没有比值可画。"
+
+msgid "kills per lost sortie"
+msgstr "每损失架次的击杀"
+
+msgid "per month"
+msgstr "每月"
+
+msgid "per week"
+msgstr "每周"
+
+msgid "{count} returned"
+msgstr "返航 {count} 次"

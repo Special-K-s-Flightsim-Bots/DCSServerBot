@@ -125,7 +125,32 @@
   --readout-h: 126px;
   --rank-w: 56px;
   --rank-w-sm: 40px;
-  --search-w: 190px;
+  --search-w: 150px;
+
+  /* the bar's right cluster: the identity chip, the console door, the language pill */
+  --chip-h: 36px;
+  --chip-gap: var(--sp-2);
+  --chip-pad: var(--sp-0s);
+  /* the two identity strings are capped by tokens, so no title and no pilot name can widen the bar */
+  --who-w: min(18ch, 20vw);
+  --who-w-md: min(16ch, 18vw);
+  --who-w-sm: min(16ch, 22vw);
+  --who-w-xs: min(20ch, 40vw);
+  --brand-w: min(20ch, 28vw);
+  /* the console door */
+  --door-ico: 15px;
+  --door-pad: var(--sp-0v);
+  --door-bg: var(--brass-wash);
+  --door-line: var(--brass-dim);
+  --door-ink: var(--brass);
+  --door-line-hi: var(--brass);
+  --door-ink-hi: var(--brass-hi);
+  /* the field: its width, and the floor it never drops below */
+  --search-w-md: 130px;
+  --search-min: 170px;
+  /* the bar's real height once it wraps: the sticky offsets and the language menu read this */
+  --top-h-2: 116px;
+  --top-h-3: 162px;
 
   /* the rating chart: the plot's height, its y gutter and the two marks on it. The band is a mix of
    * the accent the sheet declares, so it follows whichever palette is served over this one. */
@@ -142,6 +167,9 @@
   --medal-gold: linear-gradient(160deg, #f7df8b, #c9a227);
   --medal-silver: linear-gradient(160deg, #e6e9ee, #9aa3ad);
   --medal-bronze: linear-gradient(160deg, #e0a878, #a4682f);
+
+  /* a badge's image beside its name in a table cell */
+  --badge: 28px;
 
   /* the hero, the enormous figure and the inner masthead */
   --hero-cap: 540px;
@@ -247,7 +275,9 @@ p:last-child { margin-bottom: 0; }
   display: block; font-family: var(--body); font-size: var(--t-2xs); letter-spacing: 0;
   text-transform: none; color: var(--fg-3); line-height: 1.2;
 }
-.nav { display: flex; gap: var(--nav-gap); margin-left: auto; }
+.nav { display: flex; gap: var(--nav-gap); margin-left: auto; min-width: 0; overflow-x: auto;
+       scrollbar-width: none; align-items: center; padding: var(--sp-0f) 0; }
+.nav::-webkit-scrollbar { display: none; }
 .nav a {
   font-family: var(--body); font-size: var(--t-sm); font-weight: 500;
   letter-spacing: 0; text-transform: none; text-decoration: none;
@@ -255,17 +285,62 @@ p:last-child { margin-bottom: 0; }
 }
 .nav a:hover { color: var(--fg); }
 .nav a.on { color: var(--fg); border-bottom-color: var(--brass); }
-.top .btn { margin-left: var(--sp-4); }
-/* the identity chip: the viewer's own name, opening their own statistics */
-.top .who { display: flex; align-items: center; margin-left: var(--sp-4); min-width: 0; }
-.top .who a {
-  font-family: var(--body); font-size: var(--t-sm); color: var(--fg-2);
-  text-decoration: none; border-bottom: var(--hair-w) solid transparent;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30ch;
+
+/* the bar's right end is one group: the viewer's identity, the console door and the language pill.
+ * It carries its own tighter gap and never shrinks or wraps, so it stays off the nav at every width */
+.top .cluster {
+  display: flex; align-items: center; gap: var(--chip-gap);
+  flex: 0 0 auto; min-width: 0; white-space: nowrap;
 }
-.top .who a:hover { color: var(--fg); border-bottom-color: var(--brass); }
-/* the site search sits in the bar; it shrinks before the brand and the nav do */
-.top .search { flex: 0 1 auto; min-width: 0; }
+/* the identity chip: the viewer's own name in the language pill's box, opening their own statistics */
+.top .who { display: flex; align-items: center; min-width: 0; }
+.top .who a {
+  display: inline-flex; align-items: center;
+  height: var(--chip-h); padding: 0 var(--chip-pad);
+  font-family: var(--body); font-size: var(--t-xs); font-weight: 600; line-height: 1.4;
+  color: var(--fg); text-decoration: none;
+  background: var(--panel); border: var(--hair-w) solid var(--line-2);
+  border-radius: var(--radius-pill);
+  max-width: var(--who-w); min-width: 0;
+}
+/* the name truncates inside the chip, so a long tag never widens the bar */
+.top .who a .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top .who a:hover { border-color: var(--brass-dim); background: var(--panel-2); }
+.top .who a:focus-visible { outline: var(--focus-w) solid var(--brass); outline-offset: var(--focus-w); }
+
+/* the language pill joins the same height, so the three controls are one band */
+.top .langchip { height: var(--chip-h); }
+
+/* the console door: the shipped `.btn` box as a brass pill. `nowrap` is what keeps the label on one
+ * line; the height is the token the other two controls read */
+.top .btn-door {
+  height: var(--chip-h); padding: 0 var(--door-pad); gap: var(--sp-0h);
+  font-size: var(--t-xs); white-space: nowrap;
+  color: var(--door-ink); background: var(--door-bg);
+  border-color: var(--door-line); border-radius: var(--radius-pill);
+}
+.top .btn-door:hover {
+  color: var(--door-ink-hi); border-color: var(--door-line-hi); background: var(--door-bg);
+}
+.top .btn-door .ico {
+  width: var(--door-ico); height: var(--door-ico); flex: 0 0 auto; display: block;
+}
+
+/* the search field keeps its 2px corner while the three controls are pills, joins their height, and
+ * gives way first: its shrink factor is far above the nav's */
+.top .search { height: var(--chip-h); min-width: var(--search-min); flex: 0 100 auto; }
+.top .search > svg { flex: 0 0 auto; }
+.top .search input { padding: 0; }
+
+/* the site title is capped by a token, so a long one truncates in place instead of widening or
+ * wrapping the bar. `width: max-content` sizes each line to its own text — without it a shrink-to-fit
+ * box paints an ellipsis at its natural width — and `max-width: inherit` takes the span's cap */
+.brand { flex: 0 1 auto; min-width: 0; }
+.brand > span { min-width: 0; max-width: var(--brand-w); overflow: hidden; }
+.brand b, .brand small {
+  display: block; width: max-content; max-width: inherit;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* ---------------------------------------------------------------- language control */
 /* The console's own partial (`_language.html`): a pill naming the language in force and a native
@@ -671,6 +746,7 @@ p:last-child { margin-bottom: 0; }
   border-radius: var(--radius); position: relative;
 }
 .strip.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.strip.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .readout {
   padding: var(--sp-3) var(--sp-3) var(--sp-2); border-right: var(--hair-w) solid var(--line);
   min-width: 0; display: flex; flex-direction: column; min-height: var(--readout-h);
@@ -783,6 +859,13 @@ p:last-child { margin-bottom: 0; }
 .tbl tr.podium td { background: var(--hair); }
 .tbl .nm { color: var(--fg); text-decoration: none; font-weight: 600; font-size: var(--t-sm); }
 .tbl .nm:hover { color: var(--brass); text-decoration: underline; }
+/* a badge in a table cell: the plugin's configured image beside its name. The image is optional —
+   a badge with no configured address renders the name alone. */
+.tbl .badge { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.tbl .badge img {
+  width: var(--badge); height: var(--badge); object-fit: contain; display: block;
+  border-radius: var(--radius); background: var(--panel-2);
+}
 .tbl .sub {
   display: block; font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3);
   letter-spacing: 0; margin-top: var(--sp-0y); font-weight: 400;
@@ -1161,11 +1244,20 @@ p:last-child { margin-bottom: 0; }
 
 /* ---------------------------------------------------------------- responsive */
 @media (max-width: 1180px) {
+  /* the bar tightens: the door sheds its words, the grips shorten, the nav keeps its items */
+  :root { --top-gap: var(--sp-0v); --nav-gap: var(--sp-3); --who-w: var(--who-w-md);
+          --search-w: var(--search-w-md); }
+  .nav a { font-size: var(--t-xs); }
+  /* only the door carries a glyph, so only the door sheds its words: the sign-in chip has none and
+   * keeps its label at every width */
+  .top .btn-door:has(.ico) { width: var(--chip-h); padding: 0; justify-content: center; }
+  .top .btn-door:has(.ico) .door-lbl { display: none; }
   .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .c8, .c7, .c6, .c12 { grid-column: span 6; }
   .c5, .c4 { grid-column: span 3; }
   .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .strip.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .strip.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .readout { border-bottom: var(--hair-w) solid var(--line); }
   .readout:nth-child(3n) { border-right: 0; }
   .readout:nth-last-child(-n+3) { border-bottom: 0; }
@@ -1174,17 +1266,19 @@ p:last-child { margin-bottom: 0; }
 }
 
 @media (max-width: 900px) {
-  :root { --top-h: var(--top-h-sm); --mark-h: 26px; --nav-gap: 16px; }
-  .top .in { gap: var(--sp-3); }
+  /* one row cannot hold the brand, the nav, the search and the cluster: the nav takes the second row
+   * instead of being squeezed away, and the bar's height token follows */
+  :root { --top-h: var(--top-h-2); --mark-h: 26px; --who-w: var(--who-w-sm); }
+  .top .in { gap: var(--sp-3); flex-wrap: wrap; height: auto;
+             padding-top: var(--sp-0q); padding-bottom: var(--sp-0q); row-gap: var(--sp-0q); }
+  .brand { margin-right: auto; }
   .brand b { font-size: var(--t-sm); display: block; }
   .brand small { display: none; }
   .nav { gap: var(--sp-3); overflow-x: auto; scrollbar-width: none; min-width: 0; }
   .nav::-webkit-scrollbar { display: none; }
   .nav a { font-size: var(--t-xs); white-space: nowrap; }
-  .top .btn { padding: var(--sp-2) var(--sp-3); font-size: var(--t-2xs); margin-left: var(--sp-2); }
-  .top .who { margin-left: var(--sp-2); }
-  .top .who a { max-width: 18ch; }
-  .top .search { flex: 1 1 auto; }
+  .top .nav { order: 2; flex: 1 0 100%; margin-left: 0; }
+  .top .search { order: 0; flex: 1 1 0; padding: 0 var(--sp-2); }
   .hero h1 { max-width: none; }
   .hero-foot { grid-template-columns: 1fr; align-items: start; }
   .boundary .meta, .sect-head .meta { margin-left: 0; }
@@ -1205,18 +1299,16 @@ p:last-child { margin-bottom: 0; }
 }
 
 @media (max-width: 620px) {
-  :root { --t-xl: 22px; --t-2xl: 30px; --t-3xl: 40px; }
-  .top .in { flex-wrap: wrap; height: auto; padding-top: var(--sp-0q); padding-bottom: var(--sp-0q); row-gap: var(--sp-2); }
-  .brand { margin-right: auto; }
-  .top .btn { order: 1; display: none; }
-  .top .who { order: 1; margin-left: 0; }
-  .top .search { order: 2; flex: 1 1 100%; margin: 0; }
-  .nav { order: 3; flex: 1 0 100%; margin-left: 0; overflow: visible; gap: var(--sp-0v); }
+  /* the cluster stops sharing its row with the brand and the search: it takes the row under them as
+   * one group. The field drops its button and its floor; the word would take a third of the field */
+  :root { --t-xl: 22px; --t-2xl: 30px; --t-3xl: 40px;
+          --who-w: var(--who-w-xs); --top-h: var(--top-h-3); --search-min: 110px; }
+  .top .search button { display: none; }
   .hero .in { min-height: min(calc(100svh - var(--top-h) - var(--hero-cut-sm)), var(--hero-cap-sm)); }
   .hero h1 { font-size: var(--t-display-sm); line-height: .92; }
   .hero-foot p { font-size: var(--t-md); }
   .giant .v { font-size: var(--t-giant-sm); }
-  .strip, .strip.five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .strip, .strip.five, .strip.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .readout { min-height: 0; }
   .readout:nth-child(3n) { border-right: var(--hair-w) solid var(--line); }
   .readout:nth-child(2n) { border-right: 0; }
