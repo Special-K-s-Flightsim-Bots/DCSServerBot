@@ -48,6 +48,10 @@ _PILOT_AIRCRAFT = "s.slot AS aircraft"
 _PILOT_SERVER = "m.server_name AS server_name,\n       COALESCE(SUM"
 _PILOT_RECENT = "m.mission_name"
 _PILOT_SEARCH = "ESCAPE"
+_AIR_START = "mst.init_id = ANY"
+_AIR_START_WEEKS = "DATE_TRUNC('week', mst.time)"
+_AIR_START_WEEKS_VIEW = "FROM mv_site_air_starts"
+_AIRCRAFT_SESSIONS = "COALESCE(SUM(usage), 0)::bigint AS sessions"
 _SQUADRONS = "WITH site_players AS"
 _SQUADRON_POINTS = "campaign_points"
 _SQUADRON_RATING = "mu_total"
@@ -143,6 +147,8 @@ def _arguments(name, site, pool):
         return (site, pool, "pi")
     if name == "my_statistics":
         return (site, pool, 123)
+    if name == "pilot_progress":
+        return (site, pool, "U1")
     if name == "server_board":
         return (site, pool, {})
     return (site, pool)
@@ -171,6 +177,9 @@ def test_the_read_layer_does_not_re_derive_membership():
 async def test_every_public_function_binds_the_site_servers_into_its_statement(site):
     for name, function in _public_async_functions():
         pool = _pool({
+            # the plugin tables exist, so a read gated on one of them runs the statements BEHIND the
+            # probe and this ratchet sees them; without an answer it would inspect the probe alone
+            _TABLE_EXISTS: [{"present": True}],
             _COMMUNITY: [{"known_pilots": 1}],
             _IDENTITY: [{"ucid": "U1", "name": "Pilot", "discord_id": 123}],
             _LINKED_BY_UCID: [{"ucid": "U2", "name": "Alt"}],
@@ -236,8 +245,8 @@ async def test_community_totals_answers_plain_numbers(site):
     totals = await site_reads.community_totals(site, pool)
     assert totals == {
         "known_pilots": 12, "total_playtime": 3600, "avg_session": 900, "sessions": 4,
-        "sorties": 3, "missions_flown": 2, "active_this_week": 7, "active_last_week": 5,
-        "active_change": 2}
+        "sorties": 3, "air_starts": False, "missions_flown": 2, "active_this_week": 7,
+        "active_last_week": 5, "active_change": 2}
 
 
 @pytest.mark.asyncio
@@ -246,14 +255,54 @@ async def test_community_totals_answers_off_the_hourly_aggregates(site):
     pool = _pool()
     await site_reads.community_totals(site, pool)
 
-    assert len(pool.calls) == 1, "the strip is one statement, not a query per figure"
-    statement, params = pool.calls[0]
+    strips = [call for call in pool.calls if "AS known_pilots" in call[0]]
+    assert len(strips) == 1, "the strip is one statement, not a query per figure"
+    statement, params = strips[0]
     for view in ("mv_site_activity", "mv_site_pilots", "mv_site_missions"):
         assert f"FROM {view}" in statement, view
     assert "FROM statistics" not in statement
     assert "JOIN statistics" not in statement
     assert "JOIN missions" not in statement
     assert params["servers"] == sorted(site.servers)
+
+
+@pytest.mark.asyncio
+async def test_the_site_wide_sorties_add_the_air_starts_the_stream_saw(site):
+    """Site-wide: takeoffs PLUS air starts, because no flight is in both.
+
+    The per-pilot figure has both measures over the same flights, so it takes the higher; here the
+    weekly takeoff sums and the weekly air starts are disjoint, so they add.
+    """
+    pool = _pool({_TABLE_EXISTS: [{"present": True}],
+                  _COMMUNITY: [{"known_pilots": 1, "total_playtime": 60, "sessions": 2,
+                                "avg_session": 30, "sorties": 10, "missions_flown": 1,
+                                "active_this_week": 1, "active_last_week": 1}],
+                  _AIR_START_WEEKS: [{"week": "2026-W44", "air_starts": 2}],
+                  _AIR_START_WEEKS_VIEW: [{"week": "2026-W44", "air_starts": 2}]})
+    totals = await site_reads.community_totals(site, pool)
+    assert totals["sorties"] == 12, "the air start was not counted"
+    assert totals["air_starts"] is True
+
+
+@pytest.mark.asyncio
+async def test_the_weekly_bars_count_a_flight_that_started_in_the_air(site):
+    pool = _pool({_TABLE_EXISTS: [{"present": True}],
+                  _ACTIVITY: [{"week": "2026-W44", "playtime": 60, "pilots": 1, "sorties": 5}],
+                  _AIR_START_WEEKS: [{"week": "2026-W44", "air_starts": 2}],
+                  _AIR_START_WEEKS_VIEW: [{"week": "2026-W44", "air_starts": 2}]})
+    result = await site_reads.activity_over_time(site, pool, "all")
+    week = {entry["week"]: entry for entry in result["weeks"]}["2026-W44"]
+    assert week["sorties"] == 7, "the week's bars lost the air start"
+    assert result["air_starts"] is True
+
+
+@pytest.mark.asyncio
+async def test_without_the_event_stream_the_weekly_bars_are_takeoffs(site):
+    pool = _pool({_ACTIVITY: [{"week": "2026-W44", "playtime": 60, "pilots": 1, "sorties": 5}]})
+    result = await site_reads.activity_over_time(site, pool, "all")
+    week = {entry["week"]: entry for entry in result["weeks"]}["2026-W44"]
+    assert week["sorties"] == 5
+    assert result["air_starts"] is False
 
 
 def test_the_pilot_figures_name_this_week_and_the_one_before():
@@ -311,7 +360,7 @@ async def test_an_unknown_window_is_the_default_and_says_so(site):
 #: a row the stub answers the leaderboard read with: every column the table prints, plus the metric
 #: and the favourite airframe.
 WIDE_ROW = {"ucid": "U1", "name": "Pilot", "value": 36000, "playtime": 36000, "sorties": 12,
-            "takeoffs": 11, "landings": 10, "kills": 9, "pvp": 8, "crashes": 7, "ejections": 6,
+            "landings": 10, "kills": 9, "pvp": 8, "crashes": 7, "ejections": 6,
             "aircraft": "F-16C_50"}
 
 
@@ -319,7 +368,7 @@ WIDE_ROW = {"ucid": "U1", "name": "Pilot", "value": 36000, "playtime": 36000, "s
 async def test_the_leaderboard_caps_the_page_at_fifty_and_takes_an_offset(site):
     pool = _pool({_LEADERBOARD_VIEW: [WIDE_ROW]})
     result = await site_reads.leaderboard(site, pool, "playtime", "all", offset=100)
-    statement, params = pool.calls[0]
+    statement, params = pool.calls[-1]
     assert "FROM mv_site_pilot_totals" in statement
     assert "FROM mv_statistics" not in statement
     assert params["limit"] == 50 and params["offset"] == 100
@@ -354,7 +403,7 @@ async def test_every_row_carries_the_whole_wide_set(site):
     result = await site_reads.leaderboard(site, pool, "air_targets", "all")
     row = result["rows"][0]
     assert set(row) == {"ucid", "name", "value", "aircraft", *site_reads.LEADERBOARD_COLUMNS}
-    assert row["sorties"] == 12 and row["takeoffs"] == 11 and row["landings"] == 10
+    assert row["sorties"] == 12 and row["landings"] == 10
     assert row["kills"] == 9 and row["pvp"] == 8
     assert row["crashes"] == 7 and row["ejections"] == 6
 
@@ -364,7 +413,7 @@ async def test_the_all_time_leaderboard_groups_the_view_by_the_pilot_alone(site)
     """The players join is outside the aggregate: one group per pilot, not per (pilot, name)."""
     pool = _pool()
     await site_reads.leaderboard(site, pool, "playtime", "all")
-    statement, params = pool.calls[0]
+    statement, params = pool.calls[-1]
     assert "GROUP BY ms.player_ucid, p.name" in statement
     assert "JOIN players p ON p.ucid = ms.player_ucid" in statement
     assert "GROUP BY 1, 2" not in statement
@@ -375,10 +424,10 @@ async def test_the_all_time_leaderboard_groups_the_view_by_the_pilot_alone(site)
 
 @pytest.mark.asyncio
 async def test_the_wide_row_is_aggregated_for_the_page_only(site):
-    """The ranking aggregates two columns; the eight printed ones are summed over the page."""
+    """The ranking aggregates two columns; the seven printed ones are summed over the page."""
     pool = _pool()
     await site_reads.leaderboard(site, pool, "playtime", "all")
-    statement, _ = pool.calls[0]
+    statement, _ = pool.calls[-1]
     assert "WITH page AS MATERIALIZED (" in statement
     assert "JOIN mv_site_pilot_totals ms\n        ON ms.player_ucid = page.player_ucid" in statement
     for key in site_reads.LEADERBOARD_COLUMNS:
@@ -391,7 +440,7 @@ async def test_every_metric_projects_and_filters_by_the_same_aggregate(site, met
     """The metric is the page's value, its default order and its HAVING filter — one expression."""
     pool = _pool()
     await site_reads.leaderboard(site, pool, metric, "all")
-    statement, _ = pool.calls[0]
+    statement, _ = pool.calls[-1]
     expression = site_reads._metric(metric, site_reads._METRIC_VIEW)
     expected = 4 if metric in site_reads.LEADERBOARD_COLUMNS else 3
     assert statement.count(expression) == expected, \
@@ -405,7 +454,7 @@ async def test_every_metric_projects_and_filters_by_the_same_aggregate(site, met
 async def test_both_branches_order_then_tie_break_on_the_pilot(site, period):
     pool = _pool()
     await site_reads.leaderboard(site, pool, "playtime", period)
-    statement, params = pool.calls[0]
+    statement, params = pool.calls[-1]
     assert "ORDER BY detail.sort_value DESC NULLS LAST, detail.player_ucid" in statement
     assert "LIMIT %(limit)s OFFSET %(offset)s" in statement
     assert params["limit"] == site_reads.LEADERBOARD_PAGE_SIZE
@@ -416,7 +465,7 @@ async def test_both_branches_order_then_tie_break_on_the_pilot(site, period):
 async def test_every_sortable_column_orders_by_its_own_aggregate(site, column):
     pool = _pool()
     await site_reads.leaderboard(site, pool, "playtime", "all", sort=column)
-    statement, _ = pool.calls[0]
+    statement, _ = pool.calls[-1]
     expression = site_reads._metric(column, site_reads._METRIC_VIEW)
     assert f"{expression} AS sort_value" in statement
     assert "ORDER BY sort_value DESC NULLS LAST, ms.player_ucid" in statement
@@ -426,7 +475,7 @@ async def test_every_sortable_column_orders_by_its_own_aggregate(site, column):
 async def test_the_pilot_column_sorts_by_name(site):
     pool = _pool()
     await site_reads.leaderboard(site, pool, "playtime", "all", sort="name")
-    statement, _ = pool.calls[0]
+    statement, _ = pool.calls[-1]
     assert "LOWER(p.name) AS sort_value" in statement
     assert "ORDER BY sort_value ASC NULLS LAST, ms.player_ucid" in statement
 
@@ -438,7 +487,7 @@ async def test_a_name_the_page_does_not_offer_falls_back_to_the_metric(site, sor
     """The column and direction are whitelisted: nothing from the query string reaches the SQL."""
     pool = _pool()
     await site_reads.leaderboard(site, pool, "playtime", "all", sort=sort, direction=direction)
-    statement, _ = pool.calls[0]
+    statement, _ = pool.calls[-1]
     assert "<script>" not in statement and "sideways" not in statement.upper()
     assert "ORDER BY sort_value DESC NULLS LAST" in statement
 
@@ -448,7 +497,7 @@ async def test_the_favourite_airframe_is_joined_after_the_page_is_cut(site):
     """No wide aggregate and no per-pilot lateral sits on the ranking path."""
     pool = _pool()
     await site_reads.leaderboard(site, pool, "playtime", "all")
-    statement, _ = pool.calls[0]
+    statement, _ = pool.calls[-1]
     assert "LEFT JOIN LATERAL" in statement
     assert "FROM mv_site_pilot_aircraft a" in statement
     assert statement.index("LIMIT %(limit)s OFFSET %(offset)s") < statement.index(
@@ -473,7 +522,7 @@ async def test_an_unknown_metric_is_playtime_and_says_so(site):
 async def test_a_bounded_period_reads_the_raw_table_with_the_bots_clause(site):
     pool = _pool()
     result = await site_reads.leaderboard(site, pool, "kd_ratio", "month")
-    statement, params = pool.calls[0]
+    statement, params = pool.calls[-1]
     assert "FROM statistics s" in statement
     assert "interval '1 month'" in statement
     assert site_reads.SERVER_FILTER in statement
@@ -484,11 +533,53 @@ async def test_a_bounded_period_reads_the_raw_table_with_the_bots_clause(site):
 @pytest.mark.asyncio
 async def test_the_bounded_period_sums_the_wide_row_from_the_raw_join(site):
     pool = _pool()
-    await site_reads.leaderboard(site, pool, "playtime", "month", sort="takeoffs")
-    statement, _ = pool.calls[0]
-    assert "SUM(s.takeoffs) AS takeoffs" in statement
-    assert "COUNT(*) AS sorties" in statement, "sorties is the statistics-row count"
+    await site_reads.leaderboard(site, pool, "playtime", "month", sort="sorties")
+    statement, _ = pool.calls[-1]
+    assert "SUM(s.takeoffs) AS sorties" in statement, "sorties is the flight count"
+    assert "COUNT(*) AS sorties" not in statement, "a session count is not a sortie count"
+    assert " AS takeoffs" not in statement, "takeoffs is not printed beside the same number"
     assert "JOIN statistics s ON s.player_ucid = page.player_ucid" in statement
+
+
+@pytest.mark.asyncio
+async def test_without_the_event_table_sorties_is_the_takeoff_sum(site):
+    """No ``missionstats`` table: no start count to raise the figure to, and no join for one."""
+    pool = _pool()
+    await site_reads.leaderboard(site, pool, "playtime", "all")
+    statement, _ = pool.calls[-1]
+    assert "starts AS MATERIALIZED" not in statement
+    assert "air_starts" not in statement
+    assert "GREATEST" not in statement
+
+
+@pytest.mark.asyncio
+async def test_with_the_event_table_a_sortie_is_a_flight_not_a_takeoff(site):
+    """``missionstats`` present: the takeoff sum is raised to the event stream's own start count.
+
+    A pilot who spawned in the air never took off, so the takeoff sum alone would lose a flight;
+    ``GREATEST`` keeps the higher of the two, because a period the event table does not cover must
+    not lower what the statistics rows already state.
+    """
+    pool = _pool({_TABLE_EXISTS: [{"present": True}]})
+    await site_reads.leaderboard(site, pool, "playtime", "quarter")
+    statement, params = pool.calls[-1]
+    assert "starts AS MATERIALIZED" in statement
+    assert "GREATEST(SUM(s.takeoffs), COALESCE(MAX(st.air_starts), 0)) AS sorties" in statement
+    assert "LEFT JOIN starts st ON st.ucid = s.player_ucid" in statement
+    assert "S_EVENT_TAKEOFF" in statement and "S_EVENT_BIRTH" in statement
+    assert site_reads.SERVER_FILTER in statement.split("starts AS MATERIALIZED")[1]
+    assert params["servers"] == sorted(site.servers)
+
+
+@pytest.mark.asyncio
+async def test_the_start_count_is_the_all_time_board_too(site):
+    pool = _pool({_TABLE_EXISTS: [{"present": True}]})
+    await site_reads.leaderboard(site, pool, "playtime", "all", sort="sorties")
+    statement, _ = pool.calls[-1]
+    assert "GREATEST(SUM(ms.takeoffs), COALESCE(MAX(st.air_starts), 0)) AS sort_value" in statement
+    assert "LEFT JOIN starts st ON st.ucid = ms.player_ucid" in statement
+    assert "interval" not in statement.split("starts AS MATERIALIZED")[1].split("),")[0], \
+        "an all-time board compares no timestamp"
 
 
 def test_the_two_removed_metrics_are_gone():
@@ -529,6 +620,48 @@ async def test_a_pilot_with_no_session_on_the_site_is_not_found(site):
     result = await site_reads.pilot_profile(site, pool, "U1")
     assert result["found"] is False
     assert result["ucids"] == []
+
+
+@pytest.mark.asyncio
+async def test_a_profiles_sorties_count_a_flight_that_started_in_the_air(site):
+    """One flight, one sortie: a takeoff and an air start are both counted, and only once each.
+
+    The event count wins where it is higher, because it carries the flights that never took off;
+    ``air_starts`` states which measure the figure came from, and ``None`` would mean the install
+    has no event stream at all.
+    """
+    pool = _pool({_TABLE_EXISTS: [{"present": True}],
+                  _IDENTITY: [{"ucid": "U1", "name": "Pilot", "discord_id": 123}],
+                  _LINKED_BY_UCID: [{"ucid": "U2", "name": "Alt"}],
+                  _PILOT_TOTALS: [{"playtime": 10, "sessions": 1, "takeoffs": 11}],
+                  _AIR_START: [{"ucid": "U1", "air_starts": 13}]})
+    result = await site_reads.pilot_profile(site, pool, "U1")
+    assert result["totals"]["takeoffs"] == 11
+    assert result["totals"]["air_starts"] == 13
+    assert result["totals"]["sorties"] == 13
+
+
+@pytest.mark.asyncio
+async def test_an_event_stream_that_lags_the_statistics_does_not_lower_the_count(site):
+    """Events added to an install later: the takeoff sum is the higher figure and it stands."""
+    pool = _pool({_TABLE_EXISTS: [{"present": True}],
+                  _IDENTITY: [{"ucid": "U1", "name": "Pilot", "discord_id": 123}],
+                  _LINKED_BY_UCID: [{"ucid": "U2", "name": "Alt"}],
+                  _PILOT_TOTALS: [{"playtime": 10, "sessions": 1, "takeoffs": 20}],
+                  _AIR_START: [{"ucid": "U1", "air_starts": 18}]})
+    result = await site_reads.pilot_profile(site, pool, "U1")
+    assert result["totals"]["sorties"] == 20
+
+
+@pytest.mark.asyncio
+async def test_without_the_event_table_a_profiles_sorties_are_its_takeoffs(site):
+    pool = _pool({_IDENTITY: [{"ucid": "U1", "name": "Pilot", "discord_id": 123}],
+                  _LINKED_BY_UCID: [{"ucid": "U2", "name": "Alt"}],
+                  _PILOT_TOTALS: [{"playtime": 10, "sessions": 1, "takeoffs": 11}]})
+    result = await site_reads.pilot_profile(site, pool, "U1")
+    assert result["totals"]["sorties"] == 11
+    assert result["totals"]["air_starts"] is None, \
+        "None is how the page knows it may only claim a takeoff count"
 
 
 # --------------------------------------------------------------------------- the rating series
@@ -862,8 +995,10 @@ _WEEKDAYS = "GROUP BY dow"
 
 @pytest.mark.asyncio
 async def test_the_aircraft_read_ranks_playtime_and_caps_the_list_at_five(site):
-    pool = _pool({_AIRCRAFT: [{"slot": "F/A-18C Hornet", "playtime": 7200, "sorties": 9},
-                              {"slot": "F-16C Viper", "playtime": 3600, "sorties": 4}]})
+    pool = _pool({_AIRCRAFT: [{"slot": "F/A-18C Hornet", "playtime": 7200},
+                              {"slot": "F-16C Viper", "playtime": 3600}],
+                  _AIRCRAFT_SESSIONS: [{"slot": "F/A-18C Hornet", "sessions": 9},
+                                       {"slot": "F-16C Viper", "sessions": 4}]})
 
     result = await site_reads.top_aircraft(site, pool)
 
@@ -873,8 +1008,9 @@ async def test_the_aircraft_read_ranks_playtime_and_caps_the_list_at_five(site):
     assert params["servers"] == sorted(site.servers)
     assert params["limit"] == site_reads.AIRCRAFT_ROWS == 5
     assert "ORDER BY 2 DESC" in statement, "the panel's scale is playtime, not sorties"
+    assert "FROM mv_statistics" in pool.calls[1][0], "the usage figure is the session count"
     assert [row["slot"] for row in result["rows"]] == ["F/A-18C Hornet", "F-16C Viper"]
-    assert result["rows"][0] == {"slot": "F/A-18C Hornet", "playtime": 7200, "sorties": 9}
+    assert result["rows"][0] == {"slot": "F/A-18C Hornet", "playtime": 7200, "sessions": 9}
     assert result["limit"] == 5
 
 

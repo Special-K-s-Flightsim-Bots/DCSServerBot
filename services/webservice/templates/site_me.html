@@ -85,8 +85,72 @@
     {% endfor %}
   </div>
 
+  {% if model.progress %}
   <section class="sect">
-    <div class="sect-head"><span class="no">01</span><h2>{% trans %}What you fly{% endtrans %}</h2>
+    <div class="sect-head"><span class="no">01</span><h2>{% trans %}Your progress{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.progress.sorties %}{{ count }} sorties{% endtrans %}</span></div>
+    <div class="ctlrows" style="margin:var(--sp-3) 0">
+      <div class="ctlrow"><span class="ctl-lbl">{% trans %}Period{% endtrans %}</span>
+        <div class="seg">
+        {% for option in model.periods %}<a href="{{ option.href }}"{% if option.active %} class="on" aria-current="true"{% endif %}>{{ _(option.label) }}</a>{% endfor %}
+        </div>
+      </div>
+    </div>
+    {% if model.progress.empty %}
+    <p class="note">{% trans %}No flight is recorded in this period.{% endtrans %}</p>
+    {% else %}
+    <div class="strip four">
+      {% for readout in model.progress.readouts %}
+      <div class="readout">
+        <div class="v">{{ readout.value }}</div>
+        <div class="k">{{ _(readout.label) }}</div>
+        <div class="q">{% if readout.note is mapping %}{{ say(readout.note) }}{% else %}{{ _(readout.note) }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="grid">
+      <section class="panel c7">
+        <div class="hd"><h2>{% trans %}Sorties{% endtrans %}</h2><span class="meta">{% if model.progress.grain == "month" %}{% trans %}per month{% endtrans %}{% else %}{% trans %}per week{% endtrans %}{% endif %}</span></div>
+        <svg class="chart is-wide" viewBox="0 0 {{ model.progress.chart.width }} {{ model.progress.chart.height }}" aria-hidden="true">
+          {% for bar in model.progress.chart.bars %}<rect class="bar" x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.w }}" height="{{ bar.h }}" rx="2"/>{% endfor %}
+          <line class="axis" x1="{{ model.progress.chart.left }}" y1="{{ model.progress.chart.bottom }}" x2="{{ model.progress.chart.right }}" y2="{{ model.progress.chart.bottom }}"/>
+          {% for label in model.progress.chart.xlabels %}<text x="{{ label.x }}" y="{{ model.progress.chart.bottom + 20 }}" text-anchor="middle">{{ label.text }}</text>{% endfor %}
+        </svg>
+        <svg class="chart is-narrow" viewBox="0 0 {{ model.progress.chart_narrow.width }} {{ model.progress.chart_narrow.height }}" aria-hidden="true">
+          {% for bar in model.progress.chart_narrow.bars %}<rect class="bar" x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.w }}" height="{{ bar.h }}" rx="2"/>{% endfor %}
+          <line class="axis" x1="{{ model.progress.chart_narrow.left }}" y1="{{ model.progress.chart_narrow.bottom }}" x2="{{ model.progress.chart_narrow.right }}" y2="{{ model.progress.chart_narrow.bottom }}"/>
+          {% for label in model.progress.chart_narrow.xlabels %}<text x="{{ label.x }}" y="{{ model.progress.chart_narrow.bottom + 20 }}" text-anchor="middle">{{ label.text }}</text>{% endfor %}
+        </svg>
+      </section>
+      <section class="panel c5">
+        <div class="hd"><h2>{% trans %}K/D{% endtrans %}</h2><span class="meta">{% trans %}kills per lost sortie{% endtrans %}</span></div>
+        {% if model.progress.kd.empty %}
+        <p class="note">{% trans %}No sortie was lost in this period, so there is no ratio to draw.{% endtrans %}</p>
+        {% else %}
+        <figure class="rc" aria-hidden="true">
+          <div class="rc-frame">
+            <div class="rc-y">
+              {%- for tick in model.progress.kd.ticks %}
+              <span class="v" style="top:{{ tick.top }}%">{{ tick.text }}</span>
+              {%- endfor %}
+            </div>
+            <div class="rc-plot">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+                {% for segment in model.progress.kd.segments %}<polyline class="rc-line" points="{{ segment.points }}"/>{% endfor %}
+              </svg>
+            </div>
+          </div>
+        </figure>
+        {% endif %}
+      </section>
+    </div>
+    <p class="note plain">{% trans %}A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero.{% endtrans %}</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="sect">
+    <div class="sect-head"><span class="no">02</span><h2>{% trans %}What you fly{% endtrans %}</h2>
       <span class="meta">{% trans count=model.airframes | length %}{{ count }} airframes{% endtrans %}</span></div>
     <p class="intro">{% trans %}Where your hours went, airframe by airframe.{% endtrans %}</p>
     <div class="grid">
@@ -111,7 +175,7 @@
   </section>
 
   <section class="sect">
-    <div class="sect-head"><span class="no">02</span><h2>{% trans %}Where you fly{% endtrans %}</h2>
+    <div class="sect-head"><span class="no">03</span><h2>{% trans %}Where you fly{% endtrans %}</h2>
       <span class="meta">{% trans count=model.servers | length %}{{ count }} servers{% endtrans %}</span></div>
     <p class="intro">{% trans %}The same sessions counted by the server they ran on. Only this site's servers appear.{% endtrans %}</p>
     <div class="grid">
@@ -134,7 +198,7 @@
   </section>
 
   <section class="sect">
-    <div class="sect-head"><span class="no">03</span><h2>{% trans %}How you fly{% endtrans %}</h2>
+    <div class="sect-head"><span class="no">04</span><h2>{% trans %}How you fly{% endtrans %}</h2>
       <span class="meta">{% trans count=model.discipline.sorties %}{{ count }} sorties{% endtrans %}</span></div>
     <div class="grid">
       <section class="panel {% if model.rating %}c7{% else %}c12{% endif %}">
@@ -167,7 +231,7 @@
   </section>
 
   <section class="sect">
-    <div class="sect-head"><span class="no">04</span><h2>{% trans %}Recent sorties{% endtrans %}</h2>
+    <div class="sect-head"><span class="no">05</span><h2>{% trans %}Recent sorties{% endtrans %}</h2>
       <span class="meta">{% trans count=model.recent | length %}{{ count }} sessions{% endtrans %}</span></div>
     <div class="grid">
       <section class="panel c12">
@@ -190,7 +254,7 @@
 
   {% if model.campaigns %}
   <section class="sect">
-    <div class="sect-head"><span class="no">05</span><h2>{% trans %}Campaigns{% endtrans %}</h2>
+    <div class="sect-head"><span class="no">06</span><h2>{% trans %}Campaigns{% endtrans %}</h2>
       <span class="meta">{% trans count=model.campaigns | length %}{{ count }} campaigns{% endtrans %}</span></div>
     <p class="intro">{% trans %}The credits you earned and the badge you were awarded in the campaigns run on this site's servers.{% endtrans %}</p>
     <div class="grid">

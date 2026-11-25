@@ -135,8 +135,9 @@ class StubPool:
             return [{"ucid": "u-" + figures["pilot"], "name": figures["pilot"],
                      "value": figures["playtime"]}]
         if "FROM mv_site_aircraft" in statement:
-            return [{"slot": figures["aircraft"], "playtime": figures["playtime"],
-                     "sorties": figures["aircraft_sorties"]}]
+            return [{"slot": figures["aircraft"], "playtime": figures["playtime"]}]
+        if "FROM mv_statistics" in statement:
+            return [{"slot": figures["aircraft"], "sessions": figures["aircraft_sorties"]}]
         if "FROM mv_site_hours" in statement:
             if "GROUP BY hour" in statement:
                 return [{"hour": figures["peak_hour"], "seconds": figures["hours"] * 3600,
@@ -369,7 +370,7 @@ def test_no_database_renders_the_empty_state(config_dir):
     response = asyncio.run(run())
     assert response.status_code == 200
     assert "Statistics are not available yet" in response.text
-    assert "Average sortie" in response.text, "the board still renders, at zero"
+    assert "Average session" in response.text, "the board still renders, at zero"
 
 
 # ------------------------------------------------------------------------------- the footer
@@ -1476,12 +1477,12 @@ def test_the_bar_geometry_has_two_variants_built_from_one_set_of_values():
 def test_the_aircraft_bars_are_scaled_against_the_leader_and_cap_at_five():
     model = site_overview.view(
         {}, {}, [], {}, [],
-        aircraft={"rows": [{"slot": "F/A-18C Hornet", "playtime": 7200, "sorties": 9},
-                           {"slot": "F-16C Viper", "playtime": 3600, "sorties": 4}]})
+        aircraft={"rows": [{"slot": "F/A-18C Hornet", "playtime": 7200, "sessions": 9},
+                           {"slot": "F-16C Viper", "playtime": 3600, "sessions": 4}]})
     rows = model["aircraft"]["rows"]
     assert [row["slot"] for row in rows] == ["F/A-18C Hornet", "F-16C Viper"]
     assert rows[0]["share"] == 100.0 and rows[1]["share"] == 50.0
-    assert rows[0]["hours"] == "2" and rows[0]["sorties"] == "9"
+    assert rows[0]["hours"] == "2" and rows[0]["sessions"] == "9"
     assert model["aircraft"]["empty"] is False
     assert site_overview.view({}, {}, [], {}, [], aircraft={"rows": []})["aircraft"]["empty"] is True
 
@@ -1576,7 +1577,7 @@ def test_the_three_panels_render_on_the_page_with_their_figures(config_dir, bus)
     assert "<h2>When we fly</h2>" in markup
     assert "<h2>The aircraft</h2>" in markup
     assert "Root Jet" in markup, "the aircraft read's slot did not reach the page"
-    assert "1,141 sorties" in markup
+    assert "1,141 sessions" in markup
     assert "20:00" in markup and "Peak hour" in markup
     assert "Sat" in markup and "Sun" not in markup
     # the hour panel says what it measures: flight time per UTC hour, one bar per hour

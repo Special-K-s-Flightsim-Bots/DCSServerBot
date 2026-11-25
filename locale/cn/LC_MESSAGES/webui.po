@@ -9946,6 +9946,10 @@ msgstr "出动架次"
 msgid "recorded takeoffs"
 msgstr "已记录的起飞"
 
+#: services/webservice/pages/site_player.py:257
+msgid "every flight that got airborne"
+msgstr "每一次升空的飞行"
+
 msgid "Sessions recorded"
 msgstr "已记录会话"
 
@@ -10233,19 +10237,14 @@ msgstr "%(count)s 名飞行员"
 msgid "%(hours)s h"
 msgstr "%(hours)s 小时"
 
-#: services/webservice/templates/site_overview.html:194
-#, python-format
-msgid "%(sorties)s sorties"
-msgstr "%(sorties)s 架次"
-
 #: services/webservice/templates/site_overview.html:111
 #, python-format
 msgid "%(weeks)s weeks"
 msgstr "%(weeks)s 周"
 
-#: services/webservice/pages/site_overview.py:501
-msgid "Average sortie"
-msgstr "平均出击"
+#: services/webservice/pages/site_overview.py:511
+msgid "Average session"
+msgstr "平均会话"
 
 #: services/webservice/templates/site_overview.html:215
 msgid "Busiest day"
@@ -10279,9 +10278,10 @@ msgstr "这些服务器上还没有人飞过任何机型。"
 msgid "No sortie has been recorded on these servers yet."
 msgstr "这些服务器上还没有记录任何架次。"
 
-#: services/webservice/templates/site_overview.html:143
-msgid "One bar per week of the same window, the current week drawn in the brighter fill."
-msgstr "同一时间范围内每周一根柱子，当前一周用更亮的填充。"
+#: services/webservice/templates/site_overview.html:146
+msgid "Every flight counts — a takeoff, or an air start where the event log records it. One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "每一次飞行都算——起飞，或在事件日志记录下的空中开始。同一时间窗每周一根柱子，当前周用更亮的填充。"
+
 
 #: services/webservice/templates/site_overview.html:76
 msgid "Our pilots' time in the air on these servers, from the first mission to today."
@@ -11991,3 +11991,44 @@ msgstr "你的飞行方式"
 
 msgid "Every pilot has one rating, and it is the same on every site of this community."
 msgstr "每位飞行员只有一个评分，在本社区的每个站点上都相同。"
+
+msgid "Your progress"
+msgstr "你的进步"
+
+msgid "Returned"
+msgstr "返航"
+
+msgid "Lost"
+msgstr "损失"
+
+msgid "flown in this period"
+msgstr "本期内起飞"
+
+msgid "ended otherwise"
+msgstr "以其他方式结束"
+
+
+msgid "{count} kills"
+msgstr "{count} 次击杀"
+
+#: services/webservice/templates/site_me.html:147
+msgid "A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero."
+msgstr "一个架次就是一次飞行：从飞机升空那一刻起计算——无论是起飞还是在空中开始——并按它的结局结束：返航、损失或中途离开。没有飞行的周画作零。"
+
+msgid "No flight is recorded in this period."
+msgstr "本期没有任何飞行记录。"
+
+msgid "No sortie was lost in this period, so there is no ratio to draw."
+msgstr "本期没有损失任何架次，因此没有比值可画。"
+
+msgid "kills per lost sortie"
+msgstr "每损失架次的击杀"
+
+msgid "per month"
+msgstr "每月"
+
+msgid "per week"
+msgstr "每周"
+
+msgid "{count} returned"
+msgstr "返航 {count} 次"

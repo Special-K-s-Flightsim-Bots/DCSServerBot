@@ -20,6 +20,7 @@ never mistake these figures for another pilot's; the band is rendered only for a
 from __future__ import annotations
 
 import logging
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -28,14 +29,19 @@ from fastapi.responses import HTMLResponse
 from .. import i18n, site_reads
 from ..site_pages import (ME_PATH, NAV_PATHS, SEARCH_PATH, identity, player_url, pool,
                           render_site_page, resolve_site, sign_in_href, sign_out_context, site_url)
-from .site_player import (airframes, count, discipline, hours, last_flown, ratio, rating_view,
-                          recent, sentence, servers)
+from .site_overview import bars_chart
+from .site_player import (DAY_MONTH, MONTH_YEAR, airframes, count, discipline, hours, last_flown,
+                          ratio, rating_view, recent, sentence, servers, sortie_count, sortie_note)
 
 __all__ = [
     "NAV_ID",
     "TEMPLATE",
+    "PROGRESS_PERIODS",
+    "DEFAULT_PROGRESS_PERIOD",
     "readouts",
     "campaigns",
+    "period_switch",
+    "progress_view",
     "view",
     "anonymous",
     "add_route",
@@ -64,8 +70,8 @@ def readouts(totals: dict) -> list[dict]:
          "label": i18n._("Playtime"), "note": i18n._("on this site's servers")},
         {"key": "sessions", "value": count(totals.get("sessions")), "unit": None,
          "label": i18n._("Sessions"), "note": i18n._("recorded")},
-        {"key": "sorties", "value": count(totals.get("takeoffs")), "unit": None,
-         "label": i18n._("Sorties"), "note": i18n._("recorded takeoffs")},
+        {"key": "sorties", "value": count(sortie_count(totals)), "unit": None,
+         "label": i18n._("Sorties"), "note": sortie_note(totals)},
         {"key": "kills", "value": count(totals.get("kills")), "unit": None,
          "label": i18n._("Kills"),
          "note": sentence(i18n._("{count} in PvP"), count(totals.get("pvp")))},
@@ -106,13 +112,144 @@ def campaigns(rows: list[dict]) -> list[dict]:
             for row in (rows or []) if row.get("name")]
 
 
+#: The periods the progress panel offers, in the bot's own vocabulary (``PeriodFilter``) paired with
+#: the words the console's period chips already use for them — the same msgids, so one period is
+#: named the same way on both surfaces. ``month`` is the last calendar month, not 30 fixed days.
+PROGRESS_PERIODS: tuple[tuple[str, str], ...] = (
+    ("month", i18n._("30 days")),
+    ("quarter", i18n._("90 days")),
+    ("halfyear", i18n._("6 months")),
+    ("year", i18n._("12 months")),
+    ("all", i18n._("All time")),
+)
+
+#: The period the page opens on when the visitor names none — the console's own default.
+DEFAULT_PROGRESS_PERIOD = "quarter"
+
+
+def _bucket_label(start: Any, grain: str) -> str:
+    """One bucket's axis label, from the page's own translated date shapes.
+
+    A monthly bucket is the month and the year, a weekly one the day and the month. Both come from
+    :data:`~.site_player.MONTH_YEAR` / :data:`~.site_player.DAY_MONTH`, so a language that declines
+    its months prints them its own way.
+    """
+    try:
+        day = date.fromisoformat(str(start))
+    except (TypeError, ValueError):
+        return ""
+    if grain == "month":
+        return MONTH_YEAR[day.month - 1].format(year=day.year)
+    return DAY_MONTH[day.month - 1].format(day=day.day)
+
+
+def period_switch(href: str, active: str) -> list[dict]:
+    """The progress panel's period chips: plain links, so the control works with JavaScript off."""
+    return [{"key": key, "label": label, "href": f"{href}?period={key}", "active": key == active}
+            for key, label in PROGRESS_PERIODS]
+
+
+def kd_geometry(buckets: list[dict]) -> dict:
+    """The K/D line as geometry: a polyline per unbroken run of buckets that hold a rate.
+
+    A bucket with no loss has NO rate, and the line breaks there rather than drawing across it or
+    pretending the ratio was zero. Positions are percentages of the plot, so the template's CSS
+    sizes it and the geometry never needs to know the pixel size.
+    """
+    rates: list[float | None] = []
+    for bucket in (buckets or []):
+        lost = int(bucket.get("lost") or 0)
+        rates.append(round(float(bucket.get("kills") or 0) / lost, 2) if lost else None)
+    known = [rate for rate in rates if rate is not None]
+    if not known:
+        return {"segments": [], "ticks": [], "empty": True}
+    floor, ceiling = min(known), max(known)
+    flat = ceiling == floor
+    span = ceiling - floor or 1.0
+    total = max(len(rates) - 1, 1)
+    segments, current = [], []
+    for index, rate in enumerate(rates):
+        if rate is None:
+            if current:
+                segments.append(_segment(current))
+                current = []
+            continue
+        # a flat series is drawn down the middle: on the floor it would read as no data at all
+        height = 50.0 if flat else 100 - (rate - floor) / span * 100
+        current.append(f"{round(index / total * 100, 2)},{round(height, 2)}")
+    if current:
+        segments.append(_segment(current))
+    ticks = ([{"top": 50.0, "text": f"{ceiling:.2f}"}] if flat else
+             [{"top": 0.0, "text": f"{ceiling:.2f}"}, {"top": 100.0, "text": f"{floor:.2f}"}])
+    return {"segments": segments, "empty": False, "ticks": ticks}
+
+
+def _segment(points: list[str]) -> dict:
+    """One polyline of the ratio line; a lone bucket gets a hair-long stub so it draws as a dot."""
+    if len(points) == 1:
+        x, y = points[0].split(",")
+        points = [points[0], f"{round(float(x) + 0.01, 2)},{y}"]
+    return {"points": " ".join(points)}
+
+
+def progress_view(progress: dict | None) -> dict | None:
+    """The progress section's model, or ``None`` for a site whose events table does not exist.
+
+    ``None`` is the whole point of the degrade: the section is not rendered at all, so a site
+    without the ``missionstats`` plugin shows the page it showed before this panel existed.
+    """
+    if not progress:
+        return None
+    buckets = progress.get("buckets") or []
+    grain = progress.get("grain") or "week"
+    entries = [{"label": _bucket_label(bucket.get("start"), grain),
+                "value": bucket.get("sorties") or 0, "now": False} for bucket in buckets]
+    sorties = int(progress.get("sorties") or 0)
+    returned = int(progress.get("returned") or 0)
+    lost = int(progress.get("lost") or 0)
+    kills = int(progress.get("kills") or 0)
+    kd = progress.get("kd")
+    return {
+        "period": progress.get("period"),
+        "grain": grain,
+        "sorties": count(sorties),
+        "empty": not sorties,
+        "chart": bars_chart(entries),
+        "chart_narrow": bars_chart(entries, "narrow"),
+        "kd": kd_geometry(buckets),
+        "readouts": [
+            {"key": "sorties", "value": count(sorties), "unit": None,
+             "label": i18n._("Sorties"), "note": i18n._("flown in this period")},
+            {"key": "returned", "value": f"{_percent(returned, sorties)}%", "unit": None,
+             "label": i18n._("Returned"),
+             "note": sentence(i18n._("{count} returned"), count(returned))},
+            {"key": "lost", "value": count(lost), "unit": None,
+             "label": i18n._("Lost"), "note": i18n._("ended otherwise")},
+            {"key": "kd", "value": f"{kd:.2f}" if kd is not None else "—", "unit": None,
+             "label": i18n._("K/D"),
+             "note": sentence(i18n._("{count} kills"), count(kills))},
+        ],
+        "split": {"sorties": count(sorties), "returned": count(returned), "lost": count(lost)},
+    }
+
+
+def _percent(value: Any, total: Any) -> str:
+    """*value* of *total* as a whole percentage, for a sentence that carries it as a string."""
+    try:
+        whole = float(total or 0)
+    except (TypeError, ValueError):
+        whole = 0.0
+    return f"{round(float(value or 0) * 100 / whole):d}" if whole else "0"
+
+
 # --------------------------------------------------------------------------------- the model
 
-def view(resolved: Any, who: Any, stats: dict) -> dict:
+def view(resolved: Any, who: Any, stats: dict, href: str = "") -> dict:
     """The page's whole signed-in model from the read's own answer — pure, so a test can pin it."""
     found = bool(stats.get("found"))
     totals = dict(stats.get("totals") or {})
     linked = _ucids(stats.get("ucids") or [], resolved)
+    progress = progress_view(stats.get("progress"))
     return {
         "signed_in": True,
         "unavailable": False,
@@ -122,6 +259,10 @@ def view(resolved: Any, who: Any, stats: dict) -> dict:
         "readouts": readouts(totals),
         "discipline": discipline(totals),
         "rating": rating_view(stats.get("rating")),
+        "progress": progress,
+        "periods": period_switch(href or site_url(resolved, ME_PATH),
+                                 (stats.get("progress") or {}).get("period")
+                                 or DEFAULT_PROGRESS_PERIOD),
         "airframes": airframes(stats.get("per_aircraft") or [], totals.get("playtime")),
         "servers": servers(stats.get("per_server") or []),
         "recent": recent(stats.get("recent") or []),
@@ -146,11 +287,17 @@ def _unavailable(resolved: Any, who: Any) -> dict:
 
 # --------------------------------------------------------------------------------- the route
 
+def _period(value: Any) -> str:
+    """The period a request names, or the page's default; an unknown value never reaches a query."""
+    wanted = str(value or "").strip().lower()
+    return wanted if wanted in dict(PROGRESS_PERIODS) else DEFAULT_PROGRESS_PERIOD
+
+
 def add_route(router: APIRouter, site: Any) -> str:
     """Serve the viewer's own statistics at ``<site>/me`` and return the registered path."""
     path = site_url(site, ME_PATH)
 
-    async def site_me(request: Request, next: str = "") -> HTMLResponse:
+    async def site_me(request: Request, next: str = "", period: str = "") -> HTMLResponse:
         resolved = resolve_site(request, site)
         # ONE identity read for the whole request: the shell's chip and this page's model are the
         # same answer, so a visitor cannot be signed in for the chip and anonymous for the figures
@@ -163,8 +310,9 @@ def add_route(router: APIRouter, site: Any) -> str:
         if db is None:
             model = _unavailable(resolved, who)
         else:
-            stats = await site_reads.my_statistics(resolved, db, getattr(who, "subject", ""))
-            model = view(resolved, who, stats)
+            stats = await site_reads.my_statistics(resolved, db, getattr(who, "subject", ""),
+                                                   _period(period))
+            model = view(resolved, who, stats, path)
         model["sign_out"] = sign_out_context(request)
         return render_site_page(request, site, TEMPLATE, resolved=resolved, who=who,
                                 model=model)

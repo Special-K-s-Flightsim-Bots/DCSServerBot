@@ -39,13 +39,39 @@ WHICH TABLE ANSWERS WHICH READ
   playtime and takeoff sums) and ``mv_site_hours`` (one row per server, ISO weekday and UTC hour,
   carrying the flight seconds and the session-hours that fall in that hour). The hourly rows are
   what the panel draws one bar per hour from; the view keeps the plain 24 × 7 grid so the peak hour
-  and the busiest weekday are read from the same rows the panel draws.
+  and the busiest weekday are read from the same rows the panel draws. The airframes' SESSION count
+  is the one figure those views do not carry, so it is summed from ``mv_statistics``' ``usage``
+  (the plugin's own count of ``statistics`` rows at the slot grain).
 * THE SERVER BOARD -> ``mv_serverstats`` (all-time per server). WEEKLY ACTIVITY ->
   ``mv_site_activity``. Both are refreshed by the userstats plugin's hourly view refresh, so a page
   read never aggregates the raw statistics join.
 * SQUADRON MEMBERSHIP -> the site's pilot set is a scoped DISTINCT over ``mv_site_pilots`` (the same
   join, already reduced to one row per server and pilot), so a squadron's member count never scans
   ``statistics``.
+* A PILOT'S PROGRESS -> ``missionstats``, the event stream. A sortie cannot be read from
+  ``statistics``: one slot row can hold two takeoff/landing pairs, and a row that never left the
+  ramp is not a flight. :func:`pilot_progress` reconstructs the flights with
+  ``plugins.missionstats.aar.reconstruct_sorties`` — the function the AAR PDF is built from — so the
+  page and the downloadable report count the same thing, and answers ``None`` (no panel) when that
+  plugin's table is absent. ``statistics`` still answers every other figure on the page.
+* SORTIE STARTS -> ``mv_site_air_starts``, the missionstats plugin's hourly aggregate of the event
+  stream at one row per (server, pilot, ISO week). It answers both the site-wide air starts per week
+  and the per-pilot sorties figure of the all-time board, so neither page request scans the event
+  table. A BOUNDED-period board keeps the raw aggregate over ``missionstats`` (:func:`_starts_cte`),
+  because a week grain cannot answer a period that starts mid-week. An install without the view
+  falls back to the same raw statement, and an install without ``missionstats`` reports
+  ``None`` — the takeoff sum alone, which the page states.
+
+SORTIE, SESSION, FLIGHT — THREE DIFFERENT THINGS, AND ONE WORD FOR EACH. A SORTIE is one flight: it
+starts when the aircraft is airborne — a takeoff, or a birth with no airbase behind it (an air start,
+:func:`_start_predicate`) — and it ends however it ends: landed, lost, or left unfinished. A SESSION
+is one ``statistics`` row: a seat taken until it is left, and one session can hold several flights,
+so a session count is NOT a sortie count and never stands in for one. Where the event stream exists a
+per-pilot sortie count is the HIGHER of the takeoff sum and the stream's own start count (never
+lower: a period the plugin does not cover keeps the ``statistics`` figure), while a site-wide count
+ADDS the stream's air starts to the takeoffs, because no flight is in both. Without the plugin a
+sortie figure is the takeoff sum, and the page states that instead of implying a flight count it
+cannot make.
 
 TRUESKILL IS NOT SITE-SCOPED. ``trueskill`` holds one row per player UCID and carries no server
 column, so a rating is a function of the player's global record and is identical on every site.
@@ -64,15 +90,16 @@ a pilot search :data:`SEARCH_PAGE_SIZE`. Both take an ``offset`` only.
 
 READ-ONLY: there is no INSERT, UPDATE or DELETE in this module.
 
-The one statement that carries no server filter is the ``to_regclass`` probe in
-:func:`squadrons` (a table exists per DATABASE, not per site) — it is declared in
-:data:`EXEMPT_STATEMENTS` so the ratchet test can name it instead of skipping it.
+The statements that carry no server filter are the ``to_regclass`` probes (a table exists per
+DATABASE, not per site) and the competitive plugin's rating reads, which have no server column — they
+are declared in :data:`EXEMPT_STATEMENTS` so the ratchet test can name them instead of skipping them.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
 import math
+import re
 import time
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -128,6 +155,8 @@ __all__ = [
     "squadrons",
     "server_board",
     "my_statistics",
+    "PROGRESS_BUCKETS",
+    "pilot_progress",
 ]
 
 #: The one substring every scoped statement carries — the ratchet's assertion, and the shape a new
@@ -150,6 +179,18 @@ EXEMPT_STATEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("FROM trueskill",
          "the competitive plugin's rating has no server column: one rating per pilot, the same on "
          "every site"),
+    ),
+    "pilot_progress": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+    ),
+    "community_totals": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+    ),
+    "activity_over_time": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+    ),
+    "leaderboard": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
     ),
 }
 
@@ -216,12 +257,11 @@ METRIC_SQL: dict[str, str] = {
                      " ELSE SUM({p}pvp::DECIMAL) / SUM({p}deaths_pvp::DECIMAL) END"),
 }
 
-#: The count columns a leaderboard row prints beside its metric. ``sorties`` is the number of
-#: ``statistics`` rows behind the row: one per session in the raw branch, and the sum of the
-#: per-airframe counts the view's grain already carries (which totals the same rows).
+#: The count columns a leaderboard row prints beside its metric. ``sorties`` is a FLIGHT count
+#: (:data:`_start_predicate`): the recorded takeoffs, raised to the event stream's own start count
+#: when the ``missionstats`` plugin is loaded, so a flight that began in the air is counted too.
 _COUNT_SQL: dict[str, str] = {
-    "sorties": "SUM({p}sorties)",
-    "takeoffs": "SUM({p}takeoffs)",
+    "sorties": "SUM({p}takeoffs)",
     "landings": "SUM({p}landings)",
     "kills": "SUM({p}kills)",
     "pvp": "SUM({p}pvp)",
@@ -232,8 +272,9 @@ _COUNT_SQL: dict[str, str] = {
 #: Every figure a leaderboard row carries, by its column key: the metrics plus the count columns.
 COLUMN_SQL: dict[str, str] = {**METRIC_SQL, **_COUNT_SQL}
 
-#: The columns a row prints, in reading order.
-LEADERBOARD_COLUMNS: tuple[str, ...] = ("playtime", "sorties", "takeoffs", "landings", "kills",
+#: The columns a row prints, in reading order. ``takeoffs`` is not one of them: it is the base of
+#: the ``sorties`` column, so printing both would show the same number twice.
+LEADERBOARD_COLUMNS: tuple[str, ...] = ("playtime", "sorties", "landings", "kills",
                                         "pvp", "crashes", "ejections")
 
 #: The sort keys a reader may name in the URL: one per figure plus the pilot's name.
@@ -254,16 +295,43 @@ _METRIC_VIEW = ("ms.", "ms.playtime")
 _METRIC_RAW = ("s.", _RAW_PLAY)
 
 
-def _metric(key: str, branch: tuple[str, str]) -> str:
+def _start_predicate(prefix: str = "") -> str:
+    """The SQL predicate that marks ONE sortie start on the event stream, columns *prefix*-qualified.
+
+    A sortie starts at a takeoff, or at a birth with no airbase behind it — DCS reports a pilot who
+    spawned in the air without a place, which is the air start ``plugins.missionstats.aar`` reads.
+    A birth ON an airbase is a pilot sitting in the slot, not a flight.
+    """
+    return (f"({prefix}event = 'S_EVENT_TAKEOFF' OR ({prefix}event = 'S_EVENT_BIRTH' "
+            f"AND COALESCE({prefix}place, '') = ''))")
+
+
+def _start_period_clause(period: str) -> str:
+    """The bot's own period clause in its ``missionstats`` form, qualified for a ``missions`` join.
+
+    ``plugins.userstats.filter.MissionStatisticsFilter`` names the bare column ``time``; this
+    qualifies it for the statement it is pasted into. Only the lowercase column name matches, so
+    ``AT TIME ZONE`` is untouched.
+    """
+    from plugins.userstats.filter import MissionStatisticsFilter
+
+    return re.sub(r"\btime\b", "mst.time", MissionStatisticsFilter(period).filter(None))  # type: ignore[arg-type]
+
+
+def _metric(key: str, branch: tuple[str, str], starts: bool = False) -> str:
     """The SQL expression for the figure *key* on *branch*, with the placeholders filled.
 
-    ``sorties`` is the count of ``statistics`` rows behind the row: the raw branch counts them
-    directly, the view branch sums the per-airframe counts its grain already carries.
+    ``sorties`` is a flight count, so it is the takeoff sum RAISED to the event stream's start
+    count (:data:`_start_predicate`) when *starts* says the statement joins it: a pilot who spawned
+    in the air never took off, and the takeoff sum alone would lose that flight. ``GREATEST`` rather
+    than a sum, because the two sources overlap — every takeoff is also an event — and a period the
+    event table does not cover must not lower the count the ``statistics`` rows already state.
     """
-    if key == "sorties" and branch == _METRIC_RAW:
-        return "COUNT(*)"
     prefix, play = branch
-    return COLUMN_SQL[key].format(p=prefix, play=play)
+    expression = COLUMN_SQL[key].format(p=prefix, play=play)
+    if key == "sorties" and starts:
+        return f"GREATEST({expression}, COALESCE(MAX(st.air_starts), 0))"
+    return expression
 
 
 # --------------------------------------------------------------------------- helpers
@@ -384,15 +452,21 @@ SELECT pilots.known_pilots AS known_pilots,
 """
 
 
-async def community_totals(site: Any, pool: Any) -> dict:
+async def community_totals(site: Any, pool: Any, air_starts: dict[str, int] | None = None) -> dict:
     """The community's headline figures over the site's servers, off the hourly aggregates.
 
     Definitions, the bot's own (``plugins/monitoring/stats_read.py``): ``known_pilots`` is a
     DISTINCT count of the pilots with a session on the site, ``total_playtime`` and ``avg_session``
-    are seconds over the CLOSED sessions, ``sorties`` is the recorded takeoffs, ``missions_flown``
-    is the distinct missions, and ``active_this_week``/``active_last_week`` are DISTINCT pilots in
-    the current and previous ISO week. ``active_change`` is the difference in pilots between the
-    two weeks, computed here from those two figures.
+    are seconds over the CLOSED sessions, ``sorties`` is every flight the week series counts
+    (:func:`activity_over_time`): the recorded takeoffs PLUS the air starts the event stream saw —
+    no flight is in both, and a site without that stream answers the takeoffs alone and says so
+    (``air_starts`` False). ``missions_flown`` is the distinct missions, and
+    ``active_this_week``/``active_last_week`` are DISTINCT pilots in the current and previous ISO
+    week. ``active_change`` is the difference in pilots between the two weeks, computed here from
+    those two figures.
+
+    ``air_starts`` is :func:`sortie_air_starts`' answer when the caller already has it (the overview
+    runs it once for the weekly panel too); ``None`` reads it here.
 
     WHICH AGGREGATE ANSWERS WHICH FIGURE. ``total_playtime``, ``avg_session``, ``sessions`` and
     ``sorties`` are sums over ``mv_site_activity``; ``known_pilots``, ``active_this_week`` and
@@ -404,6 +478,8 @@ async def community_totals(site: Any, pool: Any) -> dict:
     """
     async with pool.connection() as conn:
         row = await _fetch_one(conn, _COMMUNITY_SQL, _params(site))
+    if air_starts is None:
+        air_starts = await sortie_air_starts(site, pool)
     this_week = _number(row.get("active_this_week"))
     last_week = _number(row.get("active_last_week"))
     return {
@@ -411,7 +487,8 @@ async def community_totals(site: Any, pool: Any) -> dict:
         "total_playtime": _number(row.get("total_playtime")),
         "avg_session": _number(row.get("avg_session")),
         "sessions": _number(row.get("sessions")),
-        "sorties": _number(row.get("sorties")),
+        "sorties": _number(row.get("sorties")) + sum((air_starts or {}).values()),
+        "air_starts": air_starts is not None,
         "missions_flown": _number(row.get("missions_flown")),
         "active_this_week": this_week,
         "active_last_week": last_week,
@@ -432,6 +509,58 @@ SELECT TO_CHAR(week_start, 'IYYY-"W"IW') AS week,
  GROUP BY 1
  ORDER BY 1
 """
+
+#: The site's air starts per ISO week, straight from the event stream (:func:`_start_predicate`).
+#: ``mv_site_activity`` carries the takeoffs of the sessions a week STARTED; an air start produces
+#: none, so the two are ADDED and no flight is counted twice. The label matches
+#: :data:`_ACTIVITY_SQL`'s, so the two series merge as they are.
+_AIR_START_WEEKS_SQL = f"""
+SELECT TO_CHAR(DATE_TRUNC('week', mst.time), 'IYYY-"W"IW') AS week,
+       COUNT(*)::bigint AS air_starts
+  FROM missionstats mst
+  JOIN missions msm ON msm.id = mst.mission_id
+ WHERE msm.{SERVER_FILTER}
+   AND {_start_predicate('mst.')}
+ GROUP BY 1
+"""
+
+
+#: The same series from ``mv_site_air_starts`` — the missionstats plugin's hourly aggregate, one row
+#: per server, pilot and ISO week. ``starts`` is already the stream's own start count
+#: (:func:`_start_predicate`), so the read only sums the site's servers. The label matches
+#: :data:`_ACTIVITY_SQL`'s, so the two series merge as they are.
+_AIR_START_WEEKS_VIEW_SQL = f"""
+SELECT TO_CHAR(week_start, 'IYYY-"W"IW') AS week,
+       COALESCE(SUM(starts), 0)::bigint AS air_starts
+  FROM mv_site_air_starts
+ WHERE {SERVER_FILTER}
+ GROUP BY 1
+"""
+
+
+async def sortie_air_starts(site: Any, pool: Any) -> dict[str, int] | None:
+    """Air starts per ISO week over the site's servers, or ``None`` without the event stream.
+
+    ``mv_site_air_starts`` answers the series when the missionstats plugin's aggregate is there —
+    it is that plugin's hourly sum over the event stream, so the page read sums a week grain
+    instead of scanning ``missionstats``. Without the view the same figure is aggregated from the
+    raw ``missionstats`` JOIN ``missions``. ``None`` is the install-level fact the pages read:
+    without ``missionstats`` no air start can be seen, so every site-wide sortie figure is a
+    takeoff count and the page says so.
+    """
+    async with pool.connection() as conn:
+        if not await _table_exists(conn, "missionstats"):
+            return None
+        if await _table_exists(conn, "mv_site_air_starts"):
+            rows = await _fetch_all(conn, _AIR_START_WEEKS_VIEW_SQL, _params(site))
+        else:
+            rows = await _fetch_all(conn, _AIR_START_WEEKS_SQL, _params(site))
+    found: dict[str, int] = {}
+    for row in rows:
+        label = str(row.get("week") or "").strip()
+        if label:
+            found[label] = found.get(label, 0) + int(_number(row.get("air_starts")))
+    return found
 
 
 def _week_start(value: datetime) -> datetime:
@@ -485,7 +614,8 @@ def _zero_filled(rows: list[dict], window: str, now: datetime) -> list[dict]:
     return weeks
 
 
-async def activity_over_time(site: Any, pool: Any, window: str = DEFAULT_ACTIVITY_WINDOW) -> dict:
+async def activity_over_time(site: Any, pool: Any, window: str = DEFAULT_ACTIVITY_WINDOW,
+                             air_starts: dict[str, int] | None = None) -> dict:
     """Playtime, pilots and sorties per ISO week over the site's servers, zero-filled.
 
     *window* is one of :data:`ACTIVITY_WINDOWS` (``30d``, ``90d``, ``1y``, ``all``); any other value
@@ -495,9 +625,12 @@ async def activity_over_time(site: Any, pool: Any, window: str = DEFAULT_ACTIVIT
 
     The buckets come from ``mv_site_activity`` (per server, per ISO week). ``pilots`` is the sum of
     each server's distinct pilots for the week, so a pilot who flew two of the site's servers in one
-    week counts twice; the page draws playtime only. ``sorties`` is the recorded takeoffs, the same
-    measure :func:`community_totals` reports for the whole site, so the weekly bars and the headline
-    figure cannot disagree.
+    week counts twice; the page draws playtime only. ``sorties`` is every flight: the recorded
+    takeoffs PLUS the air starts of that week (:func:`sortie_air_starts`), the same measure
+    :func:`community_totals` reports for the whole site, so the weekly bars and the headline figure
+    cannot disagree. ``air_starts`` says whether the event stream was there to be counted — False
+    means the bars are takeoffs alone. *air_starts* is that series when the caller already has it;
+    ``None`` reads it here.
     """
     wanted = str(window or "").strip().lower()
     if wanted not in ACTIVITY_WINDOWS:
@@ -512,17 +645,22 @@ async def activity_over_time(site: Any, pool: Any, window: str = DEFAULT_ACTIVIT
         params["days"] = int(days)
     async with pool.connection() as conn:
         rows = await _fetch_all(conn, statement, params)
-    return {"window": wanted, "weeks": _zero_filled(rows, wanted, datetime.now(timezone.utc))}
+    if air_starts is None:
+        air_starts = await sortie_air_starts(site, pool)
+    weeks = _zero_filled(rows, wanted, datetime.now(timezone.utc))
+    for entry in weeks:
+        entry["sorties"] += (air_starts or {}).get(entry["week"], 0)
+    return {"window": wanted, "weeks": weeks, "air_starts": air_starts is not None}
 
 
 # --------------------------------------------------------------------------- per airframe
 
 #: One row per (server, slot) in ``mv_site_aircraft``; the site's servers collapse to one row per
-#: airframe, which is what the panel ranks. ``sorties`` is the recorded takeoffs of that airframe.
+#: airframe, which is what the panel ranks. It ranks on PLAYTIME only — the usage figure beside it is
+#: a SESSION count, which that view does not carry.
 _AIRCRAFT_SQL = f"""
 SELECT slot,
-       COALESCE(SUM(playtime), 0)::bigint AS playtime,
-       COALESCE(SUM(sorties), 0)::bigint AS sorties
+       COALESCE(SUM(playtime), 0)::bigint AS playtime
   FROM mv_site_aircraft
  WHERE {SERVER_FILTER}
  GROUP BY slot
@@ -530,25 +668,41 @@ SELECT slot,
  LIMIT %(limit)s
 """
 
+#: Sessions per airframe: one ``statistics`` row is one session, and ``mv_statistics`` already
+#: carries that count as ``usage`` at the (server, pilot, slot, side, tail) grain, so summing it per
+#: slot is the number of times that airframe was boarded on the site's servers.
+_AIRCRAFT_SESSIONS_SQL = f"""
+SELECT slot, COALESCE(SUM(usage), 0)::bigint AS sessions
+  FROM mv_statistics
+ WHERE {SERVER_FILTER}
+ GROUP BY slot
+"""
+
 
 async def top_aircraft(site: Any, pool: Any, limit: int = AIRCRAFT_ROWS) -> dict:
-    """The most-flown airframes of the site by PLAYTIME, with their sortie counts.
+    """The most-flown airframes of the site by PLAYTIME, with their session counts.
 
     Ranked on playtime (the panel's own scale), ties broken by the slot name, and capped at *limit*
-    rows (:data:`AIRCRAFT_ROWS` by default). The rows come from ``mv_site_aircraft`` — one row per
-    server and slot — so the read aggregates the site's servers instead of walking ``statistics``.
-    ``playtime`` is seconds; a site with no recorded session answers no row rather than one at zero.
+    rows (:data:`AIRCRAFT_ROWS` by default). The ranked rows come from ``mv_site_aircraft`` — one row
+    per server and slot — so the read aggregates the site's servers instead of walking
+    ``statistics``. ``playtime`` is seconds; ``sessions`` is how many times the airframe was boarded
+    (:data:`_AIRCRAFT_SESSIONS_SQL`), which is the module-usage figure the panel states — a sortie
+    count would mean nothing here, since one session can hold several flights. A site with no
+    recorded session answers no row rather than one at zero.
     """
     try:
         wanted = max(int(limit), 1)
     except (TypeError, ValueError):
         wanted = AIRCRAFT_ROWS
+    params = _params(site, limit=wanted)
     async with pool.connection() as conn:
-        rows = await _fetch_all(conn, _AIRCRAFT_SQL, _params(site, limit=wanted))
+        rows = await _fetch_all(conn, _AIRCRAFT_SQL, params)
+        sessions = await _fetch_all(conn, _AIRCRAFT_SESSIONS_SQL, _params(site)) if rows else []
+    used = {str(row.get("slot") or ""): _number(row.get("sessions")) for row in sessions}
     return {"limit": wanted,
             "rows": [{"slot": row.get("slot") or "",
                       "playtime": _number(row.get("playtime")),
-                      "sorties": _number(row.get("sorties"))} for row in rows]}
+                      "sessions": used.get(str(row.get("slot") or ""), 0)} for row in rows]}
 
 
 # --------------------------------------------------------------------------- hour of day
@@ -606,19 +760,64 @@ async def hours_of_day(site: Any, pool: Any) -> dict:
 
 # --------------------------------------------------------------------------- leaderboard
 
+#: The start count behind a ``sorties`` figure, one row per pilot: every takeoff, and every birth
+#: with no airbase behind it (DCS reports a pilot who spawned in the air without a place, so that
+#: birth IS the start — the same pair ``plugins.missionstats.aar.reconstruct_sorties`` reads). It is
+#: joined only when the ``missionstats`` plugin's table is there; every caller then raises its
+#: takeoff sum to it. The aggregate is per pilot, so the ranking path may sort on it as it stands.
+_AIR_START_CTE = f"""
+starts AS MATERIALIZED (
+    SELECT mst.init_id AS ucid, COUNT(*)::bigint AS air_starts
+      FROM missionstats mst
+      JOIN missions msm ON msm.id = mst.mission_id
+     WHERE msm.{SERVER_FILTER}
+       AND {{start_predicate}}
+       {{start_period}}
+     GROUP BY 1
+),"""
+
+
+def _starts_cte(period: str) -> str:
+    """The ``starts`` CTE for the board in hand, its period clause resolved for that period.
+
+    An ``all`` board compares no timestamp at all, so the clause is left out rather than pasted as
+    ``1 = 1``: the aggregate is the expensive half of the statement, and a predicate it can drop is
+    a scan it may prune.
+    """
+    clause = "" if period == "all" else f"AND {_start_period_clause(period)}"
+    return _AIR_START_CTE.format(start_predicate=_start_predicate("mst."), start_period=clause)
+
+
+def _starts_join(prefix: str) -> str:
+    """The join that puts a pilot's start count in scope, *prefix* being the pilot column's own."""
+    return f"LEFT JOIN starts st ON st.ucid = {prefix}player_ucid"
+
+
+#: The same ``starts`` CTE over ``mv_site_air_starts``: the missionstats plugin's per-pilot, per-week
+#: sum, collapsed to the pilot. Same alias, same column names, same MATERIALIZED shape, so the
+#: expressions :func:`_metric` builds read it unchanged.
+_AIR_START_VIEW_CTE = f"""
+starts AS MATERIALIZED (
+    SELECT player_ucid AS ucid, SUM(starts)::bigint AS air_starts
+      FROM mv_site_air_starts
+     WHERE {SERVER_FILTER}
+     GROUP BY 1
+),"""
+
 #: The all-time page, in TWO PHASES. ``page`` ranks the pilots on the two aggregates the order
 #: needs (the metric and the sort column) and materializes that page; ``detail`` then sums the wide
 #: row over the page's pilots only — ~1.6 rows per pilot through the view's unique index, not the
 #: whole view. The favourite airframe is a LATERAL over the same page, so no wide aggregate and no
 #: per-row subquery sits on the ranking path.
 _LEADERBOARD_VIEW_SQL = f"""
-WITH page AS MATERIALIZED (
+WITH {{starts}}page AS MATERIALIZED (
     SELECT ms.player_ucid AS player_ucid,
            COALESCE(p.name, 'Unknown') AS name,
            {{value}} AS value,
            {{sort_expr}} AS sort_value
       FROM mv_site_pilot_totals ms
       JOIN players p ON p.ucid = ms.player_ucid
+      {{starts_join}}
      WHERE ms.{SERVER_FILTER}
      GROUP BY ms.player_ucid, p.name
     HAVING {{value}} > 0
@@ -634,6 +833,7 @@ WITH page AS MATERIALIZED (
       JOIN mv_site_pilot_totals ms
         ON ms.player_ucid = page.player_ucid
        AND ms.{SERVER_FILTER}
+      {{starts_join}}
      GROUP BY page.player_ucid, page.name, page.value, page.sort_value
 )
 SELECT detail.player_ucid AS ucid,
@@ -656,7 +856,7 @@ SELECT detail.player_ucid AS ucid,
 #: aggregated from ``statistics`` JOIN ``missions`` over the bot's own period clause, the wide one
 #: again for the page's pilots only.
 _LEADERBOARD_RAW_SQL = f"""
-WITH page AS MATERIALIZED (
+WITH {{starts}}page AS MATERIALIZED (
     SELECT s.player_ucid AS player_ucid,
            COALESCE(p.name, 'Unknown') AS name,
            {{value}} AS value,
@@ -664,6 +864,7 @@ WITH page AS MATERIALIZED (
       FROM statistics s
       JOIN missions m ON m.id = s.mission_id
       JOIN players p ON p.ucid = s.player_ucid
+      {{starts_join}}
      WHERE m.{SERVER_FILTER} AND {{period}}
      GROUP BY s.player_ucid, p.name
     HAVING {{value}} > 0
@@ -678,6 +879,7 @@ WITH page AS MATERIALIZED (
       FROM page
       JOIN statistics s ON s.player_ucid = page.player_ucid
       JOIN missions m ON m.id = s.mission_id
+      {{starts_join}}
      WHERE m.{SERVER_FILTER} AND {{period}}
      GROUP BY page.player_ucid, page.name, page.value, page.sort_value
 )
@@ -700,9 +902,9 @@ SELECT detail.player_ucid AS ucid,
 """
 
 
-def _sort_expression(key: str, branch: tuple[str, str]) -> str:
+def _sort_expression(key: str, branch: tuple[str, str], starts: bool = False) -> str:
     """The expression the page is ORDERED on: the pilot's name, or the column's own aggregate."""
-    return "LOWER(p.name)" if key == "name" else _metric(key, branch)
+    return "LOWER(p.name)" if key == "name" else _metric(key, branch, starts)
 
 
 def _detail_list() -> str:
@@ -710,9 +912,10 @@ def _detail_list() -> str:
     return ",\n       ".join(f"detail.{key}" for key in LEADERBOARD_COLUMNS)
 
 
-def _detail_aggregates(branch: tuple[str, str]) -> str:
+def _detail_aggregates(branch: tuple[str, str], starts: bool = False) -> str:
     """One ``expr AS key`` per column a row prints, over the page's pilots only."""
-    return ",\n           ".join(f"{_metric(key, branch)} AS {key}" for key in LEADERBOARD_COLUMNS)
+    return ",\n           ".join(f"{_metric(key, branch, starts)} AS {key}"
+                                for key in LEADERBOARD_COLUMNS)
 
 
 def _order(sort: Any, direction: Any, metric: str) -> tuple[str, str]:
@@ -745,7 +948,8 @@ def _period_clause(period: Any) -> tuple[str, str]:
 
 
 async def leaderboard(site: Any, pool: Any, metric: str = "playtime", period: str = "all",
-                      offset: Any = 0, sort: Any = None, direction: Any = None) -> dict:
+                      offset: Any = 0, sort: Any = None, direction: Any = None,
+                      air_starts: bool = True) -> dict:
     """One leaderboard page: the top pilots of *metric* over the site's servers, with every column.
 
     *metric* is one of :data:`LEADERBOARD_METRICS` (the ``/highscore`` set); an unknown name
@@ -756,8 +960,18 @@ async def leaderboard(site: Any, pool: Any, metric: str = "playtime", period: st
     statement unvetted. Every row carries :data:`LEADERBOARD_COLUMNS` plus its favourite airframe;
     ``value`` is the ruled-on metric's figure for the row.
 
-    SORTIES IS THE COUNT OF ``statistics`` ROWS behind the row — one per recorded session of that
-    pilot on the site's servers in the period — not the recorded takeoff count (:data:`_COUNT_SQL`).
+    SORTIES IS A FLIGHT COUNT, not a session count and not a bare takeoff sum: it is the recorded
+    takeoffs raised to the event stream's own start count (:func:`_start_predicate`) when the
+    ``missionstats`` plugin is loaded, so a pilot who spawned in the air is counted. Without that
+    plugin the column is the takeoff sum, and the page no longer prints ``Takeoffs`` beside it —
+    the same number twice.
+
+    WHICH RELATION ANSWERS THE START COUNT. The all-time board reads ``mv_site_air_starts``, the
+    missionstats plugin's hourly per-pilot, per-week aggregate; the CTE keeps its alias and column
+    names, so :func:`_metric` reads it as it stands. A BOUNDED period keeps the raw aggregate over
+    ``missionstats`` (:func:`_starts_cte`), because a week-grain view cannot answer a period that
+    starts mid-week: its rows would silently widen the window by up to seven days and the sorties
+    column would drift from the period the row states.
 
     ``mv_site_pilot_totals`` answers the all-time read: it holds one row per (server, pilot) with the
     metric list's sums, the session count and the takeoff/landing/ejection sums. The aggregate has
@@ -766,6 +980,13 @@ async def leaderboard(site: Any, pool: Any, metric: str = "playtime", period: st
     ``mv_site_pilot_aircraft`` answers the favourite airframe of the all-time page, joined LATERAL
     over the page's pilots only; the bounded period derives the same slot from the raw join, again
     over the page's pilots.
+
+    ``air_starts`` states whether this statement needs the per-pilot start count. ``True`` — the
+    default — joins it, so ``sorties`` is a flight count as described above. ``False`` builds no
+    ``starts`` CTE at all: no ``LEFT JOIN starts``, no read of ``missionstats`` or
+    ``mv_site_air_starts`` and no existence probe for either (a probe is a round trip too), and the
+    row's ``sorties`` column answers the recorded takeoff sum. A caller that does not print the
+    sortie column must pass ``air_starts=False``, so the page does not aggregate what it discards.
 
     The answer is capped at :data:`LEADERBOARD_PAGE_SIZE` rows and takes an ``offset``; there is no
     caller-supplied size. Both branches break a tie on ``player_ucid``, so paging is stable under
@@ -778,16 +999,29 @@ async def leaderboard(site: Any, pool: Any, metric: str = "playtime", period: st
     clause, resolved_period = _period_clause(period)
     branch = _METRIC_VIEW if resolved_period == "all" else _METRIC_RAW
     params = _params(site, limit=LEADERBOARD_PAGE_SIZE, offset=_offset(offset))
-    fields = {"value": _metric(wanted, branch),
-              "sort_expr": _sort_expression(order_key, branch),
-              "detail_aggregates": _detail_aggregates(branch),
-              "detail_list": _detail_list(),
-              "direction": SORT_DIRECTIONS[order_dir]}
-    if resolved_period == "all":
-        statement = _LEADERBOARD_VIEW_SQL.format(**fields)
-    else:
-        statement = _LEADERBOARD_RAW_SQL.format(period=clause, **fields)
     async with pool.connection() as conn:
+        if not air_starts:
+            starts = False
+            starts_cte = ""
+        else:
+            starts = await _table_exists(conn, "missionstats")
+            if not starts:
+                starts_cte = ""
+            elif resolved_period == "all" and await _table_exists(conn, "mv_site_air_starts"):
+                starts_cte = _AIR_START_VIEW_CTE
+            else:
+                starts_cte = _starts_cte(resolved_period)
+        fields = {"value": _metric(wanted, branch, starts),
+                  "sort_expr": _sort_expression(order_key, branch, starts),
+                  "detail_aggregates": _detail_aggregates(branch, starts),
+                  "detail_list": _detail_list(),
+                  "starts": starts_cte,
+                  "starts_join": _starts_join(branch[0]) if starts else "",
+                  "direction": SORT_DIRECTIONS[order_dir]}
+        if resolved_period == "all":
+            statement = _LEADERBOARD_VIEW_SQL.format(**fields)
+        else:
+            statement = _LEADERBOARD_RAW_SQL.format(period=clause, **fields)
         rows = await _fetch_all(conn, statement, params)
     return {
         "metric": wanted,
@@ -907,25 +1141,62 @@ SELECT s.hop_on, s.hop_off, s.slot, m.server_name, m.mission_name,
  LIMIT %(limit)s
 """
 
+#: A pilot's sortie starts on the event stream — every takeoff and every birth with no airbase
+#: behind it (:func:`_start_predicate`). One statement for every UCID the visitor's Discord account
+#: owns, and only over the site's servers.
+_AIR_START_SQL = f"""
+SELECT mst.init_id AS ucid, COUNT(*)::bigint AS air_starts
+  FROM missionstats mst
+  JOIN missions msm ON msm.id = mst.mission_id
+ WHERE msm.{SERVER_FILTER}
+   AND mst.init_id = ANY(%(ucids)s::text[])
+   AND {_start_predicate('mst.')}
+ GROUP BY 1
+"""
+
+
+async def sortie_starts(conn: Any, site: Any, ucids: list[str]) -> dict[str, int] | None:
+    """Sortie starts per UCID, or ``None`` when the ``missionstats`` plugin's table is absent.
+
+    ``None`` and an empty dict mean different things and the pages read them that way: ``None`` is
+    "this install has no event stream, so sorties can only be the takeoff count", while ``{}`` is
+    "the stream is there and none of these pilots started a flight in the air".
+    """
+    if not await _table_exists(conn, "missionstats"):
+        return None
+    rows = await _fetch_all(conn, _AIR_START_SQL, _params(site, ucids=ucids))
+    return {str(row.get("ucid")): int(_number(row.get("air_starts")))
+            for row in rows if row.get("ucid")}
+
 
 def _totals(row: dict) -> dict:
     """The pilot totals as JSON numbers."""
     return {key: _number(row.get(key)) for key in
-            ("playtime", "sessions", "kills", "pvp", "deaths", "teamkills",
+            ("playtime", "sessions", "sorties", "kills", "pvp", "deaths", "teamkills",
              "takeoffs", "landings", "crashes", "ejections", "kills_planes",
              "kills_helicopters", "kills_ground", "kills_sams", "deaths_pvp")}
 
 
 async def _pilot_detail(conn: Any, site: Any, ucids: list[str]) -> dict:
-    """Every per-pilot figure over *ucids*, bound to the site's servers."""
+    """Every per-pilot figure over *ucids*, bound to the site's servers.
+
+    ``sorties`` is the FLIGHT count: the takeoff sum, raised to the event stream's start count when
+    the ``missionstats`` plugin is loaded (:func:`sortie_starts`), so a flight that began in the air
+    is counted. ``air_starts`` states the corrections it carries — ``None`` when the install has no
+    event stream, which is how the pages know the figure is a takeoff count alone.
+    """
     params = _params(site, ucids=ucids)
     totals = await _fetch_one(conn, _PILOT_TOTALS_SQL, params)
     aircraft = await _fetch_all(conn, _PILOT_BY_AIRCRAFT_SQL, params)
     servers = await _fetch_all(conn, _PILOT_BY_SERVER_SQL, params)
     recent = await _fetch_all(conn, _PILOT_RECENT_SQL,
                               {**params, "limit": PILOT_RECENT_SESSIONS})
+    starts = await sortie_starts(conn, site, ucids)
+    answer = _totals(totals)
+    answer["air_starts"] = None if starts is None else sum(starts.values())
+    answer["sorties"] = max(answer["takeoffs"], answer["air_starts"] or 0)
     return {
-        "totals": _totals(totals),
+        "totals": answer,
         "per_aircraft": [{"aircraft": row.get("aircraft"),
                           "playtime": _number(row.get("playtime")),
                           "sessions": _number(row.get("sessions"))} for row in aircraft],
@@ -938,8 +1209,10 @@ async def _pilot_detail(conn: Any, site: Any, ucids: list[str]) -> dict:
 
 def _empty_profile(ucid: str) -> dict:
     """The shape a profile answers with when the pilot has no session on the site."""
+    totals = _totals({})
+    totals["air_starts"] = None
     return {"ucid": ucid, "name": "", "found": False, "discord_id": -1, "ucids": [],
-            "totals": _totals({}), "per_aircraft": [], "per_server": [], "recent": [],
+            "totals": totals, "per_aircraft": [], "per_server": [], "recent": [],
             "rating": None, "campaigns": []}
 
 
@@ -2065,21 +2338,24 @@ async def server_detail(site: Any, pool: Any, live: Any = None, name: str = "") 
 
 # --------------------------------------------------------------------------- my statistics
 
-async def my_statistics(site: Any, pool: Any, discord_id: Any) -> dict:
+async def my_statistics(site: Any, pool: Any, discord_id: Any, period: str = "quarter") -> dict:
     """The viewer's own figures: every UCID linked to *discord_id*, scoped to the site.
 
     The UCID union is read from ``players`` (a link lives per player, not per server), but only for
     UCIDs seen on the site's servers; every figure is then the pilot profile's own set, bound to
-    those servers, plus the two panels the public profile does not carry: the competitive rating
-    with its recorded history and the pilot's campaigns (credits and badge). No linked UCID on the
-    site answers ``found`` False with the profile's keys.
+    those servers, plus the panels the public profile does not carry: the competitive rating with
+    its recorded history, the pilot's campaigns (credits and badge) and — when the ``missionstats``
+    plugin is loaded — the flights behind :func:`pilot_progress` for *period*. *period* is the bot's
+    own period vocabulary; an unknown name resolves to ``all``. No linked UCID on the site answers
+    ``found`` False with the profile's keys, and a site without the events table answers
+    ``"progress": None`` instead of failing.
     """
     try:
         wanted = int(discord_id)
     except (TypeError, ValueError):
         wanted = -1
     empty = _empty_profile("")
-    empty.update({"discord_id": wanted})
+    empty.update({"discord_id": wanted, "progress": None})
     if wanted <= 0:
         return empty
     async with pool.connection() as conn:
@@ -2091,6 +2367,7 @@ async def my_statistics(site: Any, pool: Any, discord_id: Any) -> dict:
         detail = await _pilot_detail(conn, site, ucids)
         rating = await _pilot_rating(conn, ucids[0])
         campaigns = await _campaigns(conn, site, ucids[0])
+    progress = await pilot_progress(site, pool, ucids[0], period)
     return {
         "ucid": ucids[0],
         "name": "",
@@ -2098,6 +2375,189 @@ async def my_statistics(site: Any, pool: Any, discord_id: Any) -> dict:
         "discord_id": wanted,
         "rating": rating,
         "campaigns": campaigns,
+        "progress": progress,
         "ucids": [{"ucid": row.get("ucid"), "name": row.get("name") or ""} for row in linked],
         **detail,
+    }
+
+
+# --------------------------------------------------------------------------- pilot progress
+
+#: The most buckets a progress panel draws, counting back from the newest one. A bar per week of a
+#: whole year is 52 slivers on a phone, so the two longest periods switch to a monthly grain rather
+#: than drawing narrower bars.
+PROGRESS_BUCKETS = 26
+
+#: The periods the progress panel buckets by MONTH. Every other period buckets by ISO week.
+PROGRESS_MONTHLY_PERIODS = frozenset({"year", "all"})
+
+
+def _mission_period_clause(period: Any) -> tuple[str, str]:
+    """The period clause for a ``missionstats`` statement, and the name it resolved to.
+
+    ``plugins.userstats.filter.MissionStatisticsFilter`` is the event table's own variant of the one
+    period vocabulary (``/aar`` takes it as its period filter), so the site does not grow a second
+    one. Its predicate names the bare column ``time``; this qualifies it, because the statement also
+    joins ``missions``. Only the lowercase column name matches, so ``AT TIME ZONE`` is untouched.
+    """
+    from plugins.userstats.filter import MissionStatisticsFilter, PeriodFilter
+
+    known = PeriodFilter.list(None)  # type: ignore[arg-type]
+    wanted = str(period or "").strip().lower()
+    if wanted not in known:
+        wanted = "all"
+    clause = MissionStatisticsFilter(wanted).filter(None)  # type: ignore[arg-type]
+    return re.sub(r"\btime\b", "ms.time", clause), wanted
+
+
+#: One pilot's own sortie events in the period, in the order the reconstruction needs them
+#: (``ms.id``, not ``time``: two events can share a timestamp, and the reconstruction is a state
+#: machine over the stream). The kill query is ``plugins.missionstats.reports.AAR._collect``'s,
+#: filter for filter, so the page and the PDF count the same kills.
+_PROGRESS_SORTIE_SQL = f"""
+    SELECT ms.mission_id AS mission_id, ms.event AS event, ms.init_type AS init_type,
+           ms.init_side AS init_side, ms.place AS place, ms.time AS time,
+           m.mission_name AS mission_name, m.mission_theatre AS mission_theatre,
+           m.server_name AS server_name
+      FROM missionstats ms
+      JOIN missions m ON m.id = ms.mission_id
+     WHERE ms.init_id = %(ucid)s
+       AND ms.event = ANY(%(events)s::text[])
+       AND m.{SERVER_FILTER} AND {{period}}
+     ORDER BY ms.id
+"""
+
+_PROGRESS_KILLS_SQL = f"""
+    SELECT ms.time AS time
+      FROM missionstats ms
+      JOIN missions m ON m.id = ms.mission_id
+     WHERE ms.init_id = %(ucid)s
+       AND ms.init_id IS DISTINCT FROM ms.target_id
+       AND ms.event = 'S_EVENT_KILL'
+       AND ms.weapon != ms.init_type
+       AND ms.target_cat IS NOT NULL
+       AND ms.target_side != '0'
+       AND m.{SERVER_FILTER} AND {{period}}
+     ORDER BY ms.time
+"""
+
+
+def _bucket_of(moment: Any, monthly: bool) -> date | None:
+    """The bucket a moment falls in: its ISO week's Monday, or the first of its month."""
+    if not isinstance(moment, datetime):
+        return None
+    day = moment.date()
+    return date(day.year, day.month, 1) if monthly else day - timedelta(days=day.weekday())
+
+
+def _next_bucket(start: date, monthly: bool) -> date:
+    """The bucket after *start*, on the same grain."""
+    if not monthly:
+        return start + timedelta(days=7)
+    return date(start.year + start.month // 12, start.month % 12 + 1, 1)
+
+
+def _bucket_starts(first: date, last: date, monthly: bool) -> list[date]:
+    """Every bucket from *first* to *last* inclusive, oldest first, capped to the newest window.
+
+    The empty buckets are kept on purpose: a week nobody flew is a gap in the chart, and dropping it
+    would draw a steady line across a break in the record.
+    """
+    starts, cursor = [], first
+    while cursor <= last:
+        starts.append(cursor)
+        cursor = _next_bucket(cursor, monthly)
+    return starts[-PROGRESS_BUCKETS:]
+
+
+def _rate(value: Any, total: Any) -> float | None:
+    """*value* per *total* to two decimals; ``None`` when *total* is zero (no rate exists)."""
+    try:
+        whole = float(total or 0)
+    except (TypeError, ValueError):
+        return None
+    if whole <= 0:
+        return None
+    return round(float(value or 0) / whole, 2)
+
+
+async def pilot_progress(site: Any, pool: Any, ucid: Any, period: str = "quarter") -> dict | None:
+    """One pilot's flights over time, reconstructed from the events of the site's servers.
+
+    A sortie is a FLIGHT, so it cannot come from ``statistics``, where one row is a boarding of a
+    slot: that row can hold two takeoff/landing pairs, and a pilot who sits on the ramp and leaves
+    is a row with no flight in it. :func:`plugins.missionstats.aar.reconstruct_sorties` rebuilds
+    them from the event stream — the same function the downloadable AAR PDF is built from — and
+    calls each one ``RTB`` (came back), a loss (``LOSS_OUTCOMES``) or neither (left the slot, never
+    finished). The three groups are disjoint and always add up to the sortie count.
+
+    ``period`` is the bot's own vocabulary, resolved by :func:`_mission_period_clause`; the buckets
+    are ISO weeks for ``month``/``quarter``/``halfyear`` and months for ``year``/``all``, capped to
+    the newest :data:`PROGRESS_BUCKETS`.
+
+    Answers ``None`` when the ``missionstats`` plugin's table is absent — the page then renders no
+    progress panel at all, the way it renders no campaigns panel without the credit system.
+
+    ``kd`` is kills per LOST sortie and is ``None`` when nothing was lost; ``return_rate`` is
+    returned per sortie and ``None`` when no sortie was flown. Both are rates on purpose: a total
+    only ever grows, so it says nothing about progress.
+    """
+    from plugins.missionstats import aar
+
+    wanted = str(ucid or "").strip()
+    if not wanted:
+        return None
+    clause, resolved = _mission_period_clause(period)
+    monthly = resolved in PROGRESS_MONTHLY_PERIODS
+    params = _params(site, ucid=wanted, events=list(aar.SORTIE_EVENTS))
+    async with pool.connection() as conn:
+        if not await _table_exists(conn, "missionstats"):
+            return None
+        events = await _fetch_all(conn, _PROGRESS_SORTIE_SQL.format(period=clause), params)
+        kills = await _fetch_all(conn, _PROGRESS_KILLS_SQL.format(period=clause), params)
+
+    sorties, aborted = aar.reconstruct_sorties(events)
+    returned = [sortie for sortie in sorties if sortie.recovered]
+    lost = [sortie for sortie in sorties if sortie.lost]
+    moments: list[datetime] = []
+    for sortie in sorties:
+        if isinstance(sortie.start, datetime):
+            moments.append(sortie.start)
+    for row in kills:
+        if isinstance(row.get("time"), datetime):
+            moments.append(row["time"])
+    first = _bucket_of(min(moments), monthly) if moments else None
+    last = _bucket_of(max(moments), monthly) if moments else None
+    buckets = _bucket_starts(first, last, monthly) if first and last else []
+    rows = {start: {"start": start.isoformat(), "sorties": 0, "returned": 0, "lost": 0, "kills": 0}
+            for start in buckets}
+    for sortie in sorties:
+        where = _bucket_of(sortie.start, monthly)
+        if where is None:
+            continue
+        bucket = rows.get(where)
+        if bucket is None:
+            continue
+        bucket["sorties"] += 1
+        bucket["returned"] += int(sortie.recovered)
+        bucket["lost"] += int(sortie.lost)
+    for row in kills:
+        where = _bucket_of(row.get("time"), monthly)
+        if where is None:
+            continue
+        bucket = rows.get(where)
+        if bucket is not None:
+            bucket["kills"] += 1
+    return {
+        "period": resolved,
+        "grain": "month" if monthly else "week",
+        "buckets": list(rows.values()),
+        "sorties": len(sorties),
+        "returned": len(returned),
+        "lost": len(lost),
+        "unfinished": len(sorties) - len(returned) - len(lost),
+        "aborted": aborted,
+        "kills": len(kills),
+        "kd": _rate(len(kills), len(lost)),
+        "return_rate": _rate(len(returned), len(sorties)),
     }

@@ -422,7 +422,7 @@ def _aircraft(rows: list[dict]) -> list[dict]:
     return [{
         "slot": row.get("slot") or "",
         "hours": count(hours(row.get("playtime"))),
-        "sorties": count(row.get("sorties")),
+        "sessions": count(row.get("sessions")),
         "share": round(int(row.get("playtime") or 0) * 100.0 / leader, 1) if leader else 0,
     } for row in ranked]
 
@@ -508,7 +508,7 @@ def _readouts(totals: dict) -> list[dict]:
         {"key": "known_pilots", "value": count(known), "unit": None,
          "label": i18n._("Pilots"), "change": None, "share": None, "tone": ""},
         {"key": "avg_session", "value": clock(totals.get("avg_session")) if totals.get("avg_session") else "0:00",
-         "unit": i18n._("h"), "label": i18n._("Average sortie"), "change": None, "share": None, "tone": ""},
+         "unit": i18n._("h"), "label": i18n._("Average session"), "change": None, "share": None, "tone": ""},
         {"key": "sorties", "value": count(totals.get("sorties")), "unit": None,
          "label": i18n._("Sorties flown"), "change": None, "share": None, "tone": ""},
         {"key": "active_this_week", "value": count(active), "unit": None,
@@ -739,15 +739,23 @@ async def read(resolved: Any, pool: Any, sections: Any = None) -> dict:
     TWO READS ALWAYS RUN, whatever the switches say: ``community_totals`` answers the hero's hours,
     the live band and the standings' denominator, and ``server_board`` answers the live band's
     servers-up and pilots-flying figures. Both bands stand above the sections and belong to no
-    switch — a switch hides a band, never the hero figure. Every other read runs ONLY when its
-    section is on, so a switched-off section costs no statement at all and not merely no markup.
+    switch — a switch hides a band, never the hero figure. ``sortie_air_starts`` runs once here
+    whatever the switches say too, and its answer is handed to both reads that add it: the hero's
+    sorties figure and the weekly bars count the same flights, off ONE event-table scan. Every other
+    read runs ONLY when its section is on, so a switched-off section costs no statement at all and
+    not merely no markup.
     """
     enabled = set(SECTION_IDS if sections is None else sections)
-    totals = await site_reads.community_totals(resolved, pool)
-    activity = (await site_reads.activity_over_time(resolved, pool, ACTIVITY_WINDOW)
+    starts = await site_reads.sortie_air_starts(resolved, pool)
+    totals = await site_reads.community_totals(resolved, pool, air_starts=starts)
+    activity = (await site_reads.activity_over_time(resolved, pool, ACTIVITY_WINDOW,
+                                                    air_starts=starts)
                 if "season" in enabled else {})
     board = await site_reads.server_board(resolved, pool)
-    pilots = (await site_reads.leaderboard(resolved, pool, metric="playtime", period="all")
+    # the standings table prints the pilot and its playtime, never the start count: no aggregate
+    # and no existence probe for one.
+    pilots = (await site_reads.leaderboard(resolved, pool, metric="playtime", period="all",
+                                          air_starts=False)
               if "standings" in enabled else {})
     squadrons = await site_reads.squadrons(resolved, pool) if "squadrons" in enabled else []
     aircraft = await site_reads.top_aircraft(resolved, pool) if "aircraft" in enabled else {}

@@ -143,7 +143,7 @@
           {{ bars_svg(model.sorties.chart, 'is-wide', _('Sorties flown per week')) }}
           {{ bars_svg(model.sorties.chart_narrow, 'is-narrow', _('Sorties flown per week')) }}
         </div>
-        <p class="note">{% trans %}One bar per week of the same window, the current week drawn in the brighter fill.{% endtrans %}</p>
+        <p class="note">{% trans %}Every flight counts — a takeoff, or an air start where the event log records it. One bar per week of the same window, the current week drawn in the brighter fill.{% endtrans %}</p>
         {% endif %}
         <div class="pfoot">
           <div class="fig-grid four">
@@ -199,7 +199,7 @@
           <li>
             <div class="row"><span class="nm">{{ aircraft.slot }}</span><span class="vv">{% trans hours=aircraft.hours %}{{ hours }} h{% endtrans %}</span></div>
             <div class="track"><b style="width:{{ aircraft.share }}%"></b></div>
-            <div class="sub">{% trans sorties=aircraft.sorties %}{{ sorties }} sorties{% endtrans %}</div>
+            <div class="sub">{% trans count=aircraft.sessions %}{{ count }} sessions{% endtrans %}</div>
           </li>
           {% endfor %}
         </ul>

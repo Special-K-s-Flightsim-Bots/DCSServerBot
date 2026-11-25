@@ -98,13 +98,17 @@ class StubPool:
     credits-and-badge answer.
     """
 
-    def __init__(self, *, tables=(), rating=None, history=None, campaigns=None):
+    def __init__(self, *, tables=(), rating=None, history=None, campaigns=None, events=None,
+                 kills=None, starts=None):
         self.calls: list[tuple[str, dict]] = []
         self.linked: dict[str, tuple[str, ...]] = dict(LINKED)
         self.tables = set(tables)
         self.rating = rating
         self.history = list(history or [])
         self.campaigns = list(campaigns or [])
+        self.events = list(events or [])
+        self.kills = list(kills or [])
+        self.starts = list(starts or [])
 
     def connection(self):
         return _Connection(self)
@@ -113,6 +117,15 @@ class StubPool:
         params = params or {}
         if "to_regclass" in statement:
             return [{"present": params.get("name") in self.tables}]
+        # the progress read's two statements, both over `missionstats`: the kill one first, since
+        # it shares the table name with the sortie one
+        if "ms.event = 'S_EVENT_KILL'" in statement:
+            return list(self.kills)
+        if "ms.event = ANY" in statement:
+            return list(self.events)
+        # the strip's flight count: every takeoff and every air start, one row per UCID
+        if "air_starts" in statement:
+            return list(self.starts)
         if "FROM campaigns c" in statement:
             return list(self.campaigns)
         if "FROM trueskill_hist" in statement:
@@ -540,6 +553,26 @@ def test_the_discipline_and_the_recent_sorties_reach_the_own_page(config_dir, bu
     assert "Recent sorties" in markup and "Last flights" in markup
 
 
+def test_the_strip_counts_a_flight_that_started_in_the_air(config_dir, bus):
+    """One flight, one sortie — a pilot who spawned airborne never took off, and still flew."""
+    bus.apool = StubPool(tables=("missionstats",),
+                         starts=[{"ucid": "u-me-1", "air_starts": 1121},
+                                 {"ucid": "u-me-2", "air_starts": 0}])
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "1,121" in markup, "the air start did not raise the sortie count above the takeoffs"
+    assert "every flight that got airborne" in markup
+
+
+def test_the_strip_states_a_takeoff_count_without_the_event_stream(config_dir, bus):
+    """No ``missionstats`` table: the cell says which measure it carries instead of implying one."""
+    bus.apool = StubPool()
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "recorded takeoffs" in markup
+    assert "every flight that got airborne" not in markup
+
+
 def test_the_campaigns_panel_carries_credits_and_the_badge_image(config_dir, bus):
     bus.apool = StubPool(tables=("campaigns", "campaigns_servers", "credits", "players_badges"),
                          campaigns=CAMPAIGNS)
@@ -577,3 +610,193 @@ def test_the_rating_chart_speaks_the_pages_language(config_dir, bus):
     assert "Seit 4. Mai 2025 um 3.7 Punkte gestiegen." in markup
     assert "Über diesen Zeitraum um 3.7 Punkte gestiegen." in markup
     assert "Mai 2025" in markup and "November 2026" in markup
+
+
+# ------------------------------------------------------------------------------- the progress panel
+#
+# A sortie is a FLIGHT, so the panel reads `missionstats` and not `statistics`: one slot row can hold
+# two takeoff/landing pairs, and a pilot who sits on the ramp is a row with no flight in it. These
+# pins drive the shipped reconstruction (`plugins.missionstats.aar.reconstruct_sorties`) through the
+# site's own read, so the page and the downloadable AAR report cannot drift apart.
+
+def _event(event, when, *, mission_id=1, place="Batumi"):
+    """One row of the event stream, in the shape the reconstruction reads."""
+    return {"mission_id": mission_id, "event": event, "init_type": "F-16C_50", "init_side": "2",
+            "place": place, "time": when, "mission_name": "Foothold", "mission_theatre": "Caucasus",
+            "server_name": "Group-1"}
+
+
+#: Three flights over two weeks, with one quiet week between them:
+#: Tue 3 Nov — took off and landed (returned); then took off and crashed (lost);
+#: Tue 17 Nov — took off and was killed (lost); then boarded and left without launching (not a sortie).
+EVENTS = [
+    _event("S_EVENT_BIRTH", datetime.datetime(2026, 11, 3, 20, 0)),
+    _event("S_EVENT_TAKEOFF", datetime.datetime(2026, 11, 3, 20, 5)),
+    _event("S_EVENT_LAND", datetime.datetime(2026, 11, 3, 21, 0)),
+    _event("S_EVENT_BIRTH", datetime.datetime(2026, 11, 3, 21, 10)),
+    _event("S_EVENT_TAKEOFF", datetime.datetime(2026, 11, 3, 21, 12)),
+    _event("S_EVENT_CRASH", datetime.datetime(2026, 11, 3, 21, 40)),
+    _event("S_EVENT_BIRTH", datetime.datetime(2026, 11, 17, 19, 0), mission_id=2),
+    _event("S_EVENT_TAKEOFF", datetime.datetime(2026, 11, 17, 19, 5), mission_id=2),
+    _event("S_EVENT_PILOT_DEAD", datetime.datetime(2026, 11, 17, 19, 30), mission_id=2),
+    _event("S_EVENT_BIRTH", datetime.datetime(2026, 11, 17, 19, 40), mission_id=2),
+    _event("S_EVENT_PLAYER_LEAVE_UNIT", datetime.datetime(2026, 11, 17, 19, 45), mission_id=2),
+]
+
+#: Two kills, one in each of the two weeks that held a flight.
+KILLS = [{"time": datetime.datetime(2026, 11, 3, 20, 50)},
+         {"time": datetime.datetime(2026, 11, 17, 19, 20)}]
+
+
+def _progress(config_dir, bus, **kwargs):
+    """The read's own answer for the linked pilot, scoped to the site — no page in the way."""
+    from services.webservice import site_reads
+
+    site = types.SimpleNamespace(servers=["Group-1"], key="group1")
+    settings = {"tables": ("missionstats",), "events": EVENTS, "kills": KILLS}
+    settings.update(kwargs)
+    bus.apool = StubPool(**settings)
+    return asyncio.run(site_reads.pilot_progress(site, bus.apool, "u-me-1", "quarter"))
+
+
+def test_a_flight_is_a_sortie_and_a_ramp_session_is_not(config_dir, bus):
+    """`aborted` counts the boarding that never took off, and it is not among the sorties."""
+    progress = _progress(config_dir, bus)
+    assert progress["sorties"] == 3, "a session on the ramp was counted as a sortie"
+    assert progress["aborted"] == 1
+
+
+def test_a_landing_is_returned_and_everything_else_is_a_loss(config_dir, bus):
+    """The owner's definition: came back and did not die. Crash and pilot death are losses."""
+    progress = _progress(config_dir, bus)
+    assert progress["returned"] == 1
+    assert progress["lost"] == 2
+    assert progress["returned"] + progress["lost"] + progress["unfinished"] == progress["sorties"]
+    assert progress["return_rate"] == 0.33
+    assert progress["kd"] == 1.0, "kd is kills per LOST sortie"
+
+
+def test_the_progress_read_answers_nothing_without_the_events_table(config_dir, bus):
+    """No `missionstats` plugin, no panel — never a 500 and never an empty frame."""
+    assert _progress(config_dir, bus, tables=()) is None
+
+
+def test_a_quiet_week_is_a_gap_in_the_record_not_a_missing_row(config_dir, bus):
+    """The weeks between the first and the last flight are all present, the empty one at zero."""
+    progress = _progress(config_dir, bus)
+    starts = [bucket["start"] for bucket in progress["buckets"]]
+    assert starts == ["2026-11-02", "2026-11-09", "2026-11-16"], starts
+    assert [bucket["sorties"] for bucket in progress["buckets"]] == [2, 0, 1]
+    assert [bucket["returned"] for bucket in progress["buckets"]] == [1, 0, 0]
+
+
+def test_the_longest_periods_bucket_by_month(config_dir, bus):
+    """A year of weekly bars is unreadable on a phone, so `year` and `all` switch grain."""
+    progress = _progress(config_dir, bus, )
+    assert progress["grain"] == "week"
+    from services.webservice import site_reads
+
+    site = types.SimpleNamespace(servers=["Group-1"], key="group1")
+    yearly = asyncio.run(site_reads.pilot_progress(site, bus.apool, "u-me-1", "year"))
+    assert yearly["grain"] == "month"
+    assert [bucket["start"] for bucket in yearly["buckets"]] == ["2026-11-01"]
+
+
+def test_the_progress_model_names_its_figures_and_its_periods(config_dir, pool):
+    """The section's model is pure: five period chips, four readouts, one ratio geometry."""
+    from services.webservice.pages import site_me
+
+    model = site_me.progress_view(_progress(config_dir, types.SimpleNamespace(apool=pool)))
+    assert [readout["value"] for readout in model["readouts"]] == ["3", "33%", "2", "1.00"]
+    assert model["empty"] is False
+    assert len(model["chart"]["bars"]) == 3
+    periods = site_me.period_switch("/group1/me", "quarter")
+    assert [period["key"] for period in periods] == ["month", "quarter", "halfyear", "year", "all"]
+    assert [period["href"] for period in periods][1] == "/group1/me?period=quarter"
+    assert [period["active"] for period in periods] == [False, True, False, False, False]
+
+
+def test_the_ratio_line_breaks_where_no_sortie_was_lost(config_dir, pool):
+    """A week with nothing lost has no ratio; the line stops instead of drawing through it."""
+    from services.webservice.pages import site_me
+
+    model = site_me.progress_view(_progress(config_dir, types.SimpleNamespace(apool=pool)))
+    assert len(model["kd"]["segments"]) == 2, "the line drew across a week with no rate"
+    assert model["kd"]["empty"] is False
+    assert site_me.progress_view(None) is None
+
+
+def test_the_own_page_renders_the_progress_section(config_dir, bus):
+    bus.apool = StubPool(tables=("missionstats",), events=EVENTS, kills=KILLS)
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "Your progress" in markup
+    assert "Returned" in markup and "Lost" in markup
+    assert "1.00" in markup, "the K/D readout is missing"
+    assert "/group1/me?period=year" in markup, "the period chips do not carry their links"
+    assert 'class="strip four"' in markup
+    assert "A sortie is one flight: it counts from the moment the aircraft is airborne" in markup
+
+
+def test_the_own_page_draws_no_progress_section_without_the_plugin(config_dir, bus):
+    bus.apool = StubPool()
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "Your progress" not in markup
+    assert 'class="strip four"' not in markup
+
+
+def test_the_period_parameter_reaches_the_statement_and_an_unknown_one_does_not(config_dir, bus):
+    """`?period=` is validated against the panel's own vocabulary before it becomes SQL."""
+    bus.apool = StubPool(tables=("missionstats",), events=EVENTS, kills=KILLS)
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    fetch(app, "/group1/me?period=year")
+    assert any("interval '1 year'" in statement for statement, _ in bus.apool.calls), \
+        "the period never reached the read"
+    bus.apool.calls.clear()
+    fetch(app, "/group1/me?period=nonsense")
+    assert any("interval '3 months'" in statement for statement, _ in bus.apool.calls), \
+        "an unknown period escaped the vocabulary"
+    assert not any("nonsense" in statement for statement, _ in bus.apool.calls)
+
+
+def test_the_progress_section_speaks_the_pages_language(config_dir, bus):
+    from services.webservice import i18n
+
+    bus.apool = StubPool(tables=("missionstats",), events=EVENTS, kills=KILLS)
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+
+    async def run():
+        async with asgi_client(app) as client:
+            client.cookies.set(i18n.COOKIE_NAME, "de")
+            return await client.get("/group1/me")
+
+    markup = asyncio.run(run()).text
+    assert "Dein Fortschritt" in markup
+    assert "Zurückgekehrt" in markup and "Verloren" in markup
+
+
+def test_a_flat_ratio_is_drawn_across_the_middle_not_on_the_floor():
+    """Every bucket at the same ratio must still be visible: on the floor it reads as no data."""
+    from services.webservice.pages import site_me
+
+    flat = {"period": "quarter", "grain": "week", "sorties": 4, "returned": 2, "lost": 2, "kills": 2,
+            "kd": 1.0, "return_rate": 0.5,
+            "buckets": [{"start": "2026-11-02", "sorties": 2, "returned": 1, "lost": 1, "kills": 1},
+                        {"start": "2026-11-09", "sorties": 2, "returned": 1, "lost": 1, "kills": 1}]}
+    line = site_me.progress_view(flat)["kd"]
+    assert [segment["points"] for segment in line["segments"]] == \
+        ["0.0,50.0 100.0,50.0"], "a flat line was drawn on the floor"
+    assert line["ticks"] == [{"top": 50.0, "text": "1.00"}], "a flat series names its value twice"
+
+
+def test_a_rising_ratio_spans_the_plot_from_floor_to_ceiling():
+    from services.webservice.pages import site_me
+
+    rising = {"period": "quarter", "grain": "week", "sorties": 4, "returned": 2, "lost": 2,
+              "kills": 4, "kd": 2.0, "return_rate": 0.5,
+              "buckets": [{"start": "2026-11-02", "sorties": 2, "returned": 1, "lost": 1, "kills": 1},
+                          {"start": "2026-11-09", "sorties": 2, "returned": 1, "lost": 1, "kills": 3}]}
+    line = site_me.progress_view(rising)["kd"]
+    assert [segment["points"] for segment in line["segments"]] == ["0.0,100.0 100.0,0.0"]
+    assert line["ticks"] == [{"top": 0.0, "text": "3.00"}, {"top": 100.0, "text": "1.00"}]

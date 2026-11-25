@@ -12016,19 +12016,14 @@ msgstr "%(count)s pilot"
 msgid "%(hours)s h"
 msgstr "%(hours)s sa"
 
-#: services/webservice/templates/site_overview.html:194
-#, python-format
-msgid "%(sorties)s sorties"
-msgstr "%(sorties)s sorti"
-
 #: services/webservice/templates/site_overview.html:111
 #, python-format
 msgid "%(weeks)s weeks"
 msgstr "%(weeks)s hafta"
 
-#: services/webservice/pages/site_overview.py:501
-msgid "Average sortie"
-msgstr "Ortalama sorti"
+#: services/webservice/pages/site_overview.py:511
+msgid "Average session"
+msgstr "Ortalama oturum"
 
 #: services/webservice/templates/site_overview.html:215
 msgid "Busiest day"
@@ -12062,9 +12057,10 @@ msgstr "Bu sunucularda henüz hiçbir uçakla uçulmadı."
 msgid "No sortie has been recorded on these servers yet."
 msgstr "Bu sunucularda henüz hiçbir sorti kaydedilmedi."
 
-#: services/webservice/templates/site_overview.html:143
-msgid "One bar per week of the same window, the current week drawn in the brighter fill."
-msgstr "Aynı dönemin her haftası için bir çubuk, içinde bulunulan hafta daha açık dolguyla."
+#: services/webservice/templates/site_overview.html:146
+msgid "Every flight counts — a takeoff, or an air start where the event log records it. One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "Her uçuş sayılır — kalkış ya da olay günlüğünün kaydettiği havada başlangıç. Aynı pencerenin her haftası için bir çubuk, geçerli hafta daha parlak dolguda."
+
 
 #: services/webservice/templates/site_overview.html:76
 msgid "Our pilots' time in the air on these servers, from the first mission to today."
@@ -12204,6 +12200,10 @@ msgstr "Uçulan sortiler"
 
 msgid "recorded takeoffs"
 msgstr "kaydedilen kalkışlar"
+
+#: services/webservice/pages/site_player.py:257
+msgid "every flight that got airborne"
+msgstr "havalanan her uçuş"
 
 msgid "Sessions recorded"
 msgstr "Kaydedilen oturumlar"
@@ -14153,3 +14153,44 @@ msgstr "Nasıl uçuyorsunuz"
 
 msgid "Every pilot has one rating, and it is the same on every site of this community."
 msgstr "Her pilotun tek bir derecelendirmesi vardır ve bu topluluğun her sitesinde aynıdır."
+
+msgid "Your progress"
+msgstr "İlerlemeniz"
+
+msgid "Returned"
+msgstr "Dönen"
+
+msgid "Lost"
+msgstr "Kayıp"
+
+msgid "flown in this period"
+msgstr "bu dönemde uçuldu"
+
+msgid "ended otherwise"
+msgstr "başka şekilde bitti"
+
+
+msgid "{count} kills"
+msgstr "{count} düşürme"
+
+#: services/webservice/templates/site_me.html:147
+msgid "A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero."
+msgstr "Bir sorti bir uçuştur: uçak havadayken — ister kalkmış ister havada başlamış olsun — sayılır ve nasıl biterse bitsin sona erer: döndü, kaybedildi veya yarıda bırakıldı. Uçuş olmayan hafta sıfır olarak çizilir."
+
+msgid "No flight is recorded in this period."
+msgstr "Bu dönemde kayıtlı uçuş yok."
+
+msgid "No sortie was lost in this period, so there is no ratio to draw."
+msgstr "Bu dönemde kaybedilen sortie olmadığı için oran çizilemez."
+
+msgid "kills per lost sortie"
+msgstr "kaybedilen sortie başına düşürme"
+
+msgid "per month"
+msgstr "aylık"
+
+msgid "per week"
+msgstr "haftalık"
+
+msgid "{count} returned"
+msgstr "{count} döndü"

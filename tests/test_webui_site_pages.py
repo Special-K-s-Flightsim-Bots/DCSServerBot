@@ -148,14 +148,14 @@ class StubPool:
 
         if "WITH page AS MATERIALIZED" in statement:
             rows = [{"ucid": ucid, "name": pilot["name"], "value": pilot["playtime"],
-                     "playtime": pilot["playtime"], "sorties": pilot.get("sessions", 0),
+                     "playtime": pilot["playtime"], "sorties": pilot.get("takeoffs", 0),
                      "takeoffs": pilot.get("takeoffs", 0), "landings": pilot.get("landings", 0),
                      "kills": pilot.get("kills", 0), "pvp": pilot.get("pvp", 0),
                      "crashes": pilot.get("crashes", 0), "ejections": pilot.get("ejections", 0),
                      "aircraft": (pilot.get("aircraft") or [{}])[0].get("aircraft", "")}
                     for ucid, pilot in PILOTS.items() if on_site(pilot)]
             rows += [{"ucid": f"u-many-{index}", "name": name, "value": 60, "playtime": 60,
-                      "sorties": 1, "takeoffs": 1, "landings": 1, "kills": 1, "pvp": 0,
+                      "sorties": 1, "landings": 1, "kills": 1, "pvp": 0,
                       "crashes": 0, "ejections": 0, "aircraft": ""}
                      for index, name in enumerate(MANY, start=1)]
             return _window(rows, params)
@@ -428,7 +428,7 @@ def test_the_table_prints_every_column_in_the_mockups_order(config_dir, bus):
     app, _ = build(config_dir)
     markup = get(app, "/rankings").text
     head = _head(markup)
-    labels = ["Pilot", "Playtime", "Sorties", "Takeoffs", "Landings", "Kills", "PvP", "Crashes",
+    labels = ["Pilot", "Playtime", "Sorties", "Landings", "Kills", "PvP", "Crashes",
               "Ejections", "Most flown"]
     positions = [head.index(label) for label in labels]
     assert positions == sorted(positions), "the columns are not in the mockup's order"
@@ -438,7 +438,7 @@ def test_the_table_prints_every_column_in_the_mockups_order(config_dir, bus):
 def test_every_figure_column_is_a_sort_link_and_the_rank_and_airframe_are_not(config_dir, bus):
     app, _ = build(config_dir)
     head = _head(get(app, "/rankings").text)
-    for key in ("name", "playtime", "sorties", "takeoffs", "landings", "kills", "pvp", "crashes",
+    for key in ("name", "playtime", "sorties", "landings", "kills", "pvp", "crashes",
                 "ejections"):
         assert f"sort={key}" in head, f"the {key} column is not a sort link"
     assert "sort=aircraft" not in head and "sort=rank" not in head
@@ -490,7 +490,7 @@ def test_the_pager_keeps_the_sort_so_page_two_is_the_same_order(config_dir, bus)
 def test_the_wide_row_renders_every_figure_and_the_airframe(config_dir, bus):
     app, _ = build(config_dir)
     markup = get(app, "/rankings").text
-    for figure in ("111", "1,111", "1,119", "1,121", "1,113", "1,115", "1,123", "1,125"):
+    for figure in ("111", "1,119", "1,121", "1,113", "1,115", "1,123", "1,125"):
         assert figure in markup, f"the figure {figure} did not reach the wide row"
     assert "F-16C_50" in markup, "the favourite airframe did not reach the row"
 

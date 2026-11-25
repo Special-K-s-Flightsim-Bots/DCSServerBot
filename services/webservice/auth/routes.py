@@ -353,14 +353,17 @@ def add_routes(router: APIRouter) -> APIRouter:
         clear_session_identity(request)
         request.session.clear()
 
-        # WHERE SIGNING OUT LANDS. The site root, as on any other install — the login page is a
-        # public page a visitor arrives at AFTER being refused, not one they are parked on. The ONE
-        # exception is ``auth.discord.auto_start``: there the root bounces an anonymous visitor
-        # straight back into the OAuth flow (see login_redirect), so signing out at the root would
-        # sign the person in again before the page finished. That configuration lands on the login
-        # page instead: it is PUBLIC, it never bounces, and it offers the door again.
-        destination = (LOGIN_PATH if discord_auto_start(_manager(request))
-                       else mount.url(SITE_ROOT, app=request.app))
+        # WHERE SIGNING OUT LANDS. THE WAY OUT IS THE SITE ROOT, NEVER THE CONSOLE'S OWN MOUNT.
+        # ``"/"`` is the installation's site root in BOTH mount modes: with no site served, ``/`` IS
+        # the console's start page. ``mount.url(SITE_ROOT)`` is the CONSOLE's own root instead (it
+        # answers ``/console/`` while a site owns ``/``), and that root refuses an anonymous visitor
+        # and redirects it to the login page — which is what would park the visitor on the door. The
+        # login page is a page a visitor arrives at AFTER being refused, not one they are parked on.
+        # The ONE exception is ``auth.discord.auto_start``: there the root bounces an anonymous
+        # visitor straight back into the OAuth flow (see login_redirect), so signing out at the root
+        # would sign the person in again before the page finished. That configuration lands on the
+        # login page instead: it is PUBLIC, it never bounces, and it offers the door again.
+        destination = (LOGIN_PATH if discord_auto_start(_manager(request)) else SITE_ROOT)
         response = RedirectResponse(destination, status_code=303)
         # delete the cookie the LOGIN actually set: the effective name comes from the installed
         # middleware's settings, never from a name of our own (session.SESSION_COOKIE is only the

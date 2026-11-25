@@ -3150,19 +3150,14 @@ msgstr "%(count)s pilotos"
 msgid "%(hours)s h"
 msgstr "%(hours)s h"
 
-#: services/webservice/templates/site_overview.html:194
-#, python-format
-msgid "%(sorties)s sorties"
-msgstr "%(sorties)s salidas"
-
 #: services/webservice/templates/site_overview.html:111
 #, python-format
 msgid "%(weeks)s weeks"
 msgstr "%(weeks)s semanas"
 
-#: services/webservice/pages/site_overview.py:501
-msgid "Average sortie"
-msgstr "Salida media"
+#: services/webservice/pages/site_overview.py:511
+msgid "Average session"
+msgstr "Sesión media"
 
 #: services/webservice/templates/site_overview.html:215
 msgid "Busiest day"
@@ -3200,9 +3195,10 @@ msgstr "Todavía no se ha volado ningún avión en estos servidores."
 msgid "No sortie has been recorded on these servers yet."
 msgstr "Todavía no se ha registrado ninguna salida en estos servidores."
 
-#: services/webservice/templates/site_overview.html:143
-msgid "One bar per week of the same window, the current week drawn in the brighter fill."
-msgstr "Una barra por semana del mismo periodo, con la semana actual en el relleno más claro."
+#: services/webservice/templates/site_overview.html:146
+msgid "Every flight counts — a takeoff, or an air start where the event log records it. One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "Cuenta cada vuelo: un despegue, o un inicio en el aire cuando el registro de eventos lo recoge. Una barra por semana de la misma ventana, la semana actual con el relleno más claro."
+
 
 #: services/webservice/templates/site_overview.html:76
 msgid "Our pilots' time in the air on these servers, from the first mission to today."
@@ -11700,6 +11696,10 @@ msgstr "Salidas voladas"
 msgid "recorded takeoffs"
 msgstr "despegues registrados"
 
+#: services/webservice/pages/site_player.py:257
+msgid "every flight that got airborne"
+msgstr "cada vuelo que llegó a volar"
+
 msgid "Sessions recorded"
 msgstr "Sesiones registradas"
 
@@ -13668,3 +13668,44 @@ msgstr "Ninguna misión coincide con el filtro."
 #: services/webservice/pages/server_detail.py
 msgid "Reordering is only offered on the full list — clear the filter to drag rows."
 msgstr "Reordenar solo se ofrece en la lista completa — quita el filtro para arrastrar filas."
+
+msgid "Your progress"
+msgstr "Tu progreso"
+
+msgid "Returned"
+msgstr "Regresados"
+
+msgid "Lost"
+msgstr "Perdidos"
+
+msgid "flown in this period"
+msgstr "volados en este periodo"
+
+msgid "ended otherwise"
+msgstr "terminados de otra forma"
+
+
+msgid "{count} kills"
+msgstr "{count} derribos"
+
+#: services/webservice/templates/site_me.html:147
+msgid "A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero."
+msgstr "Una salida es un vuelo: cuenta desde el momento en que la aeronave está en el aire, tanto si despegó como si empezó en el aire, y termina como termine: regresó, se perdió o se abandonó. Una semana sin vuelo se dibuja a cero."
+
+msgid "No flight is recorded in this period."
+msgstr "No hay ningún vuelo registrado en este periodo."
+
+msgid "No sortie was lost in this period, so there is no ratio to draw."
+msgstr "En este periodo no se perdió ninguna salida, así que no hay ratio que dibujar."
+
+msgid "kills per lost sortie"
+msgstr "derribos por salida perdida"
+
+msgid "per month"
+msgstr "por mes"
+
+msgid "per week"
+msgstr "por semana"
+
+msgid "{count} returned"
+msgstr "{count} regresaron"

@@ -6451,6 +6451,10 @@ msgstr "Sorties effectuées"
 msgid "recorded takeoffs"
 msgstr "décollages enregistrés"
 
+#: services/webservice/pages/site_player.py:257
+msgid "every flight that got airborne"
+msgstr "chaque vol qui a décollé"
+
 msgid "Sessions recorded"
 msgstr "Sessions enregistrées"
 
@@ -6747,19 +6751,14 @@ msgstr "%(count)s pilotes"
 msgid "%(hours)s h"
 msgstr "%(hours)s h"
 
-#: services/webservice/templates/site_overview.html:194
-#, python-format
-msgid "%(sorties)s sorties"
-msgstr "%(sorties)s sorties"
-
 #: services/webservice/templates/site_overview.html:111
 #, python-format
 msgid "%(weeks)s weeks"
 msgstr "%(weeks)s semaines"
 
-#: services/webservice/pages/site_overview.py:501
-msgid "Average sortie"
-msgstr "Sortie moyenne"
+#: services/webservice/pages/site_overview.py:511
+msgid "Average session"
+msgstr "Session moyenne"
 
 #: services/webservice/templates/site_overview.html:215
 msgid "Busiest day"
@@ -6793,9 +6792,10 @@ msgstr "Aucun appareil n'a encore été piloté sur ces serveurs."
 msgid "No sortie has been recorded on these servers yet."
 msgstr "Aucune sortie n'a encore été enregistrée sur ces serveurs."
 
-#: services/webservice/templates/site_overview.html:143
-msgid "One bar per week of the same window, the current week drawn in the brighter fill."
-msgstr "Une barre par semaine de la même période, la semaine en cours dans le remplissage plus clair."
+#: services/webservice/templates/site_overview.html:146
+msgid "Every flight counts — a takeoff, or an air start where the event log records it. One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "Chaque vol compte : un décollage, ou un départ en vol lorsque le journal d'événements l'enregistre. Une barre par semaine de la même fenêtre, la semaine en cours dans le remplissage le plus clair."
+
 
 #: services/webservice/templates/site_overview.html:76
 msgid "Our pilots' time in the air on these servers, from the first mission to today."
@@ -8556,3 +8556,44 @@ msgstr "Comment vous volez"
 
 msgid "Every pilot has one rating, and it is the same on every site of this community."
 msgstr "Chaque pilote a une seule évaluation, identique sur tous les sites de cette communauté."
+
+msgid "Your progress"
+msgstr "Votre progression"
+
+msgid "Returned"
+msgstr "Retournés"
+
+msgid "Lost"
+msgstr "Perdus"
+
+msgid "flown in this period"
+msgstr "volés sur cette période"
+
+msgid "ended otherwise"
+msgstr "terminés autrement"
+
+
+msgid "{count} kills"
+msgstr "{count} victoires"
+
+#: services/webservice/templates/site_me.html:147
+msgid "A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero."
+msgstr "Une sortie est un vol : elle compte dès que l'appareil est en l'air, qu'il ait décollé ou commencé en vol, et elle se termine comme elle se termine — retour, perte ou abandon. Une semaine sans vol est tracée à zéro."
+
+msgid "No flight is recorded in this period."
+msgstr "Aucun vol n'est enregistré sur cette période."
+
+msgid "No sortie was lost in this period, so there is no ratio to draw."
+msgstr "Aucune sortie n'a été perdue sur cette période, il n'y a donc pas de ratio à tracer."
+
+msgid "kills per lost sortie"
+msgstr "victoires par sortie perdue"
+
+msgid "per month"
+msgstr "par mois"
+
+msgid "per week"
+msgstr "par semaine"
+
+msgid "{count} returned"
+msgstr "{count} retournés"

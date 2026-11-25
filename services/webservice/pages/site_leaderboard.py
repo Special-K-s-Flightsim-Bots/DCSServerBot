@@ -137,7 +137,6 @@ COLUMNS: tuple[tuple[str, str | None, bool, bool], ...] = (
     (i18n._("Pilot"), "name", False, False),
     (i18n._("Playtime"), "playtime", True, False),
     (i18n._("Sorties"), "sorties", True, True),
-    (i18n._("Takeoffs"), "takeoffs", True, True),
     (i18n._("Landings"), "landings", True, True),
     (i18n._("Kills"), "kills", True, False),
     (i18n._("PvP"), "pvp", True, True),

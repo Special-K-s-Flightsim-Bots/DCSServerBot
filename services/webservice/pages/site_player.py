@@ -54,6 +54,8 @@ __all__ = [
     "ratio",
     "per_sortie",
     "sentence",
+    "sortie_count",
+    "sortie_note",
     "airframes",
     "servers",
     "last_flown",
@@ -241,6 +243,27 @@ def _character(resolved: Any) -> str:
     return declared if declared in COMBAT_LAYOUT else sites.DEFAULT_CHARACTER
 
 
+def sortie_count(totals: dict) -> Any:
+    """The pilot's sortie count: flights, from ``sorties`` when the read answered it.
+
+    ``sorties`` is the takeoff sum raised to the event stream's start count, so it counts a flight
+    that began in the air (``site_reads._pilot_detail``); a caller that only carries ``takeoffs``
+    still gets that sum rather than a missing figure.
+    """
+    value = totals.get("sorties")
+    return totals.get("takeoffs") if value is None else value
+
+
+def sortie_note(totals: dict) -> str:
+    """How the sortie figure is counted: every airborne flight, or takeoffs alone.
+
+    ``air_starts`` is ``None`` on an install with no ``missionstats`` table, where no event stream
+    exists to see an air start — the cell then says so instead of claiming a count it cannot make.
+    """
+    return (i18n._("every flight that got airborne") if totals.get("air_starts") is not None
+            else i18n._("recorded takeoffs"))
+
+
 def _headlines(totals: dict, character: str = sites.DEFAULT_CHARACTER) -> dict[str, dict]:
     """The strip's five figures by key — one definition, whatever order they are shown in.
 
@@ -255,14 +278,14 @@ def _headlines(totals: dict, character: str = sites.DEFAULT_CHARACTER) -> dict[s
         "playtime": {"key": "playtime", "value": count(hours(totals.get("playtime"))),
                      "unit": i18n._("h"), "label": i18n._("Playtime"),
                      "note": i18n._("on this site's servers")},
-        "sorties": {"key": "sorties", "value": count(totals.get("takeoffs")), "unit": None,
-                    "label": i18n._("Sorties"), "note": i18n._("recorded takeoffs")},
+        "sorties": {"key": "sorties", "value": count(sortie_count(totals)), "unit": None,
+                    "label": i18n._("Sorties"), "note": sortie_note(totals)},
         "air_kills": {"key": "air_kills", "value": count(air), "unit": None,
                       "label": i18n._("Air kills"), "note": pvp_note},
         "pvp": {"key": "pvp", "value": count(totals.get("pvp")), "unit": None,
                 "label": i18n._("PvP kills"),
                 "note": sentence(i18n._("{count} per sortie"),
-                                 per_sortie(totals.get("pvp"), totals.get("takeoffs")))},
+                                 per_sortie(totals.get("pvp"), sortie_count(totals)))},
         "kd": {"key": "kd", "value": ratio(totals.get("kills"), totals.get("deaths")),
                "unit": None, "label": i18n._("K/D"),
                "note": sentence(i18n._("{count} deaths"), count(totals.get("deaths")))},
@@ -285,11 +308,11 @@ def readouts(totals: dict, character: str = sites.DEFAULT_CHARACTER) -> list[dic
 def discipline(totals: dict) -> dict:
     """The flight-discipline rows, each as a rate of the pilot's own sorties, and the balance.
 
-    ``sorties`` is the recorded takeoff count — the same denominator the community page calls a
-    sortie — so a rate answers "how often does one of their sorties end this way". The balance pair
-    is the takeoff and landing count, which is what makes a mismatch readable at a glance.
+    ``sorties`` is the flight count (:func:`_sorties`) — the same number the strip calls a sortie,
+    so a rate answers "how often does one of their flights end this way". The balance pair is the
+    takeoff and landing count, which is what makes a mismatch readable at a glance.
     """
-    sorties = totals.get("takeoffs")
+    sorties = sortie_count(totals)
     rows = [{"key": key, "label": label, "value": count(totals.get(key)),
              "rate": _share(totals.get(key), sorties)}
             for key, label in (("takeoffs", i18n._("Takeoffs")),

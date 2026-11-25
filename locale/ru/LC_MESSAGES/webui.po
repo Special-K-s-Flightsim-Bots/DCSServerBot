@@ -3091,19 +3091,14 @@ msgstr "%(count)s пилотов"
 msgid "%(hours)s h"
 msgstr "%(hours)s ч"
 
-#: services/webservice/templates/site_overview.html:194
-#, python-format
-msgid "%(sorties)s sorties"
-msgstr "%(sorties)s вылетов"
-
 #: services/webservice/templates/site_overview.html:111
 #, python-format
 msgid "%(weeks)s weeks"
 msgstr "%(weeks)s недель"
 
-#: services/webservice/pages/site_overview.py:501
-msgid "Average sortie"
-msgstr "Средний вылет"
+#: services/webservice/pages/site_overview.py:511
+msgid "Average session"
+msgstr "Средняя сессия"
 
 #: services/webservice/templates/site_overview.html:215
 msgid "Busiest day"
@@ -3137,9 +3132,10 @@ msgstr "На этих серверах ещё не летали ни на одн
 msgid "No sortie has been recorded on these servers yet."
 msgstr "На этих серверах ещё не записано ни одного вылета."
 
-#: services/webservice/templates/site_overview.html:143
-msgid "One bar per week of the same window, the current week drawn in the brighter fill."
-msgstr "Одна полоса на неделю того же периода, текущая неделя — более светлой заливкой."
+#: services/webservice/templates/site_overview.html:146
+msgid "Every flight counts — a takeoff, or an air start where the event log records it. One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "Считается каждый полёт — взлёт или начало в воздухе, если журнал событий его записал. Одна полоса на неделю того же окна, текущая неделя — более светлой заливкой."
+
 
 #: services/webservice/templates/site_overview.html:76
 msgid "Our pilots' time in the air on these servers, from the first mission to today."
@@ -11575,6 +11571,10 @@ msgstr "Совершённые вылеты"
 msgid "recorded takeoffs"
 msgstr "учтённые взлёты"
 
+#: services/webservice/pages/site_player.py:257
+msgid "every flight that got airborne"
+msgstr "каждый полёт, поднявшийся в воздух"
+
 msgid "Sessions recorded"
 msgstr "Записанные сессии"
 
@@ -13523,3 +13523,44 @@ msgstr "Как вы летаете"
 
 msgid "Every pilot has one rating, and it is the same on every site of this community."
 msgstr "У каждого пилота один рейтинг, и он одинаков на всех сайтах сообщества."
+
+msgid "Your progress"
+msgstr "Ваш прогресс"
+
+msgid "Returned"
+msgstr "Вернулись"
+
+msgid "Lost"
+msgstr "Потеряны"
+
+msgid "flown in this period"
+msgstr "выполнено за этот период"
+
+msgid "ended otherwise"
+msgstr "завершились иначе"
+
+
+msgid "{count} kills"
+msgstr "{count} сбитых"
+
+#: services/webservice/templates/site_me.html:147
+msgid "A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero."
+msgstr "Вылет — это один полёт: он считается с момента, когда самолёт в воздухе, — взлетел он или начал в воздухе, — и заканчивается так, как заканчивается: возврат, потеря или прерывание. Неделя без полётов рисуется нулём."
+
+msgid "No flight is recorded in this period."
+msgstr "За этот период полётов не записано."
+
+msgid "No sortie was lost in this period, so there is no ratio to draw."
+msgstr "За этот период ни один вылет не потерян, поэтому соотношение не строится."
+
+msgid "kills per lost sortie"
+msgstr "сбитых на потерянный вылет"
+
+msgid "per month"
+msgstr "по месяцам"
+
+msgid "per week"
+msgstr "по неделям"
+
+msgid "{count} returned"
+msgstr "{count} вернулись"
