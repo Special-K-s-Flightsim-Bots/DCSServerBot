@@ -550,7 +550,7 @@ def test_the_discipline_and_the_recent_sorties_reach_the_own_page(config_dir, bu
     app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
     markup = fetch(app, "/group1/me")[0].text
     assert "Flight discipline" in markup and "Takeoffs" in markup
-    assert "Recent sorties" in markup and "Last flights" in markup
+    assert "Recent sessions" in markup and "Last sessions" in markup
 
 
 def test_the_strip_counts_a_flight_that_started_in_the_air(config_dir, bus):
@@ -738,12 +738,130 @@ def test_the_own_page_renders_the_progress_section(config_dir, bus):
     assert "A sortie is one flight: it counts from the moment the aircraft is airborne" in markup
 
 
-def test_the_own_page_draws_no_progress_section_without_the_plugin(config_dir, bus):
+# ------------------------------------------------------------------ the standing card
+
+def test_the_standing_card_names_the_nearest_band_the_pilot_has_not_reached():
+    """Place 12 of 412: the top 10 is two places away, so THAT is the target — not a top 3."""
+    from services.webservice.pages import site_me
+
+    card = site_me.standing_view({"size": 412, "place": 12, "value": 1.24, "sorties": 40,
+                                  "floor": 10, "cuts": {}})
+    assert card["place"] == "#12" and card["size"] == "412"
+    assert card["band"] == "You are in the best quartile."
+    assert card["goal"] == {"msgid": "Next step: place {target}.", "params": {"target": "#10"}}
+
+
+def test_the_standing_card_never_names_a_band_the_cohort_cannot_have():
+    """Twenty pilots have no top 10 to reach, so the card points at the quartile edge instead."""
+    from services.webservice.pages import site_me
+
+    card = site_me.standing_view({"size": 20, "place": 6, "value": 0.8, "sorties": 22,
+                                  "floor": 10, "cuts": {}})
+    assert card["band"] == "You are in the better half."
+    assert card["goal"]["params"]["target"] == "#5", "ceil(20 * 0.25) is place 5"
+
+
+def test_a_pilot_in_the_lower_half_is_pointed_at_the_better_half():
+    from services.webservice.pages import site_me
+
+    card = site_me.standing_view({"size": 400, "place": 300, "value": 0.2, "sorties": 30,
+                                  "floor": 10, "cuts": {}})
+    assert card["band"] is None, "place 300 of 400 holds no band"
+    assert card["goal"]["params"]["target"] == "#200"
+
+
+def test_an_unranked_pilot_is_told_how_many_flights_are_missing():
+    from services.webservice.pages import site_me
+
+    card = site_me.standing_view({"size": 400, "place": None, "value": None, "sorties": 4,
+                                  "floor": 10, "cuts": {}})
+    assert card["place"] is None and card["goal"] is None
+    assert card["unranked"]["params"] == {"count": "6", "floor": "10"}
+
+
+# ------------------------------------------------------------------ the AAR download
+
+def test_the_aar_download_answers_the_bots_own_report_as_a_pdf(config_dir, bus, monkeypatch):
+    """The route hands back the bytes the report built, with the filename the report chose.
+
+    The builder is stubbed — the real one needs a live database and a bot — but the ROUTE is the
+    real one: identity, UCID lookup, period mapping and the response are all exercised here.
+    """
+    import io
+
+    from plugins.missionstats import reports as reports_module
+    from services.webservice import site_reads
+    from services.webservice.pages import site_me
+
+    seen: dict = {}
+
+    class FakeReport:
+        def __init__(self, bot, ucid, name, flt):
+            seen["ucid"], seen["name"], seen["period"] = ucid, name, flt.period
+
+        async def render(self):
+            class File:
+                fp = io.BytesIO(b"%PDF-1.4 stubbed")
+                filename = "AAR_U1.pdf"
+            return File()
+
+    monkeypatch.setattr(reports_module, "AAR", FakeReport)
+    monkeypatch.setattr(site_me, "_bot", lambda: object())
+
+    async def ucids(site, db, discord_id):
+        return ["U1"]
+
+    monkeypatch.setattr(site_reads, "my_ucids", ucids)
+    bus.apool = StubPool()
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    response, _ = fetch(app, "/group1/me/aar?period=quarter")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"] == 'attachment; filename="AAR_U1.pdf"'
+    assert response.content == b"%PDF-1.4 stubbed"
+    assert seen == {"ucid": "U1", "name": "Viper One", "period": "quarter"}
+
+
+def test_the_aar_download_refuses_a_period_the_page_does_not_offer(config_dir, bus, monkeypatch):
+    """An unknown ?period= never reaches a query: it falls back to the page's own default."""
+    from plugins.missionstats import reports as reports_module
+    from services.webservice import site_reads
+    from services.webservice.pages import site_me
+
+    seen: dict = {}
+
+    class FakeReport:
+        def __init__(self, bot, ucid, name, flt):
+            seen["period"] = flt.period
+
+        async def render(self):
+            return None
+
+    monkeypatch.setattr(reports_module, "AAR", FakeReport)
+    monkeypatch.setattr(site_me, "_bot", lambda: object())
+
+    async def ucids(site, db, discord_id):
+        return ["U1"]
+
+    monkeypatch.setattr(site_reads, "my_ucids", ucids)
+    bus.apool = StubPool()
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    response, _ = fetch(app, "/group1/me/aar?period=since-the-dawn-of-time")
+    assert response.status_code == 404, "no flight in the period is a sentence, not an empty PDF"
+    assert seen["period"] == site_me.DEFAULT_PROGRESS_PERIOD
+
+
+def test_the_own_page_draws_no_progress_panels_without_the_plugin(config_dir, bus):
+    """The flight panels need the event stream; the STANDING card does not — it reads statistics.
+
+    So a site without missionstats keeps its place in the K/D cohort, and loses only the sorties,
+    the returned/lost split and the K/D line.
+    """
     bus.apool = StubPool()
     app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
     markup = fetch(app, "/group1/me")[0].text
-    assert "Your progress" not in markup
-    assert 'class="strip four"' not in markup
+    assert 'class="strip four"' not in markup, "the flight strip needs the event stream"
+    assert "Your standing" in markup, "the standing reads statistics and must survive"
 
 
 def test_the_period_parameter_reaches_the_statement_and_an_unknown_one_does_not(config_dir, bus):

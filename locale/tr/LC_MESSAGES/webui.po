@@ -12511,8 +12511,8 @@ msgstr "Nasıl savaşıyorlar"
 msgid "How they fly"
 msgstr "Nasıl uçuyorlar"
 
-msgid "Last flights"
-msgstr "Son uçuşlar"
+msgid "Last sessions"
+msgstr "Son oturumlar"
 
 msgid "PvE community"
 msgstr "PvE topluluğu"
@@ -12535,8 +12535,8 @@ msgstr "PvP karnesi"
 msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
 msgstr "Oranlar bu pilotun kendi sortilerine göredir; çubuk oranı gösterir, diğer pilotlara karşı bir sıralamayı değil."
 
-msgid "Recent sorties"
-msgstr "Son sortiler"
+msgid "Recent sessions"
+msgstr "Son oturumlar"
 
 msgid "Targets hit"
 msgstr "Vurulan hedefler"
@@ -14194,3 +14194,51 @@ msgstr "haftalık"
 
 msgid "{count} returned"
 msgstr "{count} döndü"
+
+#: services/webservice/templates/site_me.html:152
+msgid "Your standing"
+msgstr "Sıralaman"
+
+#: services/webservice/templates/site_me.html:153
+msgid "not ranked yet"
+msgstr "henüz sıralanmadı"
+
+#: services/webservice/templates/site_me.html:153
+msgid "%(place)s of %(size)s pilots"
+msgstr "%(size)s pilot arasında %(place)s"
+
+#: services/webservice/pages/site_me.py:258
+msgid "You are in the top 10."
+msgstr "İlk 10'dasın."
+
+#: services/webservice/pages/site_me.py:260
+msgid "You are in the best quartile."
+msgstr "En iyi çeyrektesin."
+
+#: services/webservice/pages/site_me.py:262
+msgid "You are in the better half."
+msgstr "İyi yarıdasın."
+
+#: services/webservice/pages/site_me.py:311
+msgid "Next step: place {target}."
+msgstr "Sıradaki adım: {target}. sıra."
+
+#: services/webservice/pages/site_me.py:300
+msgid "Flights needed: {count} of {floor}."
+msgstr "Gereken uçuş: {floor} içinde {count}."
+
+#: services/webservice/templates/site_me.html:98
+msgid "Report"
+msgstr "Rapor"
+
+#: services/webservice/templates/site_me.html:99
+msgid "Download the AAR (PDF)"
+msgstr "AAR'ı indir (PDF)"
+
+#: services/webservice/pages/site_me.py:404
+msgid "The report is not available yet."
+msgstr "Rapor henüz hazır değil."
+
+#: services/webservice/pages/site_me.py:406
+msgid "No record on these servers."
+msgstr "Bu sunucularda kayıt yok."

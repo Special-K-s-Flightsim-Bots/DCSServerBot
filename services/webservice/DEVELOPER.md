@@ -671,6 +671,26 @@ capability and scope gates.
 The nav is declared once in `site_pages` (`NAV_PATHS`, `NAV_LABELS`, `SERVED_NAV_IDS`): a site's
 `nav:` list selects and orders the ids, and an id without a served page renders no entry.
 
+**The words the figures use.** Three words are fixed, and a page that uses one of them means it:
+
+- **Sortie** — one FLIGHT. It starts when the aircraft is airborne (a takeoff, or a birth with no
+  airbase behind it — an air start) and it ends however it ends. The source is `missionstats`:
+  `mv_site_air_starts` for the counts, `plugins.missionstats.aar.reconstruct_sorties` for the
+  outcomes. Without that plugin no air start can be seen, so every sortie figure is the recorded
+  takeoff sum and the page says "recorded takeoffs" rather than implying a flight count it cannot
+  make.
+- **Session** — one `statistics` row: a seat taken until it is left. One session can hold several
+  flights, so a session count never stands in for a sortie count; it is the right figure where the
+  question is how often a MODULE is used (`mv_statistics.usage`).
+- **Takeoff** — the `takeoffs` column of `statistics`: the floor a sortie count is built on.
+
+Per pilot a sortie count is `GREATEST(takeoffs, event starts)` — never lower than the statistics
+figure, so a period the event stream does not cover loses no flight. Site-wide it is takeoffs PLUS
+air starts, because the two sets are disjoint and no flight is in both. The column names follow the
+words: `mv_site_pilot_totals` carries `sessions`, `mv_site_aircraft` carries `takeoffs`, and
+`mv_serverstats."totalSorties"` is a LEGACY name for a session count, which the REST API publishes
+as `totalSessions`.
+
 ## The Statistics page (GET /statistics)
 
 The console's period view: is the community growing, do new players stay, when do they fly, which

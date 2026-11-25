@@ -158,6 +158,10 @@ PLAYER_PATH = "/player"
 #: identity and the menu is the site's, so it is reached from the shell's own chip.
 ME_PATH = "/me"
 
+#: the path (inside the site) of the AAR download: a sibling of the own page, which links it. It
+#: answers a PDF for the SIGNED-IN viewer only — the page's own identity, never a UCID from the URL.
+ME_AAR_PATH: str = f"{ME_PATH}/aar"
+
 #: the path (inside the site) of the pilot search — the ``players`` nav entry's own address, so the
 #: top bar's search box submits to the page the menu already links.
 SEARCH_PATH: str = NAV_PATHS["players"]
@@ -1204,7 +1208,7 @@ def _build_router(catalog) -> tuple[APIRouter, dict[str, str]] | None:
     """
     if not catalog:
         return None
-    from .pages import site_players, site_servers
+    from .pages import site_me, site_players, site_servers
 
     modules = page_modules()
     router = APIRouter()
@@ -1215,6 +1219,9 @@ def _build_router(catalog) -> tuple[APIRouter, dict[str, str]] | None:
             for module in modules:
                 path = module.add_route(router, site)
                 capabilities[path] = permissions.PUBLIC
+            # the own page's AAR download: a sibling of /me, declared public exactly like the page
+            # that links it. It answers the sign-in redirect itself, never a figure.
+            capabilities[site_me.aar_route(router, site)] = permissions.PUBLIC
             # the per-server page: the list's own path plus one encoded name segment, declared
             # ``public`` exactly like the page whose row links it
             detail_path = site_servers.detail_route(router, site)

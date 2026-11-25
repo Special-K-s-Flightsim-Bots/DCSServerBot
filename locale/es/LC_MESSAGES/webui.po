@@ -12066,8 +12066,8 @@ msgstr "Cómo vuelan"
 msgid "How you fly"
 msgstr "Cómo vuelas"
 
-msgid "Last flights"
-msgstr "Últimos vuelos"
+msgid "Last sessions"
+msgstr "Últimas sesiones"
 
 msgid "Every pilot has one rating, and it is the same on every site of this community."
 msgstr "Cada piloto tiene una calificación, y es la misma en todos los sitios de esta comunidad."
@@ -12093,8 +12093,8 @@ msgstr "Historial PvP"
 msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
 msgstr "Los porcentajes son de las propias salidas de este piloto; la barra es el porcentaje, no un puesto frente a otros pilotos."
 
-msgid "Recent sorties"
-msgstr "Salidas recientes"
+msgid "Recent sessions"
+msgstr "Sesiones recientes"
 
 msgid "Targets hit"
 msgstr "Blancos alcanzados"
@@ -13709,3 +13709,51 @@ msgstr "por semana"
 
 msgid "{count} returned"
 msgstr "{count} regresaron"
+
+#: services/webservice/templates/site_me.html:152
+msgid "Your standing"
+msgstr "Tu posición"
+
+#: services/webservice/templates/site_me.html:153
+msgid "not ranked yet"
+msgstr "aún sin clasificar"
+
+#: services/webservice/templates/site_me.html:153
+msgid "%(place)s of %(size)s pilots"
+msgstr "%(place)s de %(size)s pilotos"
+
+#: services/webservice/pages/site_me.py:258
+msgid "You are in the top 10."
+msgstr "Estás en el top 10."
+
+#: services/webservice/pages/site_me.py:260
+msgid "You are in the best quartile."
+msgstr "Estás en el mejor cuartil."
+
+#: services/webservice/pages/site_me.py:262
+msgid "You are in the better half."
+msgstr "Estás en la mejor mitad."
+
+#: services/webservice/pages/site_me.py:311
+msgid "Next step: place {target}."
+msgstr "Siguiente paso: puesto {target}."
+
+#: services/webservice/pages/site_me.py:300
+msgid "Flights needed: {count} of {floor}."
+msgstr "Vuelos necesarios: {count} de {floor}."
+
+#: services/webservice/templates/site_me.html:98
+msgid "Report"
+msgstr "Informe"
+
+#: services/webservice/templates/site_me.html:99
+msgid "Download the AAR (PDF)"
+msgstr "Descargar el AAR (PDF)"
+
+#: services/webservice/pages/site_me.py:404
+msgid "The report is not available yet."
+msgstr "El informe aún no está disponible."
+
+#: services/webservice/pages/site_me.py:406
+msgid "No record on these servers."
+msgstr "Sin registro en estos servidores."

@@ -296,7 +296,7 @@ def sign_in_controls(markup: str) -> list[str]:
     import html
 
     return [html.unescape(href) for href in
-            re.findall(r'<a class="btn btn-sm" href="([^"]*)"', markup)]
+            re.findall(r'<a class="btn[^"]*" href="([^"]*)"', markup)]
 
 
 def get(app, path):

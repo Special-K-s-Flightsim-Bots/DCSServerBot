@@ -1833,7 +1833,8 @@ class RestAPI(Plugin):
                     SELECT COALESCE(SUM("totalPlayers"), 0) AS "totalPlayers", 
                            COALESCE(SUM("totalPlaytime"), 0) AS "totalPlaytime",
                            COALESCE(SUM("avgPlaytime"), 0) AS "avgPlaytime",
-                           COALESCE(SUM("totalSorties"), 0) AS "totalSorties", 
+                           COALESCE(SUM("totalSorties"), 0) AS "totalSorties",
+                           COALESCE(SUM("totalSorties"), 0) AS "totalSessions", 
                            COALESCE(SUM("totalKills"), 0) AS "totalKills",
                            COALESCE(SUM("totalDeaths"), 0) AS "totalDeaths", 
                            COALESCE(SUM("totalPvPKills"), 0) AS "totalPvPKills",
@@ -2039,6 +2040,7 @@ class RestAPI(Plugin):
 
                 await cursor.execute(f"""
                     SELECT SUM("totalSorties") AS total_sorties,
+                           SUM("totalSorties") AS total_sessions,
                            SUM("totalKills") AS total_kills,
                            SUM("totalDeaths") AS total_deaths,
                            SUM("totalPvPKills") AS total_pvp_kills,
@@ -2051,6 +2053,7 @@ class RestAPI(Plugin):
                 
                 if mv_row:
                     stats["total_sorties"] = int(mv_row['total_sorties'] or 0)
+                    stats["total_sessions"] = int(mv_row['total_sessions'] or 0)
                     stats["total_kills"] = int(mv_row['total_kills'] or 0)
                     stats["total_deaths"] = int(mv_row['total_deaths'] or 0)
                     stats["total_pvp_kills"] = int(mv_row['total_pvp_kills'] or 0)

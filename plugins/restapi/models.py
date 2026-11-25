@@ -51,6 +51,7 @@ class ServerStats(BaseModel):
     totalPlaytime: int
     activePlayers: int
     totalSorties: int
+    totalSessions: int
     totalKills: int
     totalDeaths: int
     totalPvPKills: int
@@ -65,6 +66,7 @@ class ServerStats(BaseModel):
                 "totalPlaytime": 3600,
                 "activePlayers": 50,
                 "totalSorties": 100,
+                "totalSessions": 100,
                 "totalKills": 100,
                 "totalDeaths": 50,
                 "totalPvPKills": 30,
@@ -1025,7 +1027,8 @@ class ServerAttendanceStats(BaseModel):
     top_modules: list[TopModule] = Field(default_factory=list, description="Top modules by playtime and usage")
 
     # Additional server metrics from mv_serverstats
-    total_sorties: int | None = Field(None, description="Total sorties flown")
+    total_sorties: int | None = Field(None, description="Total sorties, as this field has always been called: a SESSION count (one per seat taken), not a flight count. Read `total_sessions`; this name stays for API compatibility")
+    total_sessions: int | None = Field(None, description="Total sessions: one per seat taken. The same count `total_sorties` carries")
     total_kills: int | None = Field(None, description="Total kills")
     total_deaths: int | None = Field(None, description="Total deaths")
     total_pvp_kills: int | None = Field(None, description="Total PvP kills")
@@ -1052,6 +1055,7 @@ class ServerAttendanceStats(BaseModel):
                 "top_missions": [{"mission_name": "Training Map", "playtime_hours": 1200}, {"mission_name": "Combat Mission", "playtime_hours": 800}],
                 "top_modules": [{"module": "F/A-18C", "playtime_hours": 800, "unique_players": 45, "total_uses": 127}],
                 "total_sorties": 1245,
+                "total_sessions": 1245,
                 "total_kills": 892,
                 "total_deaths": 567,
                 "total_pvp_kills": 234,

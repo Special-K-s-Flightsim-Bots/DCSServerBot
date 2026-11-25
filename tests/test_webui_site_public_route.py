@@ -147,7 +147,7 @@ def _declared_paths() -> list[str]:
     leave exactly those declarations unexamined.
     """
     pages = [path or "/" for path in site_pages.NAV_PATHS.values()]
-    pages += [site_pages.PLAYER_PATH + "/u-somebody", site_pages.ME_PATH,
+    pages += [site_pages.PLAYER_PATH + "/u-somebody", site_pages.ME_PATH, site_pages.ME_AAR_PATH,
               site_pages.SERVER_PATH + "/u-somebody",
               site_pages.SEARCH_JSON_PATH, site_pages.FLEET_LIVE_PATH,
               site_pages.LOGO_PATH, site_pages.THEME_SHEET_PATH,
@@ -209,6 +209,13 @@ async def test_every_served_site_address_answers_a_visitor_while_the_rest_api_se
         await _sign_in(client)
         for path in addresses:
             response = await client.get(path)
+            if path == site_pages.ME_AAR_PATH:
+                # a DOWNLOAD, not a page: with no bot in this process there is no report to build,
+                # so the route may only refuse — what the census guards is that it is declared,
+                # registered and reachable at all, never that a PDF exists here.
+                assert response.status_code in (200, 404, 503), (
+                    f"{path} answered {response.status_code}")
+                continue
             assert response.status_code == 200, f"{path} answered {response.status_code}"
             assert "does not have access" not in response.text, \
                 f"{path} answered the shell's refusal document"

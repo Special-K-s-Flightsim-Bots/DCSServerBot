@@ -85,16 +85,22 @@
     {% endfor %}
   </div>
 
-  {% if model.progress %}
+  {% if model.progress or model.standing %}
   <section class="sect">
     <div class="sect-head"><span class="no">01</span><h2>{% trans %}Your progress{% endtrans %}</h2>
-      <span class="meta">{% trans count=model.progress.sorties %}{{ count }} sorties{% endtrans %}</span></div>
+      <span class="meta">{% if model.progress %}{% trans count=model.progress.sorties %}{{ count }} sorties{% endtrans %}{% endif %}</span></div>
+    {% if model.progress %}
     <div class="ctlrows" style="margin:var(--sp-3) 0">
       <div class="ctlrow"><span class="ctl-lbl">{% trans %}Period{% endtrans %}</span>
         <div class="seg">
         {% for option in model.periods %}<a href="{{ option.href }}"{% if option.active %} class="on" aria-current="true"{% endif %}>{{ _(option.label) }}</a>{% endfor %}
         </div>
       </div>
+      {% if model.aar_href %}
+      <div class="ctlrow"><span class="ctl-lbl">{% trans %}Report{% endtrans %}</span>
+        <a class="btn" href="{{ model.aar_href }}?period={{ model.progress.period }}">{% trans %}Download the AAR (PDF){% endtrans %}</a>
+      </div>
+      {% endif %}
     </div>
     {% if model.progress.empty %}
     <p class="note">{% trans %}No flight is recorded in this period.{% endtrans %}</p>
@@ -145,6 +151,20 @@
       </section>
     </div>
     <p class="note plain">{% trans %}A sortie is one flight: it counts from the moment the aircraft is airborne, whether it took off or started in the air, and it ends however it ends — returned, lost, or left unfinished. A week without a flight is drawn at zero.{% endtrans %}</p>
+    {% endif %}
+    {% endif %}
+    {% if model.standing %}
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}Your standing{% endtrans %}</h2>
+        <span class="meta">{% if model.standing.place %}{% trans place=model.standing.place, size=model.standing.size %}{{ place }} of {{ size }} pilots{% endtrans %}{% else %}{% trans %}not ranked yet{% endtrans %}{% endif %}</span></div>
+      {% if model.standing.place %}
+      <p class="pfig">{{ model.standing.value }} <span class="lbl">K/D</span></p>
+      {% if model.standing.band %}<p class="note">{{ _(model.standing.band) }}</p>{% endif %}
+      {% if model.standing.goal %}<p class="note plain">{{ say(model.standing.goal) }}</p>{% endif %}
+      {% else %}
+      <p class="note plain">{{ say(model.standing.unranked) }}</p>
+      {% endif %}
+    </section>
     {% endif %}
   </section>
   {% endif %}
@@ -231,11 +251,11 @@
   </section>
 
   <section class="sect">
-    <div class="sect-head"><span class="no">05</span><h2>{% trans %}Recent sorties{% endtrans %}</h2>
+    <div class="sect-head"><span class="no">05</span><h2>{% trans %}Recent sessions{% endtrans %}</h2>
       <span class="meta">{% trans count=model.recent | length %}{{ count }} sessions{% endtrans %}</span></div>
     <div class="grid">
       <section class="panel c12">
-        <div class="hd"><h2>{% trans %}Last flights{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
+        <div class="hd"><h2>{% trans %}Last sessions{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
         {% if model.recent %}
         <table class="tbl recent">
           <thead><tr><th>{% trans %}Date{% endtrans %}</th><th>{% trans %}Aircraft{% endtrans %}</th><th class="hide-sm">{% trans %}Mission{% endtrans %}</th><th>{% trans %}Server{% endtrans %}</th><th class="r">{% trans %}Duration{% endtrans %}</th></tr></thead>

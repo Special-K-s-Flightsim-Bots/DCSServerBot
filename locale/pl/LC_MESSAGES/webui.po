@@ -7016,8 +7016,8 @@ msgstr "Jak walczą"
 msgid "How they fly"
 msgstr "Jak latają"
 
-msgid "Last flights"
-msgstr "Ostatnie wyloty"
+msgid "Last sessions"
+msgstr "Ostatnie sesje"
 
 msgid "PvE community"
 msgstr "Społeczność PvE"
@@ -7040,8 +7040,8 @@ msgstr "Bilans PvP"
 msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
 msgstr "Odsetki dotyczą własnych lotów tego pilota; pasek pokazuje odsetek, a nie pozycję wśród innych pilotów."
 
-msgid "Recent sorties"
-msgstr "Ostatnie loty"
+msgid "Recent sessions"
+msgstr "Ostatnie sesje"
 
 msgid "Targets hit"
 msgstr "Trafione cele"
@@ -8704,3 +8704,51 @@ msgstr "tygodniowo"
 
 msgid "{count} returned"
 msgstr "{count} powrotów"
+
+#: services/webservice/templates/site_me.html:152
+msgid "Your standing"
+msgstr "Twoja pozycja"
+
+#: services/webservice/templates/site_me.html:153
+msgid "not ranked yet"
+msgstr "jeszcze niesklasyfikowany"
+
+#: services/webservice/templates/site_me.html:153
+msgid "%(place)s of %(size)s pilots"
+msgstr "%(place)s z %(size)s pilotów"
+
+#: services/webservice/pages/site_me.py:258
+msgid "You are in the top 10."
+msgstr "Jesteś w pierwszej dziesiątce."
+
+#: services/webservice/pages/site_me.py:260
+msgid "You are in the best quartile."
+msgstr "Jesteś w najlepszym kwartylu."
+
+#: services/webservice/pages/site_me.py:262
+msgid "You are in the better half."
+msgstr "Jesteś w lepszej połowie."
+
+#: services/webservice/pages/site_me.py:311
+msgid "Next step: place {target}."
+msgstr "Następny krok: miejsce {target}."
+
+#: services/webservice/pages/site_me.py:300
+msgid "Flights needed: {count} of {floor}."
+msgstr "Potrzebne loty: {count} z {floor}."
+
+#: services/webservice/templates/site_me.html:98
+msgid "Report"
+msgstr "Raport"
+
+#: services/webservice/templates/site_me.html:99
+msgid "Download the AAR (PDF)"
+msgstr "Pobierz AAR (PDF)"
+
+#: services/webservice/pages/site_me.py:404
+msgid "The report is not available yet."
+msgstr "Raport nie jest jeszcze dostępny."
+
+#: services/webservice/pages/site_me.py:406
+msgid "No record on these servers."
+msgstr "Brak wpisu na tych serwerach."

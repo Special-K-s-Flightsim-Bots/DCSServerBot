@@ -6985,8 +6985,8 @@ msgstr "Como combatem"
 msgid "How they fly"
 msgstr "Como voam"
 
-msgid "Last flights"
-msgstr "Últimos voos"
+msgid "Last sessions"
+msgstr "Últimas sessões"
 
 msgid "PvE community"
 msgstr "Comunidade PvE"
@@ -7009,8 +7009,8 @@ msgstr "Registo PvP"
 msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
 msgstr "As percentagens são das próprias sortidas deste piloto; a barra é a percentagem, não uma posição face a outros pilotos."
 
-msgid "Recent sorties"
-msgstr "Sortidas recentes"
+msgid "Recent sessions"
+msgstr "Sessões recentes"
 
 msgid "Targets hit"
 msgstr "Alvos atingidos"
@@ -8667,3 +8667,51 @@ msgstr "por semana"
 
 msgid "{count} returned"
 msgstr "{count} retornaram"
+
+#: services/webservice/templates/site_me.html:152
+msgid "Your standing"
+msgstr "A tua posição"
+
+#: services/webservice/templates/site_me.html:153
+msgid "not ranked yet"
+msgstr "ainda não classificado"
+
+#: services/webservice/templates/site_me.html:153
+msgid "%(place)s of %(size)s pilots"
+msgstr "%(place)s de %(size)s pilotos"
+
+#: services/webservice/pages/site_me.py:258
+msgid "You are in the top 10."
+msgstr "Estás no top 10."
+
+#: services/webservice/pages/site_me.py:260
+msgid "You are in the best quartile."
+msgstr "Estás no melhor quartil."
+
+#: services/webservice/pages/site_me.py:262
+msgid "You are in the better half."
+msgstr "Estás na melhor metade."
+
+#: services/webservice/pages/site_me.py:311
+msgid "Next step: place {target}."
+msgstr "Próximo passo: lugar {target}."
+
+#: services/webservice/pages/site_me.py:300
+msgid "Flights needed: {count} of {floor}."
+msgstr "Voos necessários: {count} de {floor}."
+
+#: services/webservice/templates/site_me.html:98
+msgid "Report"
+msgstr "Relatório"
+
+#: services/webservice/templates/site_me.html:99
+msgid "Download the AAR (PDF)"
+msgstr "Descarregar o AAR (PDF)"
+
+#: services/webservice/pages/site_me.py:404
+msgid "The report is not available yet."
+msgstr "O relatório ainda não está disponível."
+
+#: services/webservice/pages/site_me.py:406
+msgid "No record on these servers."
+msgstr "Sem registo nestes servidores."

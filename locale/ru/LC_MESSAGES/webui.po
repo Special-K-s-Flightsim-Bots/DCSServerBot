@@ -11881,8 +11881,8 @@ msgstr "Как они воюют"
 msgid "How they fly"
 msgstr "Как они летают"
 
-msgid "Last flights"
-msgstr "Последние полёты"
+msgid "Last sessions"
+msgstr "Последние сессии"
 
 msgid "PvE community"
 msgstr "PvE-сообщество"
@@ -11905,8 +11905,8 @@ msgstr "Итоги PvP"
 msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
 msgstr "Проценты считаются по собственным вылетам этого пилота; полоса показывает долю, а не место среди других пилотов."
 
-msgid "Recent sorties"
-msgstr "Последние вылеты"
+msgid "Recent sessions"
+msgstr "Последние сессии"
 
 msgid "Targets hit"
 msgstr "Поражённые цели"
@@ -13564,3 +13564,51 @@ msgstr "по неделям"
 
 msgid "{count} returned"
 msgstr "{count} вернулись"
+
+#: services/webservice/templates/site_me.html:152
+msgid "Your standing"
+msgstr "Твоё место"
+
+#: services/webservice/templates/site_me.html:153
+msgid "not ranked yet"
+msgstr "пока без места"
+
+#: services/webservice/templates/site_me.html:153
+msgid "%(place)s of %(size)s pilots"
+msgstr "%(place)s из %(size)s пилотов"
+
+#: services/webservice/pages/site_me.py:258
+msgid "You are in the top 10."
+msgstr "Ты в десятке лучших."
+
+#: services/webservice/pages/site_me.py:260
+msgid "You are in the best quartile."
+msgstr "Ты в лучшем квартиле."
+
+#: services/webservice/pages/site_me.py:262
+msgid "You are in the better half."
+msgstr "Ты в лучшей половине."
+
+#: services/webservice/pages/site_me.py:311
+msgid "Next step: place {target}."
+msgstr "Следующий шаг: место {target}."
+
+#: services/webservice/pages/site_me.py:300
+msgid "Flights needed: {count} of {floor}."
+msgstr "Нужно полётов: {count} из {floor}."
+
+#: services/webservice/templates/site_me.html:98
+msgid "Report"
+msgstr "Отчёт"
+
+#: services/webservice/templates/site_me.html:99
+msgid "Download the AAR (PDF)"
+msgstr "Скачать AAR (PDF)"
+
+#: services/webservice/pages/site_me.py:404
+msgid "The report is not available yet."
+msgstr "Отчёт пока недоступен."
+
+#: services/webservice/pages/site_me.py:406
+msgid "No record on these servers."
+msgstr "Нет записей на этих серверах."

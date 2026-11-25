@@ -17,15 +17,16 @@ import sqlparse
 REPO = Path(__file__).resolve().parents[1]
 
 #: plugin, migration file, the version the plugin must declare, the exact index statement the file
-#: carries, and how many statements the file holds (the userstats hop creates the server-board
-#: aggregate, puts its unique index in place, then refreshes it)
+#: carries, and how many statements the file holds. The userstats hop drops and rebuilds both site
+#: views, puts each unique index back, then ANALYZEs them: a rebuilt view has no planner statistics,
+#: and the leaderboard reads mv_site_pilot_totals twice, so the first plans would be chosen blind.
 CASES = [
     (
         "userstats",
-        "update_v3.14.sql",
-        "3.15",
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_serverstats ON mv_serverstats (server_name);",
-        19,
+        "update_v3.15.sql",
+        "3.16",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_site_aircraft ON mv_site_aircraft (server_name, slot);",
+        8,
     ),
     (
         "mission",
@@ -167,7 +168,8 @@ def test_the_index_lands_where_the_public_site_reads(plugin, filename, version, 
     """The supported lookup shapes only: prefix match on the lowered name, not a contains match."""
     body = _body(_db_dir(plugin) / filename, _index_name(statement))
     if plugin == "userstats":
-        assert "ON mv_serverstats (server_name)" in body
+        assert re.search(r"ON (mv_serverstats|mv_site_\w+) \(", body), (
+            "a userstats hop must index one of the site aggregates")
     if plugin == "mission":
         assert "ON players (LOWER(name))" in body
         assert "missions" not in body, "missions(server_name) already has idx_missions_server_name"
@@ -214,10 +216,10 @@ VIEWS = {
     "mv_site_pilots": ("idx_mv_site_pilots", "(server_name, player_ucid)", "update_v3.14.sql"),
     "mv_site_missions": ("idx_mv_site_missions", "(server_name)", "update_v3.14.sql"),
     "mv_site_pilot_totals": ("idx_mv_site_pilot_totals", "(server_name, player_ucid)",
-                             "update_v3.14.sql"),
+                             "update_v3.15.sql"),
     "mv_site_pilot_aircraft": ("idx_mv_site_pilot_aircraft",
                                "(server_name, player_ucid, slot)", "update_v3.14.sql"),
-    "mv_site_aircraft": ("idx_mv_site_aircraft", "(server_name, slot)", "update_v3.14.sql"),
+    "mv_site_aircraft": ("idx_mv_site_aircraft", "(server_name, slot)", "update_v3.15.sql"),
     "mv_site_hours": ("idx_mv_site_hours", "(server_name, dow, hour)", "update_v3.14.sql"),
 }
 MIGRATION = "update_v3.14.sql"

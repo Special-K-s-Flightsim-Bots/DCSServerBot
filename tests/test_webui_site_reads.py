@@ -21,6 +21,7 @@ from __future__ import annotations
 import ast
 import inspect
 import re
+import re
 import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -50,6 +51,7 @@ _PILOT_RECENT = "m.mission_name"
 _PILOT_SEARCH = "ESCAPE"
 _AIR_START = "mst.init_id = ANY"
 _AIR_START_WEEKS = "DATE_TRUNC('week', mst.time)"
+_STANDING = "ROW_NUMBER() OVER (ORDER BY value DESC, ucid)"
 _AIR_START_WEEKS_VIEW = "FROM mv_site_air_starts"
 _AIRCRAFT_SESSIONS = "COALESCE(SUM(usage), 0)::bigint AS sessions"
 _SQUADRONS = "WITH site_players AS"
@@ -112,6 +114,8 @@ class _Pool:
     def answer(self, statement, params):
         for marker, rows in self.answers:
             if marker in statement:
+                if isinstance(rows, dict):  # the catalog probe: answer per table name
+                    return [{"present": bool(rows.get(params.get("name"), False))}]
                 return [dict(row) for row in rows]
         return []
 
@@ -145,9 +149,11 @@ def _arguments(name, site, pool):
         return (site, pool, "U1")
     if name == "pilot_search":
         return (site, pool, "pi")
-    if name == "my_statistics":
+    if name in ("my_statistics", "my_ucids"):
         return (site, pool, 123)
     if name == "pilot_progress":
+        return (site, pool, "U1")
+    if name == "pilot_standing":
         return (site, pool, "U1")
     if name == "server_board":
         return (site, pool, {})
@@ -303,6 +309,109 @@ async def test_without_the_event_stream_the_weekly_bars_are_takeoffs(site):
     week = {entry["week"]: entry for entry in result["weeks"]}["2026-W44"]
     assert week["sorties"] == 5
     assert result["air_starts"] is False
+
+
+@pytest.mark.asyncio
+async def test_the_standing_ranks_the_cohort_with_a_floor_and_the_site_filter(site):
+    """The cohort is the site's pilots with enough flights, and the cuts come from the same ranking."""
+    pool = _pool({_STANDING: [{"size": 412, "place": 12, "value": 1.24, "sorties": 40,
+                               "top10_cut": 1.9, "quarter_cut": 1.1, "half_cut": 0.6}]})
+    standing = await site_reads.pilot_standing(site, pool, "U1", "quarter")
+    assert standing["size"] == 412
+    assert standing["place"] == 12
+    assert standing["value"] == pytest.approx(1.24)
+    assert standing["cuts"] == {"top10": 1.9, "quarter": 1.1, "half": 0.6}
+    statement, params = next(call for call in pool.calls if _STANDING in call[0])
+    assert params["floor"] == site_reads.STANDING_FLOOR == 10
+    assert params["ucid"] == "U1"
+    assert params["servers"] == sorted(site.servers)
+    assert "HAVING" in statement, "the floor must be part of the cohort, not of the page"
+
+
+#: words that can follow a closing paren or a table name without being an alias
+_SQL_WORDS = {
+    "where", "group", "order", "having", "limit", "offset", "join", "left", "right", "inner",
+    "outer", "cross", "on", "using", "union", "except", "intersect", "as", "select", "from",
+    "and", "or", "not", "in", "is", "null", "then", "else", "end", "when", "case", "with",
+    "materialized", "distinct", "values", "set", "by", "asc", "desc", "over", "partition",
+}
+
+
+def _undefined_aliases(statement: str) -> set[str]:
+    """Every ``alias.column`` reference whose alias no FROM/JOIN/CTE defines.
+
+    PostgreSQL answers ``UndefinedTable: missing FROM-clause entry for table "x"`` for exactly this,
+    and a statement that merely PARSES says nothing about it — which is how a missing ``st`` join and
+    a period clause written for an alias that was not there both reached a live server. This reads
+    the rendered statement instead, so the whole period/table matrix is checked without a database.
+    """
+    defined: set[str] = set()
+    for match in re.finditer(r"\b(?:FROM|JOIN)\s+([\w.]+)(?:\s+(?:AS\s+)?(\w+))?", statement,
+                             re.IGNORECASE):
+        alias = match.group(2)
+        if alias and alias.lower() not in _SQL_WORDS:
+            defined.add(alias.lower())
+        else:  # no alias: the table's own name is the reference
+            defined.add(match.group(1).split(".")[-1].lower())
+    for match in re.finditer(r"^\s*(\w+)\s+AS\s+(?:MATERIALIZED\s+)?\(", statement,
+                             re.IGNORECASE | re.MULTILINE):
+        defined.add(match.group(1).lower())          # a CTE
+    for match in re.finditer(r"\)\s*(?:AS\s+)?(\w+)", statement):
+        alias = match.group(1)
+        if alias.lower() not in _SQL_WORDS:
+            defined.add(alias.lower())               # a derived table's alias
+    referenced = {match.group(1).lower()
+                  for match in re.finditer(r"\b([A-Za-z_]\w*)\.[A-Za-z_\w]", statement)}
+    return referenced - defined
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("present", [
+    {"missionstats": True, "mv_site_air_starts": True},
+    {"missionstats": True},
+    {},
+], ids=["view", "raw", "no-tables"])
+@pytest.mark.parametrize("period", ["all", "quarter", "month", "year", "week", "today"])
+async def test_every_alias_the_board_and_the_standing_read_is_defined(site, present, period):
+    """The statement matrix, read for aliases a FROM/JOIN never introduces.
+
+    Both bugs that reached the live server were this shape — one missing JOIN, one period clause
+    written against an alias the subquery did not have — and neither is a syntax error.
+    """
+    for call in (lambda pool: site_reads.leaderboard(site, pool, "playtime", period),
+                 lambda pool: site_reads.pilot_standing(site, pool, "U1", period)):
+        pool = _pool({_TABLE_EXISTS: dict(present)})
+        await call(pool)
+        statement, _ = pool.calls[-1]
+        undefined = _undefined_aliases(statement)
+        assert not undefined, f"{sorted(undefined)} read but never defined:\n{statement}"
+
+
+@pytest.mark.asyncio
+async def test_the_all_time_standing_joins_the_starts_its_metric_reads(site):
+    """The all-time sorties metric reads ``st.air_starts``, so the view branch must JOIN ``st``.
+
+    Without the join PostgreSQL answers ``UndefinedTable: missing FROM-clause entry for table "st"``
+    — the statement parses, so only a real server catches it, which is why this is pinned here.
+    """
+    pool = _pool({_TABLE_EXISTS: {"missionstats": True, "mv_site_air_starts": True},
+                  _STANDING: [{"size": 412, "place": 12, "value": 1.24, "sorties": 40,
+                               "top10_cut": 1.9, "quarter_cut": 1.1, "half_cut": 0.6}]})
+    await site_reads.pilot_standing(site, pool, "U1", "all")
+    statement, _ = pool.calls[-1]
+    assert "FROM mv_site_pilot_totals ms" in statement
+    assert "LEFT JOIN starts st ON st.ucid = ms.player_ucid" in statement, \
+        "the metric reads st.air_starts, so the all-time branch needs the join"
+    assert "st.air_starts" in statement
+
+
+@pytest.mark.asyncio
+async def test_a_pilot_outside_the_cohort_has_no_place(site):
+    pool = _pool({_STANDING: [{"size": 412, "place": None, "value": None, "sorties": 3,
+                               "top10_cut": 1.9, "quarter_cut": 1.1, "half_cut": 0.6}]})
+    standing = await site_reads.pilot_standing(site, pool, "U1", "quarter")
+    assert standing["place"] is None and standing["value"] is None
+    assert standing["sorties"] == 3, "the page needs their flights to say how many are missing"
 
 
 def test_the_pilot_figures_name_this_week_and_the_one_before():
@@ -560,7 +669,7 @@ async def test_with_the_event_table_a_sortie_is_a_flight_not_a_takeoff(site):
     ``GREATEST`` keeps the higher of the two, because a period the event table does not cover must
     not lower what the statistics rows already state.
     """
-    pool = _pool({_TABLE_EXISTS: [{"present": True}]})
+    pool = _pool({_TABLE_EXISTS: {"missionstats": True}})
     await site_reads.leaderboard(site, pool, "playtime", "quarter")
     statement, params = pool.calls[-1]
     assert "starts AS MATERIALIZED" in statement
@@ -569,6 +678,24 @@ async def test_with_the_event_table_a_sortie_is_a_flight_not_a_takeoff(site):
     assert "S_EVENT_TAKEOFF" in statement and "S_EVENT_BIRTH" in statement
     assert site_reads.SERVER_FILTER in statement.split("starts AS MATERIALIZED")[1]
     assert params["servers"] == sorted(site.servers)
+
+
+@pytest.mark.asyncio
+async def test_the_board_reads_the_start_view_rather_than_grouping_the_event_stream(site):
+    """With ``mv_site_air_starts`` present the page reads the small aggregate, never the events.
+
+    The view is what the plugin already keeps per pilot and week, so a page view costs one scan of a
+    small table instead of a GROUP BY over every takeoff and every spawn the site ever recorded. The
+    period still applies — through the view's week, renamed to ``time`` for the bot's own clause.
+    """
+    pool = _pool({_TABLE_EXISTS: {"missionstats": True, "mv_site_air_starts": True}})
+    await site_reads.leaderboard(site, pool, "playtime", "quarter")
+    statement, _ = pool.calls[-1]
+    assert "FROM mv_site_air_starts" in statement
+    assert "S_EVENT_TAKEOFF" not in statement, "the event stream must not be scanned per page view"
+    assert "week_start AS hop_on" in statement
+    assert ") s\n" in statement, "the period clause writes s.hop_on, so the subquery must be alias s"
+    assert "interval '3 months'" in statement, "the board's own period still narrows the view"
 
 
 @pytest.mark.asyncio
@@ -892,14 +1019,14 @@ async def test_the_board_marks_online_state_and_counts_the_players_in_a_slot(sit
         name="S1", status=types.SimpleNamespace(name="Running"),
         players={"a": types.SimpleNamespace(active=True),
                  "b": types.SimpleNamespace(active=False)})}
-    pool = _pool({_BOARD: [{"server_name": "S1", "playtime": 600, "sorties": 2}]})
+    pool = _pool({_BOARD: [{"server_name": "S1", "playtime": 600, "sessions": 2}]})
 
     board = await site_reads.server_board(site, pool, live)
 
     assert [row["server_name"] for row in board] == sorted(SERVERS)
     first = board[0]
     assert first["online"] is True and first["players_online"] == 1
-    assert first["playtime"] == 600 and first["sorties"] == 2
+    assert first["playtime"] == 600 and first["sessions"] == 2
     assert first["window"] == site_reads.BOARD_WINDOW_LABEL
     assert board[1]["online"] is False and board[1]["players_online"] == 0
 
@@ -1092,13 +1219,8 @@ def test_the_hour_view_splits_a_session_across_the_hours_it_spanned():
         assert "SUM(s.takeoffs)" not in view, path
 
 
-def test_the_migration_chain_top_carries_the_new_hour_view():
-    """A file without the version bump never runs, and the bump without the file steps over it.
-
-    The chain's TOP hop is the one an install at the previous release runs, so that is the file that
-    must carry the re-create: a hop below it would be stepped over by an install whose version is
-    already higher.
-    """
+def test_the_migration_chain_top_runs_and_the_version_is_above_it():
+    """A file without the version bump never runs, and the bump without the file steps over it."""
     version = (REPO / "plugins" / "userstats" / "version.py").read_text(encoding="utf-8")
     declared = re.search(r'__version__\s*=\s*"(\d+)\.(\d+)"', version)
     assert declared, "plugins/userstats/version.py carries no __version__"
@@ -1109,12 +1231,32 @@ def test_the_migration_chain_top_carries_the_new_hour_view():
     top = hops[-1]
     assert (int(declared.group(1)), int(declared.group(2))) > top, (
         f"the declared version {declared.group(0)} does not run the top hop {top}")
-    migration = REPO / "plugins" / "userstats" / "db" / f"update_v{top[0]}.{top[1]}.sql"
-    text = migration.read_text(encoding="utf-8")
+
+
+def test_the_hour_view_hop_carries_its_own_recreate():
+    """The hop that introduced the session-start histogram must build it, not a later one."""
+    text = (REPO / "plugins" / "userstats" / "db" / "update_v3.14.sql").read_text(encoding="utf-8")
     assert "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_site_hours AS" in text
     assert "generate_series" in text, "the hop would build the session-start histogram"
     fresh = (REPO / "plugins" / "userstats" / "db" / "tables.sql").read_text(encoding="utf-8")
     assert "generate_series" in fresh, "a fresh install would build the session-start histogram"
+
+
+def test_the_top_hop_renames_the_two_site_view_columns():
+    """The top hop is what an install at 3.15 runs, so IT must carry the rename.
+
+    A materialized view cannot be renamed into place, so the hop drops and re-creates both views;
+    the CREATE populates them, and their unique indexes are recreated with them.
+    """
+    text = (REPO / "plugins" / "userstats" / "db" / "update_v3.15.sql").read_text(encoding="utf-8")
+    assert "DROP MATERIALIZED VIEW IF EXISTS mv_site_pilot_totals;" in text
+    assert "DROP MATERIALIZED VIEW IF EXISTS mv_site_aircraft;" in text
+    assert "SUM(g.sessions) AS sessions" in text
+    assert "COUNT(*) AS sessions" in text
+    assert "COALESCE(SUM(s.takeoffs), 0)::bigint AS takeoffs" in text
+    assert "AS sorties" not in text, "the hop would re-create the column it is renaming"
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_site_pilot_totals" in text
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_site_aircraft" in text
 
 
 @pytest.mark.asyncio

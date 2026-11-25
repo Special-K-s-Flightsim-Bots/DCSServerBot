@@ -127,7 +127,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS mv_site_pilot_totals AS
     SELECT g.server_name,
            g.player_ucid,
            SUM(g.playtime) AS playtime,
-           SUM(g.sorties) AS sorties,
+           SUM(g.sessions) AS sessions,
            SUM(g.takeoffs) AS takeoffs,
            SUM(g.landings) AS landings,
            SUM(g.kills) AS kills,
@@ -152,7 +152,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS mv_site_pilot_totals AS
                    s.tail_no,
                    ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC')
                                                  - s.hop_on)))) AS playtime,
-                   COUNT(*) AS sorties,
+                   COUNT(*) AS sessions,
                    SUM(s.takeoffs) AS takeoffs,
                    SUM(s.landings) AS landings,
                    SUM(s.kills) AS kills,
@@ -195,7 +195,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS mv_site_aircraft AS
     SELECT m.server_name,
            s.slot,
            COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))), 0)::bigint AS playtime,
-           COALESCE(SUM(s.takeoffs), 0)::bigint AS sorties
+           COALESCE(SUM(s.takeoffs), 0)::bigint AS takeoffs
       FROM statistics s JOIN missions m ON s.mission_id = m.id
      GROUP BY 1, 2;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_site_aircraft ON mv_site_aircraft (server_name, slot);

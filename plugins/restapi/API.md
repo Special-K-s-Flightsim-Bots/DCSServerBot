@@ -656,7 +656,8 @@ pattern for a new surface — both machine surfaces above carry the verified key
   "totalPlaytime": 3600,
   "totalPvPDeaths": 20,
   "totalPvPKills": 30,
-  "totalSorties": 100
+  "totalSorties": 100,
+  "totalSessions": 100
 }
 ```
 
@@ -730,6 +731,7 @@ pattern for a new surface — both machine surfaces above carry the verified key
   "total_pvp_deaths": 189,
   "total_pvp_kills": 234,
   "total_sorties": 1245,
+  "total_sessions": 1245,
   "unique_players_24h": 15,
   "unique_players_30d": 85,
   "unique_players_7d": 35
@@ -4155,7 +4157,8 @@ Below are the data structures and response models used across the API endpoints:
 | `top_theatres` | `list[TopTheatre]` | No | Top theatres by playtime |
 | `top_missions` | `list[TopMission]` | No | Top missions by playtime |
 | `top_modules` | `list[TopModule]` | No | Top modules by playtime and usage |
-| `total_sorties` | `int | None` | No | Total sorties flown |
+| `total_sorties` | `int | None` | No | Total sorties — the field's historical name: a **session** count (one per seat taken), not a flight count. Same value as `total_sessions` |
+| `total_sessions` | `int | None` | No | Total sessions: one per seat taken |
 | `total_kills` | `int | None` | No | Total kills |
 | `total_deaths` | `int | None` | No | Total deaths |
 | `total_pvp_kills` | `int | None` | No | Total PvP kills |
@@ -4215,6 +4218,7 @@ Below are the data structures and response models used across the API endpoints:
   "total_pvp_deaths": 189,
   "total_pvp_kills": 234,
   "total_sorties": 1245,
+  "total_sessions": 1245,
   "unique_players_24h": 15,
   "unique_players_30d": 85,
   "unique_players_7d": 35
@@ -4358,7 +4362,8 @@ Below are the data structures and response models used across the API endpoints:
 | `avgPlaytime` | `int` | **Yes** | Avgplaytime |
 | `totalPlaytime` | `int` | **Yes** | Totalplaytime |
 | `activePlayers` | `int` | **Yes** | Activeplayers |
-| `totalSorties` | `int` | **Yes** | Totalsorties |
+| `totalSorties` | `int` | **Yes** | Total sorties — the field's historical name: a **session** count, not a flight count. Same value as `totalSessions` |
+| `totalSessions` | `int` | **Yes** | Total sessions: one per seat taken |
 | `totalKills` | `int` | **Yes** | Totalkills |
 | `totalDeaths` | `int` | **Yes** | Totaldeaths |
 | `totalPvPKills` | `int` | **Yes** | Totalpvpkills |
@@ -4383,7 +4388,8 @@ Below are the data structures and response models used across the API endpoints:
   "totalPlaytime": 3600,
   "totalPvPDeaths": 20,
   "totalPvPKills": 30,
-  "totalSorties": 100
+  "totalSorties": 100,
+  "totalSessions": 100
 }
 ```
 

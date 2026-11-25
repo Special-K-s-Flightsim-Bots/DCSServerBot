@@ -157,6 +157,10 @@ __all__ = [
     "my_statistics",
     "PROGRESS_BUCKETS",
     "pilot_progress",
+    "pilot_standing",
+    "my_ucids",
+    "STANDING_FLOOR",
+    "STANDING_BANDS",
 ]
 
 #: The one substring every scoped statement carries — the ratchet's assertion, and the shape a new
@@ -187,6 +191,9 @@ EXEMPT_STATEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("to_regclass", "a catalog probe: a table exists per database, not per site"),
     ),
     "activity_over_time": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+    ),
+    "pilot_standing": (
         ("to_regclass", "a catalog probe: a table exists per database, not per site"),
     ),
     "leaderboard": (
@@ -793,6 +800,41 @@ def _starts_join(prefix: str) -> str:
     return f"LEFT JOIN starts st ON st.ucid = {prefix}player_ucid"
 
 
+#: The ``starts`` CTE for a PERIOD, over ``mv_site_air_starts``: the plugin's per-pilot, per-week sum,
+#: collapsed to the pilot. The subquery is aliased ``s`` and its ``week_start`` renamed ``hop_on``,
+#: because that is exactly what :func:`_period_clause` writes its predicate against (``s.hop_on``) —
+#: the clause is shared with the raw branch, so the alias and the column name are not free choices.
+#: The grain is the WEEK: a start
+#: inside the week that straddles the period's edge is included, which can only raise a figure the
+#: metric then floors against takeoffs.
+_AIR_START_VIEW_PERIOD_CTE = """
+starts AS MATERIALIZED (
+    SELECT s.ucid AS ucid, SUM(s.starts)::bigint AS air_starts
+      FROM (SELECT player_ucid AS ucid, starts, week_start AS hop_on
+              FROM mv_site_air_starts
+             WHERE {server_filter}) s
+     WHERE {period}
+     GROUP BY 1
+),"""
+
+
+#: Periods whose event scan is bounded to days: there the raw stream is exact AND cheap, and the
+#: view's WEEK grain would round "today" onto the week that contains it. Anything longer reads the
+#: view — that is the scan that cost seconds per page view.
+_AIR_START_RAW_PERIODS = frozenset({"today", "yesterday", "day", "week"})
+
+
+def _air_start_source(period: str) -> str:
+    """``"raw"`` for a short window (exact, bounded), ``"view"`` for everything longer."""
+    return "raw" if period in _AIR_START_RAW_PERIODS else "view"
+
+
+def _air_start_view_cte(period: str) -> str:
+    """The ``starts`` CTE over the view for *period*; ``all`` compares no timestamp at all."""
+    return _AIR_START_VIEW_PERIOD_CTE.format(server_filter=SERVER_FILTER,
+                                             period=_period_clause(period)[0])
+
+
 #: The same ``starts`` CTE over ``mv_site_air_starts``: the missionstats plugin's per-pilot, per-week
 #: sum, collapsed to the pilot. Same alias, same column names, same MATERIALIZED shape, so the
 #: expressions :func:`_metric` builds read it unchanged.
@@ -1007,8 +1049,11 @@ async def leaderboard(site: Any, pool: Any, metric: str = "playtime", period: st
             starts = await _table_exists(conn, "missionstats")
             if not starts:
                 starts_cte = ""
-            elif resolved_period == "all" and await _table_exists(conn, "mv_site_air_starts"):
-                starts_cte = _AIR_START_VIEW_CTE
+            elif (_air_start_source(resolved_period) == "view"
+                  and await _table_exists(conn, "mv_site_air_starts")):
+                # the view is the aggregate the plugin already keeps: one small table per page, not
+                # a GROUP BY over the whole event stream on every request
+                starts_cte = _air_start_view_cte(resolved_period)
             else:
                 starts_cte = _starts_cte(resolved_period)
         fields = {"value": _metric(wanted, branch, starts),
@@ -1040,6 +1085,113 @@ async def leaderboard(site: Any, pool: Any, metric: str = "playtime", period: st
                   "aircraft": row.get("aircraft") or "",
                   **{key: _number(row.get(key)) for key in LEADERBOARD_COLUMNS}}
                  for row in rows],
+    }
+
+
+# --------------------------------------------------------------------------- standing
+
+#: The flights a pilot needs in the period before entering the standing's cohort. Without a floor
+#: three lucky sorties top a K/D board, and every regular reads worse than they are.
+STANDING_FLOOR: int = 10
+
+#: The bands a standing card may name, in the order the card climbs them: ``(key, share, smallest
+#: cohort that can have it)``. ``top10`` is an ABSOLUTE place, so a twelve-pilot site has no top 10
+#: to reach and the card never names one — a target a pilot cannot reach is worse than no target.
+STANDING_BANDS: tuple[tuple[str, float | None, int], ...] = (
+    ("half", 0.50, 4),
+    ("quarter", 0.25, 8),
+    ("top10", None, 30),
+)
+
+#: The standing's cohort: every pilot of the site with at least ``%(floor)s`` flights in the period,
+#: ranked on K/D (the leaderboard's own definition, so the two pages cannot disagree). ``ranked``
+#: numbers the cohort once and ``size`` counts it; the cuts are the VALUE at the place each band
+#: ends, so the card can state a distance in the metric's own units. ``ROW_NUMBER`` rather than
+#: ``RANK``: a tie must not make two pilots share a place the card then reports as their own.
+_STANDING_SQL = """
+WITH {starts}cohort AS (
+    SELECT {prefix}player_ucid AS ucid,
+           {kd} AS value,
+           {sorties} AS sorties
+      FROM {relation}
+      {joins}
+     WHERE {where}
+     GROUP BY 1
+    HAVING {sorties} >= %(floor)s AND {kd} > 0
+), ranked AS (
+    SELECT ucid, value,
+           ROW_NUMBER() OVER (ORDER BY value DESC, ucid) AS place,
+           COUNT(*) OVER () AS size
+      FROM cohort
+)
+SELECT (SELECT size FROM ranked LIMIT 1) AS size,
+       (SELECT place FROM ranked WHERE ucid = %(ucid)s) AS place,
+       (SELECT value FROM ranked WHERE ucid = %(ucid)s) AS value,
+       (SELECT sorties FROM cohort WHERE ucid = %(ucid)s) AS sorties,
+       (SELECT value FROM ranked
+         WHERE place = LEAST(10, (SELECT size FROM ranked LIMIT 1))) AS top10_cut,
+       (SELECT value FROM ranked
+         WHERE place = CEIL((SELECT size FROM ranked LIMIT 1) * 0.25)) AS quarter_cut,
+       (SELECT value FROM ranked
+         WHERE place = CEIL((SELECT size FROM ranked LIMIT 1) * 0.50)) AS half_cut
+"""
+
+
+async def pilot_standing(site: Any, pool: Any, ucid: Any, period: Any = "quarter",
+                         floor: int = STANDING_FLOOR) -> dict:
+    """One pilot's place in the site's K/D cohort for *period*, with the band cuts around them.
+
+    The cohort is every pilot of the site's servers with at least *floor* flights in the period
+    (:data:`STANDING_FLOOR`), ranked on the leaderboard's own K/D — kills over deaths by enemy
+    action — so the card and the leaderboard cannot state two different K/Ds for one pilot. The
+    flights are counted the way the rest of the site counts them (:func:`_metric`'s ``sorties``),
+    so a pilot who only ever started in the air is not dropped from the cohort for it.
+
+    The answer carries the numbers only, never a sentence: ``size`` (the cohort), ``place`` and
+    ``value`` (the pilot's own, both ``None`` when they are not ranked), ``sorties`` (their flights
+    in the period), and ``cuts`` — the metric's value at the last place of each band
+    (:data:`STANDING_BANDS`). A band whose cohort is too small to have it answers ``None``, which is
+    what lets the card name only a target that exists. ``period`` is the bot's own vocabulary and
+    the answer states the one it served; a site with no session in the period answers ``size`` 0.
+    """
+    clause, resolved = _period_clause(period)
+    branch = _METRIC_VIEW if resolved == "all" else _METRIC_RAW
+    params = _params(site, floor=max(int(floor), 1), ucid=str(ucid or ""))
+    async with pool.connection() as conn:
+        starts = await _table_exists(conn, "missionstats")
+        if not starts:
+            starts_cte = ""
+        elif (_air_start_source(resolved) == "view"
+              and await _table_exists(conn, "mv_site_air_starts")):
+            starts_cte = _air_start_view_cte(resolved)
+        else:
+            starts_cte = _starts_cte(resolved)
+        if resolved == "all":
+            # the sorties metric reads st.air_starts, so the join belongs here too
+            relation, joins = "mv_site_pilot_totals ms", _starts_join("ms.") if starts else ""
+            where = f"ms.{SERVER_FILTER}"
+        else:
+            relation = "statistics s JOIN missions m ON m.id = s.mission_id"
+            joins = _starts_join(branch[0]) if starts else ""
+            where = f"m.{SERVER_FILTER} AND {clause}"
+        statement = _STANDING_SQL.format(
+            starts=starts_cte, prefix=branch[0], kd=_metric("kd_ratio", branch, starts),
+            sorties=_metric("sorties", branch, starts), relation=relation, joins=joins,
+            where=where)
+        row = await _fetch_one(conn, statement, params)
+    size = _number(row.get("size"))
+    place = _number(row.get("place"))
+    cuts = {"top10": row.get("top10_cut"), "quarter": row.get("quarter_cut"),
+            "half": row.get("half_cut")}
+    return {
+        "period": resolved,
+        "floor": params["floor"],
+        "size": size,
+        "place": place or None,
+        "value": (None if row.get("value") is None else float(row.get("value"))),
+        "sorties": _number(row.get("sorties")),
+        "cuts": {key: (None if value is None else float(value)) for key, value in cuts.items()},
+        "air_starts": starts,
     }
 
 
@@ -1079,6 +1231,23 @@ SELECT p.ucid, p.name
                   AND m.{SERVER_FILTER})
  ORDER BY LOWER(COALESCE(p.name, '')), p.ucid
 """
+
+async def my_ucids(site: Any, pool: Any, discord_id: Any) -> list[str]:
+    """The UCIDs a Discord id owns on the site's servers, in the profile's own order.
+
+    One read for the callers that need the identity and nothing else — the AAR download names the
+    pilot's UCID and never renders a figure, so it must not pay for the whole profile.
+    """
+    try:
+        wanted = int(discord_id)
+    except (TypeError, ValueError):
+        return []
+    if wanted <= 0:
+        return []
+    async with pool.connection() as conn:
+        rows = await _fetch_all(conn, _LINKED_BY_DISCORD_SQL, _params(site, discord_id=wanted))
+    return [str(row.get("ucid")) for row in rows if row.get("ucid")]
+
 
 _PILOT_TOTALS_SQL = f"""
 SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (NOW() AT TIME ZONE 'utc'))
@@ -1580,10 +1749,13 @@ async def squadrons(site: Any, pool: Any) -> list[dict]:
 
 # --------------------------------------------------------------------------- server board
 
+#: ``mv_serverstats`` names its session count ``totalSorties`` (the userstats plugin's own word for
+#: the ``statistics`` rows behind it). It is read here as ``sessions``: a session is a seat taken, not
+#: a flight, and the page must not call it a sortie.
 _BOARD_SQL = f"""
 SELECT server_name,
        ("totalPlaytime"::bigint * 3600) AS playtime,
-       "totalSorties" AS sorties
+       "totalSorties" AS sessions
   FROM mv_serverstats
  WHERE {SERVER_FILTER}
 """
@@ -1619,7 +1791,7 @@ def _active_players(server: Any) -> int:
 
 
 async def server_board(site: Any, pool: Any, live: Any = None) -> list[dict]:
-    """One row per site server: up or not, pilots flying now, all-time playtime and sorties.
+    """One row per site server: up or not, pilots flying now, all-time playtime and sessions.
 
     The live half is read from the in-process roster (the same objects the dashboard reads), never
     queried: ``online`` is the process being up, ``players_online`` the players sitting in a slot.
@@ -1643,7 +1815,7 @@ async def server_board(site: Any, pool: Any, live: Any = None) -> list[dict]:
             "status": status,
             "players_online": _active_players(server),
             "playtime": _number(figures_row.get("playtime")),
-            "sorties": _number(figures_row.get("sorties")),
+            "sessions": _number(figures_row.get("sessions")),
             "window": BOARD_WINDOW_LABEL,
         })
     return board
@@ -2274,7 +2446,7 @@ def _server_row(name: str, server: Any, figures: dict) -> dict:
     """One fleet row: the live half from the roster, the historical half from ``mv_serverstats``."""
     return {**_live_half(name, server),
             "playtime": _number(figures.get("playtime")),
-            "sorties": _number(figures.get("sorties")),
+            "sessions": _number(figures.get("sessions")),
             "window": BOARD_WINDOW_LABEL}
 
 
@@ -2297,7 +2469,7 @@ async def server_list(site: Any, pool: Any, live: Any = None) -> list[dict]:
 
     The live half is the in-process roster the dashboard reads (state, players, mission, map,
     runtime, restart-in, lock); the historical half is ``mv_serverstats``' all-time
-    playtime and sorties, read in the SAME statement the site filter binds. A server with no
+    playtime and session count, read in the SAME statement the site filter binds. A server with no
     recorded session is still a row, at zero.
     """
     names = _server_list(site)
@@ -2344,8 +2516,9 @@ async def my_statistics(site: Any, pool: Any, discord_id: Any, period: str = "qu
     The UCID union is read from ``players`` (a link lives per player, not per server), but only for
     UCIDs seen on the site's servers; every figure is then the pilot profile's own set, bound to
     those servers, plus the panels the public profile does not carry: the competitive rating with
-    its recorded history, the pilot's campaigns (credits and badge) and — when the ``missionstats``
-    plugin is loaded — the flights behind :func:`pilot_progress` for *period*. *period* is the bot's
+    its recorded history, the pilot's campaigns (credits and badge), the pilot's place in the site's
+    K/D cohort (:func:`pilot_standing`) and — when the ``missionstats`` plugin is loaded — the
+    flights behind :func:`pilot_progress` for *period*. *period* is the bot's
     own period vocabulary; an unknown name resolves to ``all``. No linked UCID on the site answers
     ``found`` False with the profile's keys, and a site without the events table answers
     ``"progress": None`` instead of failing.
@@ -2355,7 +2528,7 @@ async def my_statistics(site: Any, pool: Any, discord_id: Any, period: str = "qu
     except (TypeError, ValueError):
         wanted = -1
     empty = _empty_profile("")
-    empty.update({"discord_id": wanted, "progress": None})
+    empty.update({"discord_id": wanted, "progress": None, "standing": None})
     if wanted <= 0:
         return empty
     async with pool.connection() as conn:
@@ -2368,6 +2541,7 @@ async def my_statistics(site: Any, pool: Any, discord_id: Any, period: str = "qu
         rating = await _pilot_rating(conn, ucids[0])
         campaigns = await _campaigns(conn, site, ucids[0])
     progress = await pilot_progress(site, pool, ucids[0], period)
+    standing = await pilot_standing(site, pool, ucids[0], period)
     return {
         "ucid": ucids[0],
         "name": "",
@@ -2376,6 +2550,7 @@ async def my_statistics(site: Any, pool: Any, discord_id: Any, period: str = "qu
         "rating": rating,
         "campaigns": campaigns,
         "progress": progress,
+        "standing": standing,
         "ucids": [{"ucid": row.get("ucid"), "name": row.get("name") or ""} for row in linked],
         **detail,
     }

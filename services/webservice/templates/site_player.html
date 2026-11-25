@@ -169,11 +169,11 @@
   </section>
 
   <section class="sect">
-    <div class="sect-head"><span class="no">04</span><h2>{% trans %}Recent sorties{% endtrans %}</h2>
+    <div class="sect-head"><span class="no">04</span><h2>{% trans %}Recent sessions{% endtrans %}</h2>
       <span class="meta">{% trans count=model.recent | length %}{{ count }} sessions{% endtrans %}</span></div>
     <div class="grid">
       <section class="panel c12">
-        <div class="hd"><h2>{% trans %}Last flights{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
+        <div class="hd"><h2>{% trans %}Last sessions{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
         {% if model.recent %}
         <table class="tbl recent">
           <thead><tr><th>{% trans %}Date{% endtrans %}</th><th>{% trans %}Aircraft{% endtrans %}</th><th class="hide-sm">{% trans %}Mission{% endtrans %}</th><th>{% trans %}Server{% endtrans %}</th><th class="r">{% trans %}Duration{% endtrans %}</th></tr></thead>

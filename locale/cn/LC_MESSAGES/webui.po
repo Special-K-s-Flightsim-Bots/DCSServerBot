@@ -10392,8 +10392,8 @@ msgstr "如何作战"
 msgid "How they fly"
 msgstr "如何飞行"
 
-msgid "Last flights"
-msgstr "最近飞行"
+msgid "Last sessions"
+msgstr "最近的会话"
 
 msgid "PvE community"
 msgstr "PvE 社区"
@@ -10416,8 +10416,8 @@ msgstr "PvP 战绩"
 msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
 msgstr "百分比基于该飞行员自己的架次；条形表示比例，而不是与其他飞行员的排名。"
 
-msgid "Recent sorties"
-msgstr "近期架次"
+msgid "Recent sessions"
+msgstr "最近的会话"
 
 msgid "Targets hit"
 msgstr "命中目标"
@@ -12032,3 +12032,51 @@ msgstr "每周"
 
 msgid "{count} returned"
 msgstr "返航 {count} 次"
+
+#: services/webservice/templates/site_me.html:152
+msgid "Your standing"
+msgstr "你的排名"
+
+#: services/webservice/templates/site_me.html:153
+msgid "not ranked yet"
+msgstr "尚未排名"
+
+#: services/webservice/templates/site_me.html:153
+msgid "%(place)s of %(size)s pilots"
+msgstr "%(size)s 名飞行员中的 %(place)s"
+
+#: services/webservice/pages/site_me.py:258
+msgid "You are in the top 10."
+msgstr "你在前十名。"
+
+#: services/webservice/pages/site_me.py:260
+msgid "You are in the best quartile."
+msgstr "你在最好的四分之一。"
+
+#: services/webservice/pages/site_me.py:262
+msgid "You are in the better half."
+msgstr "你在较好的一半。"
+
+#: services/webservice/pages/site_me.py:311
+msgid "Next step: place {target}."
+msgstr "下一步：第 {target} 名。"
+
+#: services/webservice/pages/site_me.py:300
+msgid "Flights needed: {count} of {floor}."
+msgstr "还需飞行：{count} / {floor}。"
+
+#: services/webservice/templates/site_me.html:98
+msgid "Report"
+msgstr "报告"
+
+#: services/webservice/templates/site_me.html:99
+msgid "Download the AAR (PDF)"
+msgstr "下载 AAR（PDF）"
+
+#: services/webservice/pages/site_me.py:404
+msgid "The report is not available yet."
+msgstr "报告尚不可用。"
+
+#: services/webservice/pages/site_me.py:406
+msgid "No record on these servers."
+msgstr "这些服务器上没有记录。"

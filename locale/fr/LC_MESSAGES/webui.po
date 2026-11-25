@@ -6909,8 +6909,8 @@ msgstr "Comment ils combattent"
 msgid "How they fly"
 msgstr "Comment ils volent"
 
-msgid "Last flights"
-msgstr "Derniers vols"
+msgid "Last sessions"
+msgstr "Dernières sessions"
 
 msgid "PvE community"
 msgstr "Communauté PvE"
@@ -6933,8 +6933,8 @@ msgstr "Bilan PvP"
 msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
 msgstr "Les taux portent sur les propres sorties de ce pilote ; la barre est le taux, pas un rang face aux autres pilotes."
 
-msgid "Recent sorties"
-msgstr "Sorties récentes"
+msgid "Recent sessions"
+msgstr "Sessions récentes"
 
 msgid "Targets hit"
 msgstr "Cibles touchées"
@@ -8597,3 +8597,51 @@ msgstr "par semaine"
 
 msgid "{count} returned"
 msgstr "{count} retournés"
+
+#: services/webservice/templates/site_me.html:152
+msgid "Your standing"
+msgstr "Ton classement"
+
+#: services/webservice/templates/site_me.html:153
+msgid "not ranked yet"
+msgstr "pas encore classé"
+
+#: services/webservice/templates/site_me.html:153
+msgid "%(place)s of %(size)s pilots"
+msgstr "%(place)s sur %(size)s pilotes"
+
+#: services/webservice/pages/site_me.py:258
+msgid "You are in the top 10."
+msgstr "Tu es dans le top 10."
+
+#: services/webservice/pages/site_me.py:260
+msgid "You are in the best quartile."
+msgstr "Tu es dans le meilleur quartile."
+
+#: services/webservice/pages/site_me.py:262
+msgid "You are in the better half."
+msgstr "Tu es dans la meilleure moitié."
+
+#: services/webservice/pages/site_me.py:311
+msgid "Next step: place {target}."
+msgstr "Prochaine étape : la place {target}."
+
+#: services/webservice/pages/site_me.py:300
+msgid "Flights needed: {count} of {floor}."
+msgstr "Vols nécessaires : {count} sur {floor}."
+
+#: services/webservice/templates/site_me.html:98
+msgid "Report"
+msgstr "Rapport"
+
+#: services/webservice/templates/site_me.html:99
+msgid "Download the AAR (PDF)"
+msgstr "Télécharger l'AAR (PDF)"
+
+#: services/webservice/pages/site_me.py:404
+msgid "The report is not available yet."
+msgstr "Le rapport n'est pas encore disponible."
+
+#: services/webservice/pages/site_me.py:406
+msgid "No record on these servers."
+msgstr "Aucun enregistrement sur ces serveurs."

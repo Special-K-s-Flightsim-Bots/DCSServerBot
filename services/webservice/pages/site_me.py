@@ -24,14 +24,17 @@ from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 
 from .. import i18n, site_reads
-from ..site_pages import (ME_PATH, NAV_PATHS, SEARCH_PATH, identity, player_url, pool,
+from ..site_pages import (ME_AAR_PATH, ME_PATH, NAV_PATHS, SEARCH_PATH, identity, player_url, pool,
                           render_site_page, resolve_site, sign_in_href, sign_out_context, site_url)
+
+
 from .site_overview import bars_chart
-from .site_player import (DAY_MONTH, MONTH_YEAR, airframes, count, discipline, hours, last_flown,
-                          ratio, rating_view, recent, sentence, servers, sortie_count, sortie_note)
+from .site_player import (DAY_MONTH, MONTH_YEAR, _record, airframes, count, discipline, hours,
+                          last_flown, ratio, rating_view, recent, sentence, servers, sortie_count,
+                          sortie_note)
 
 __all__ = [
     "NAV_ID",
@@ -41,6 +44,7 @@ __all__ = [
     "readouts",
     "campaigns",
     "period_switch",
+    "standing_view",
     "progress_view",
     "view",
     "anonymous",
@@ -244,6 +248,81 @@ def _percent(value: Any, total: Any) -> str:
 
 # --------------------------------------------------------------------------------- the model
 
+def _band_edges(size: int) -> dict[str, int]:
+    """The last place that still holds each band a cohort of *size* can have.
+
+    ``top10`` is an absolute place, so a cohort smaller than :data:`site_reads.STANDING_BANDS`'
+    minimum never gets one — the card must not name a target that cannot exist. The shares are
+    rounded UP (``ceil``), so the pilot exactly on a boundary holds the better band.
+    """
+    edges: dict[str, int] = {}
+    for key, share, minimum in site_reads.STANDING_BANDS:
+        if size < minimum:
+            continue
+        if share is None:
+            edges[key] = 10
+        elif share == 0.25:
+            edges[key] = (size + 3) // 4
+        else:
+            edges[key] = (size + 1) // 2
+    return edges
+
+
+def _band_sentence(key: str) -> str:
+    """The sentence the card prints for the band a pilot holds. Literals, so the extractor sees them."""
+    if key == "top10":
+        return i18n._("You are in the top 10.")
+    if key == "quarter":
+        return i18n._("You are in the best quartile.")
+    return i18n._("You are in the better half.")
+
+
+def standing_view(standing: dict | None) -> dict | None:
+    """The standing card's model: the pilot's place, the band they hold, and the NEXT reachable step.
+
+    The target is always the nearest band the pilot has NOT reached — never a fixed top 3, which
+    says nothing to somebody on place 1,500. A band the cohort is too small to have is not offered
+    at all, so a twelve-pilot site never tells anyone to reach the top 10; a pilot who holds the
+    highest band the site can give is pointed at the place above instead.
+    """
+    if not standing:
+        return None
+    size = int(standing.get("size") or 0)
+    place = standing.get("place")
+    floor = int(standing.get("floor") or 0)
+    sorties = int(standing.get("sorties") or 0)
+    if not place:
+        return {
+            "size": count(size),
+            "place": None,
+            "value": None,
+            "band": None,
+            "goal": None,
+            "unranked": _record(i18n._("Flights needed: {count} of {floor}."),
+                                count=count(max(floor - sorties, 0)), floor=count(floor)),
+        }
+    edges = _band_edges(size)
+    held = [key for key in ("half", "quarter", "top10")
+            if key in edges and place <= edges[key]]
+    goal_key = next((key for key in ("half", "quarter", "top10")
+                     if key in edges and place > edges[key]), None)
+    if goal_key is not None:
+        target = edges[goal_key]
+    elif place > 1:
+        target = place - 1
+    else:
+        target = None
+    return {
+        "size": count(size),
+        "place": f"#{count(place)}",
+        "value": f"{float(standing.get('value') or 0):.2f}",
+        "band": _band_sentence(held[-1]) if held else None,
+        "goal": (None if target is None
+                 else _record(i18n._("Next step: place {target}."), target=f"#{count(target)}")),
+        "unranked": None,
+    }
+
+
 def view(resolved: Any, who: Any, stats: dict, href: str = "") -> dict:
     """The page's whole signed-in model from the read's own answer — pure, so a test can pin it."""
     found = bool(stats.get("found"))
@@ -260,6 +339,9 @@ def view(resolved: Any, who: Any, stats: dict, href: str = "") -> dict:
         "discipline": discipline(totals),
         "rating": rating_view(stats.get("rating")),
         "progress": progress,
+        "standing": standing_view(stats.get("standing")),
+        # the AAR is built from the event stream, so the link exists only where that stream does
+        "aar_href": site_url(resolved, ME_AAR_PATH) if progress else None,
         "periods": period_switch(href or site_url(resolved, ME_PATH),
                                  (stats.get("progress") or {}).get("period")
                                  or DEFAULT_PROGRESS_PERIOD),
@@ -319,4 +401,63 @@ def add_route(router: APIRouter, site: Any) -> str:
 
     router.add_api_route(path, site_me, methods=["GET"], response_class=HTMLResponse,
                          name=f"site-me-{site.key}")
+    return path
+
+
+def _bot() -> Any:
+    """The bot this process serves, or ``None``: the AAR builder needs its pool, log and proxy."""
+    try:
+        from core.services.registry import ServiceRegistry
+        from services.bot.service import BotService
+
+        return getattr(ServiceRegistry.get(BotService), "bot", None)
+    except Exception:  # noqa: BLE001 - no bus, no bot: the route answers its 503 sentence
+        return None
+
+
+def aar_route(router: APIRouter, site: Any) -> str:
+    """Serve the signed-in viewer's After Action Report at ``<site>/me/aar`` and return its path.
+
+    The report is the bot's own — ``plugins.missionstats.reports.AAR``, the same builder ``/aar``
+    answers with in Discord — so the download and the slash command cannot disagree about what a
+    sortie is. The route is ``public`` like the page that links it (``site_pages`` declares it), and
+    it refuses with the sign-in redirect rather than a figure for an anonymous request: the report is
+    the pilot's own, and there is nobody to build it for.
+
+    ``?period=`` is the page's own vocabulary, resolved by :func:`_period`; anything else is the
+    page's default. A missing events table, an unlinked identity or a period with no flight answers
+    a plain 404 sentence, never an empty PDF.
+    """
+    path = site_url(site, ME_AAR_PATH)
+
+    async def site_me_aar(request: Request, period: str = "") -> Response:
+        resolved = resolve_site(request, site)
+        who = identity(request)
+        if who is None:
+            return RedirectResponse(sign_in_href(request, resolved, ""), status_code=307)
+        db, bot = pool(), _bot()
+        if db is None or bot is None:
+            return PlainTextResponse(i18n._("The report is not available yet."), status_code=503)
+        ucids = await site_reads.my_ucids(resolved, db, getattr(who, "subject", ""))
+        if not ucids:
+            return PlainTextResponse(i18n._("No record on these servers."), status_code=404)
+        try:
+            from plugins.missionstats.reports import AAR
+            from plugins.userstats.filter import MissionStatisticsFilter
+        except ImportError:  # the plugin that owns the report is not installed here
+            return PlainTextResponse(i18n._("The report is not available yet."), status_code=503)
+
+        report = AAR(bot, ucids[0], _shown_name(who) or "", MissionStatisticsFilter(_period(period)))
+        file = await report.render()
+        if file is None:
+            return PlainTextResponse(i18n._("No flight is recorded in this period."), status_code=404)
+        try:
+            data = file.fp.read()
+        finally:
+            file.fp.close()
+        return Response(content=data, media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="{file.filename}"'})
+
+    router.add_api_route(path, site_me_aar, methods=["GET"], response_class=Response,
+                         name=f"site-me-aar-{site.key}")
     return path

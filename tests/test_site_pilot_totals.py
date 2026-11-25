@@ -22,7 +22,10 @@ from services.webservice import site_reads
 REPO = Path(__file__).resolve().parents[1]
 DB_DIR = REPO / "plugins" / "userstats" / "db"
 VIEW = "mv_site_pilot_totals"
-HOPS = ("update_v3.14.sql", "tables.sql")
+HOPS = ("update_v3.14.sql", "update_v3.15.sql", "tables.sql")
+#: The files that describe the view AS IT IS: a historical migration keeps the column names of its
+#: own day (v3.14 still creates ``sorties``), so only these two may be held to today's names.
+CURRENT = ("update_v3.15.sql", "tables.sql")
 
 
 def _view_body(filename: str) -> str:
@@ -38,6 +41,11 @@ def _view_body(filename: str) -> str:
 
 @pytest.fixture(params=HOPS)
 def body(request) -> str:
+    return _view_body(request.param)
+
+
+@pytest.fixture(params=CURRENT)
+def current_body(request) -> str:
     return _view_body(request.param)
 
 
@@ -74,17 +82,19 @@ def test_the_unique_index_is_the_pair_concurrently_refreshes_on():
     for filename in HOPS:
         statements = [re.sub(r"\s+", " ", s).strip()
                       for s in sqlparse.split((DB_DIR / filename).read_text(encoding="utf-8"))]
-        wanted = (f"CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_site_pilot_totals ON {VIEW} "
-                  f"(server_name, player_ucid);")
-        assert wanted in statements, f"{filename} carries no unique index for {VIEW}"
+        wanted = (rf"CREATE UNIQUE INDEX (?:IF NOT EXISTS )?idx_mv_site_pilot_totals ON {VIEW} "
+                  rf"\(server_name, player_ucid\);")
+        assert any(re.fullmatch(wanted, statement) for statement in statements), \
+            f"{filename} carries no unique index for {VIEW}"
 
 
-def test_the_wide_columns_are_carried_and_summed_by_the_view(body):
+def test_the_wide_columns_are_carried_and_summed_by_the_view(current_body):
     """The leaderboard prints these; a column missing from the view fails on a page, not at import."""
-    for column in ("sorties", "takeoffs", "landings", "ejections"):
-        assert f"AS {column}" in body, f"{VIEW} does not carry {column}"
-        assert f"SUM(g.{column})" in body, f"{VIEW} does not roll {column} up per pilot"
-    assert "COUNT(*) AS sorties" in body, "sorties is the statistics-row count at the inner grain"
+    for column in ("sessions", "takeoffs", "landings", "ejections"):
+        assert f"AS {column}" in current_body, f"{VIEW} does not carry {column}"
+        assert f"SUM(g.{column})" in current_body, f"{VIEW} does not roll {column} up per pilot"
+    assert "COUNT(*) AS sessions" in current_body, "a session is one statistics row, at the inner grain"
+    assert "AS sorties" not in current_body, "a session count is not a sortie, and the view must not say so"
 
 
 def test_the_favourite_airframe_view_is_one_row_per_server_pilot_and_slot():
