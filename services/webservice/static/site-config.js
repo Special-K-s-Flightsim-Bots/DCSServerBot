@@ -24,6 +24,12 @@
   // become a live link.
   const SAFE_HREF = /^(https?:\/\/|mailto:|\/)/i;
 
+  /* THE FORM THAT IS LEAVING, set on the capture phase so it is known before the page unloads. Read
+   * by the preview block's `discard`: a card's own write (the mark, the sheet, the password switches)
+   * comes back to the same card, so it must keep the draft rather than take it away. */
+  let submitting = null;
+  document.addEventListener('submit', (event) => { submitting = event.target; }, true);
+
   const paint = (doc, row) => {
     const selector = row.getAttribute('data-sc-drives');
     if (!selector) {
@@ -284,13 +290,26 @@
     };
     /* LEAVING THE CARD DISCARDS IT. `pagehide` covers a reload, a link and a closed tab; the card's
      * own toggle covers closing it. `sendBeacon` is the one post a departing page can still make, and
-     * the token travels in the body it already carries. */
+     * the token travels in the body it already carries.
+     *
+     * A CARD'S OWN WRITE IS NOT LEAVING IT. The mark, the palette sheet and the password switches each
+     * submit a form of their own and the page comes back to the same card — so the draft is KEPT, and
+     * posted once more on the way out, because the card that returns draws its fields from it and a
+     * keystroke the debounce had not sent yet would otherwise be the one field lost. Save is the
+     * exception: the route forgets the draft itself, and a post that re-stored it would put the values
+     * back on the page it just wrote. */
     const discard = () => {
       if (timer) {
         clearTimeout(timer);
         timer = null;
       }
       if (!clearField) {
+        return;
+      }
+      if (submitting && submitting !== form && card && card.contains(submitting)) {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(url, body());
+        }
         return;
       }
       const data = body();

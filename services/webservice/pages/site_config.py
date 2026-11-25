@@ -1536,14 +1536,15 @@ def _mtime_stamp(path: Path) -> str:
 
 def _card(request: Request, tree: configgen.Field, site: "sites.Site", document,
           access: SiteAccess, config_dir, installed: frozenset,
-          catalog: "sites.SiteCatalog | None" = None) -> dict:
+          catalog: "sites.SiteCatalog | None" = None, group_role: str = "") -> dict:
     """ONE site's card: its generated leaves, its hand-rendered groups and what may be edited.
 
     ``installed`` is the ``(key, prefix)`` set this process registered at startup. A site the file
     carries but the process does not is a card whose address nothing answers yet: its box is a MOCK
     drawn from the file instead of a frame at that address. The PREFIX is part of the pair on purpose
     — a site whose address was changed is installed under the old one, and a frame would point at a
-    path that is gone.
+    path that is gone. ``group_role`` is the value the card's own input prints: the site model never
+    carries an unsaved one (a draft may not move a site's membership), so the page passes it in.
     """
     live = (site.key, site.prefix) in installed
     field = card_field(tree, site.key)
@@ -1571,6 +1572,8 @@ def _card(request: Request, tree: configgen.Field, site: "sites.Site", document,
         "prefix": site.prefix,
         # the brand the menu's drawing prints: the site's own title, else the site's key
         "brand_name": site.branding.title or site.key,
+        # the membership the input prints: the draft's typed value when the page passed one
+        "group_role": group_role or site.group_role,
         "branding_rows": brand_rows,
         # the one chip the block wears: the number of rows it draws (footer links has its own block)
         "branding_count": len([row for row in brand_rows if row["kind"] != "links"]),
@@ -1746,9 +1749,32 @@ def page_context(request: Request) -> dict:
         tree = form_tree()
         installed = frozenset((candidate.key, candidate.prefix)
                               for candidate in sites.sites_for(request.app).sites)
-        cards = [_card(request, tree, site, document, access, config_dir, installed, catalog)
-                 for site in catalog.sites
-                 if site_in_scope(request, site)]
+        for site in catalog.sites:
+            if not site_in_scope(request, site):
+                continue
+            view_document: Any = document
+            view_site, typed_role = site, ""
+            block = site_pages.draft_block(request, site.key)
+            if block:
+                # THE CARD DRAWS WHAT THE OPERATOR TYPED, not only what is saved. Every write on this
+                # page leaves and comes back (the mark upload, the palette sheet, the password
+                # switches), and a card re-rendered from the file alone would drop each unsaved field
+                # — so the session's own draft, which the preview already follows, is what the form
+                # reads too. The address may not move: `draft_form_block` drops `slug` and
+                # `group_role`, and the role is carried beside it for the input that prints it.
+                view_document = copy.deepcopy(document)
+                blocks = view_document.get("sites")
+                if isinstance(blocks, Mapping):
+                    merged = {str(name): value for name, value in blocks.items()}
+                    current = merged.get(site.key)
+                    merged[site.key] = site_pages.draft_merged(
+                        current if isinstance(current, Mapping) else {},
+                        site_pages.draft_form_block(block))
+                    view_document["sites"] = merged
+                view_site = site_pages.draft_site(request, site, block) or site
+                typed_role = readmodels.text(block.get("group_role")) or site.group_role or ""
+            cards.append(_card(request, tree, view_site, view_document, access, config_dir, installed,
+                               catalog, group_role=typed_role))
     return {
         "title": SITE_TITLE,
         "page_title": SITE_TITLE,
@@ -2823,6 +2849,9 @@ def add_routes(router: APIRouter) -> APIRouter:
                 settings_page._notice(request, SITE_SAVED_APPLIED, ok=True, refusal=True,
                                       applies=result.applies)
             return _back(request, key)
+        # THE DRAFT IS SPENT BY THE SAVE, on every path that wrote: the card that comes back draws its
+        # fields from the file now, and a draft left behind would be a second record of the same card.
+        site_pages.forget_draft(request, key)
         settings_page._notice(request, SITE_SAVED_LIVE, ok=True, refusal=True,
                               applies=result.applies)
         return _back(request, key)

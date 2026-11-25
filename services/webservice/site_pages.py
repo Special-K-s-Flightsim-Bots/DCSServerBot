@@ -63,6 +63,8 @@ __all__ = [
     "draft_bytes",
     "draft_context",
     "draft_count",
+    "draft_form_block",
+    "draft_merged",
     "draft_overlay",
     "draft_site",
     "demo_context",
@@ -905,10 +907,21 @@ def forget_session_drafts(request: Request) -> int:
 
 
 def draft_overlay(block: Mapping) -> dict:
-    """The plain copy of *block* a draft stores: no structural field, no ruamel type, JSON-sized.
+    """The plain copy of *block* a draft stores: no ruamel type, JSON-sized.
 
-    ``slug`` and ``group_role`` are dropped here rather than at render time, so a draft can never
-    move the address the demo is served at.
+    EVERY key is kept, ``slug`` and ``group_role`` included: the card's form draws its fields from
+    the draft (:func:`draft_form_block` is what the preview merges), so a role typed but not yet saved
+    must survive the page's own writes — the mark upload, the palette sheet, the password switches.
+    """
+    plain = _plain_block(block)
+    return plain if isinstance(plain, dict) else {}
+
+
+def draft_form_block(block: Mapping) -> dict:
+    """*block* as the preview merges it: the plain copy without the two keys that MOVE a site.
+
+    ``slug`` and ``group_role`` are dropped here rather than at store time, so the draft the form
+    draws from and the draft the preview renders are one record, and only the address stays fixed.
     """
     plain = _plain_block(block)
     if not isinstance(plain, dict):
@@ -947,6 +960,15 @@ def _deep_merge(base: Mapping, overlay: Mapping) -> dict:
     return merged
 
 
+def draft_merged(base: Mapping, overlay: Mapping) -> dict:
+    """*overlay* laid over *base*, block by block — the merge both the preview and the card render with.
+
+    A block present on both sides is merged key by key, so a draft that states one leaf never erases
+    its siblings.
+    """
+    return _deep_merge(base, overlay)
+
+
 def draft_site(request: Request, site: Any, block: Mapping) -> Any | None:
     """The :class:`~services.webservice.sites.Site` *block* describes, or ``None``.
 
@@ -965,7 +987,7 @@ def draft_site(request: Request, site: Any, block: Mapping) -> Any | None:
         return None
     if isinstance(stored, Mapping) and isinstance(stored.get(key), Mapping):
         base = stored[key]
-    merged = _deep_merge(base, block)
+    merged = _deep_merge(base, draft_form_block(block))
     try:
         catalog = sites.parse_sites(
             {key: merged},

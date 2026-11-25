@@ -670,7 +670,7 @@
                   {% if card.site.is_root %}
                   <span class="st-ro">{{ _(labels.root_servers) }}</span>
                   {% elif card.structure %}
-                  <input class="st-in mono" type="text" name="f.sites.{{ card.token }}.group_role" value="{{ card.site.group_role or '' }}">
+                  <input class="st-in mono" type="text" name="f.sites.{{ card.token }}.group_role" value="{{ card.group_role or '' }}">
                   {% else %}
                   <span class="st-ro">{{ card.site.group_role }}</span>
                   {% endif %}

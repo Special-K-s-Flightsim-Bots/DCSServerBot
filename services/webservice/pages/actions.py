@@ -4235,7 +4235,11 @@ def screenshot_control(request: Request) -> dict | None:
             # render without the capture (it is already spent) — the dialog's "the way out is where
             # you came from" rule, applied to a modal that opens over the page rather than as one.
             "back": f"{request.url.path}{f'?{request.url.query}' if request.url.query else ''}",
-            "image_url": f"{SCREENSHOT_IMAGE_PATH}/{capture.token}.png"}
+            # THE IMAGE IS THE CONSOLE'S OWN ADDRESS, so it carries the console's prefix: a public
+            # site at "/" moves this console to /console, and a bare path would ask the SITE for a
+            # PNG it does not serve — the modal would open over an empty box.
+            "image_url": mount.url(f"{SCREENSHOT_IMAGE_PATH}/{capture.token}.png",
+                                   app=request.app)}
 
 
 def _screenshot_capable(source) -> dict[str, bool]:
