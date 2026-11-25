@@ -13808,3 +13808,20 @@ msgstr "Der Bericht ist noch nicht verfügbar."
 #: services/webservice/pages/site_me.py:406
 msgid "No record on these servers."
 msgstr "Kein Eintrag auf diesen Servern."
+
+#: services/webservice/templates/_table.html
+msgid "Search bans"
+msgstr "Sperren suchen"
+
+#: services/webservice/templates/_table.html
+msgid "name, UCID or reason, e.g. Viper-1 or cheating"
+msgstr "Name, UCID oder Grund, z. B. Viper-1 oder Cheating"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Filter: name, UCID or reason contains %(query)s · %(filtered)s of %(total)s bans"
+msgstr "Filter: Name, UCID oder Grund enthält %(query)s · %(filtered)s von %(total)s Sperren"
+
+#: services/webservice/readmodels/bans.py
+msgid "No ban matches that search."
+msgstr "Keine Sperre passt zu dieser Suche."

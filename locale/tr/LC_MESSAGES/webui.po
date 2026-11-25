@@ -14242,3 +14242,20 @@ msgstr "Rapor henüz hazır değil."
 #: services/webservice/pages/site_me.py:406
 msgid "No record on these servers."
 msgstr "Bu sunucularda kayıt yok."
+
+#: services/webservice/templates/_table.html
+msgid "Search bans"
+msgstr "Yasak ara"
+
+#: services/webservice/templates/_table.html
+msgid "name, UCID or reason, e.g. Viper-1 or cheating"
+msgstr "isim, UCID veya sebep, örn. Viper-1 veya hile"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Filter: name, UCID or reason contains %(query)s · %(filtered)s of %(total)s bans"
+msgstr "Filtre: isim, UCID veya sebep %(query)s içeriyor · %(filtered)s / %(total)s yasak"
+
+#: services/webservice/readmodels/bans.py
+msgid "No ban matches that search."
+msgstr "Bu aramayla eşleşen yasak yok."

@@ -148,6 +148,7 @@ TABLE_LABELS: dict[str, str] = {
 #: from it, and a fifth key there would put a Postgres-backed table on every live tick.
 PAGE_COLUMNS: dict[str, tuple[Column, ...]] = {
     "bans": (Column("name", _("Player")), Column("ucid", _("UCID")), Column("reason", _("Reason")),
+             Column("banned_by", _("Banned by")),
              Column("banned_at", _("Banned")), Column("banned_until", _("Expires")),
              Column("scope", _("Scope"))),
     # THE MODS TABLE: one row per installed package of ONE target, a database read like the bans
@@ -425,6 +426,8 @@ def _cell(table: str, key: str, row):
             return row.ucid
         if key == "reason":
             return row.reason
+        if key == "banned_by":
+            return row.banned_by
         if key == "banned_at":
             return row.banned_at
         if key == "banned_until":

@@ -101,12 +101,21 @@ async def bans_context(request: Request) -> dict:
     entries = data.get("bans") if getattr(result, "success", False) else None
     rows = readmodels.ban_views(entries or ())
     show = ban_model.dgsa_requested(request.query_params)
-    shown, hidden = ban_model.split_dgsa(rows, show=show)
+    # THE VIEW OPTION FIRST, THEN THE SEARCH: the search's counts describe the set the table can
+    # actually draw, so a query that matches only a WITHHELD DGSA row reads "0 of 2 bans" beside the
+    # sentence that says one DGSA ban is hidden — never "1 of 3" over an empty table.
+    visible, hidden = ban_model.split_dgsa(rows, show=show)
+    search = ban_model.search_bans(visible, readmodels.view_params(request.query_params).query)
+    shown = search.rows
     request.state.bans_rows = shown
     context = lists_page.page_context(request, PAGE, rows=shown)
+    context["bans_search"] = search
+    context["bans_no_match"] = ban_model.NO_MATCH_MESSAGE
     if show:
         # the option rides in every sort link, so ordering the list does not silently switch the
-        # DGSA rows back off — the same reason the toggle's own form carries the current sort.
+        # DGSA rows back off — the same reason the toggle's own form carries the current sort. The
+        # SEARCH form carries it too: a search typed while those rows are shown keeps them shown.
+        context["search_hidden"] = {ban_model.DGSA_PARAM: ban_model.DGSA_ON}
         params = {**context["view"].params, ban_model.DGSA_PARAM: ban_model.DGSA_ON}
         table = context["table"]
         context["table"] = readmodels.table_view(mount.url(PAGE.path), PAGE.table, shown,

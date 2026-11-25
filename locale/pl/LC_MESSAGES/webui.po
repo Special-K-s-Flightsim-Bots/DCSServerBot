@@ -8752,3 +8752,20 @@ msgstr "Raport nie jest jeszcze dostępny."
 #: services/webservice/pages/site_me.py:406
 msgid "No record on these servers."
 msgstr "Brak wpisu na tych serwerach."
+
+#: services/webservice/templates/_table.html
+msgid "Search bans"
+msgstr "Szukaj banów"
+
+#: services/webservice/templates/_table.html
+msgid "name, UCID or reason, e.g. Viper-1 or cheating"
+msgstr "nazwa, UCID lub powód, np. Viper-1 lub oszustwo"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Filter: name, UCID or reason contains %(query)s · %(filtered)s of %(total)s bans"
+msgstr "Filtr: nazwa, UCID lub powód zawiera %(query)s · %(filtered)s z %(total)s banów"
+
+#: services/webservice/readmodels/bans.py
+msgid "No ban matches that search."
+msgstr "Żaden ban nie pasuje do tego wyszukiwania."

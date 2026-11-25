@@ -12080,3 +12080,20 @@ msgstr "报告尚不可用。"
 #: services/webservice/pages/site_me.py:406
 msgid "No record on these servers."
 msgstr "这些服务器上没有记录。"
+
+#: services/webservice/templates/_table.html
+msgid "Search bans"
+msgstr "搜索封禁"
+
+#: services/webservice/templates/_table.html
+msgid "name, UCID or reason, e.g. Viper-1 or cheating"
+msgstr "名称、UCID 或原因，例如 Viper-1 或作弊"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Filter: name, UCID or reason contains %(query)s · %(filtered)s of %(total)s bans"
+msgstr "过滤：名称、UCID 或原因包含 %(query)s · %(total)s 条封禁中有 %(filtered)s 条"
+
+#: services/webservice/readmodels/bans.py
+msgid "No ban matches that search."
+msgstr "没有封禁符合该搜索。"

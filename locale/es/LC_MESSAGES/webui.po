@@ -13757,3 +13757,20 @@ msgstr "El informe aún no está disponible."
 #: services/webservice/pages/site_me.py:406
 msgid "No record on these servers."
 msgstr "Sin registro en estos servidores."
+
+#: services/webservice/templates/_table.html
+msgid "Search bans"
+msgstr "Buscar prohibiciones"
+
+#: services/webservice/templates/_table.html
+msgid "name, UCID or reason, e.g. Viper-1 or cheating"
+msgstr "nombre, UCID o motivo, p. ej. Viper-1 o trampas"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Filter: name, UCID or reason contains %(query)s · %(filtered)s of %(total)s bans"
+msgstr "Filtro: nombre, UCID o motivo contiene %(query)s · %(filtered)s de %(total)s prohibiciones"
+
+#: services/webservice/readmodels/bans.py
+msgid "No ban matches that search."
+msgstr "Ninguna prohibición coincide con esa búsqueda."

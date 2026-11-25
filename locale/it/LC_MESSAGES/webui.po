@@ -8685,3 +8685,20 @@ msgstr "Il rapporto non è ancora disponibile."
 #: services/webservice/pages/site_me.py:406
 msgid "No record on these servers."
 msgstr "Nessun dato su questi server."
+
+#: services/webservice/templates/_table.html
+msgid "Search bans"
+msgstr "Cerca ban"
+
+#: services/webservice/templates/_table.html
+msgid "name, UCID or reason, e.g. Viper-1 or cheating"
+msgstr "nome, UCID o motivo, ad es. Viper-1 o cheating"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Filter: name, UCID or reason contains %(query)s · %(filtered)s of %(total)s bans"
+msgstr "Filtro: nome, UCID o motivo contiene %(query)s · %(filtered)s di %(total)s ban"
+
+#: services/webservice/readmodels/bans.py
+msgid "No ban matches that search."
+msgstr "Nessun ban corrisponde a questa ricerca."

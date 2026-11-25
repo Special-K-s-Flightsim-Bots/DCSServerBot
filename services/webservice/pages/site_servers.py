@@ -632,8 +632,15 @@ def add_route(router: APIRouter, site: Any) -> str:
 
 
 def detail_route(router: APIRouter, site: Any) -> str:
-    """Serve one server's page at the list's path plus one encoded name segment."""
-    path = site_url(site, f"{SERVER_PATH}/{{name}}")
+    """Serve one server's page at the list's path plus the server's name.
+
+    The name uses the ``{name:path}`` CONVERTER, not the default ``{name}``: a DCS server name may
+    contain ``/``, and the URL builder percent-encodes it (``quote(..., safe="")``), which the server
+    decodes before routing — so the default ``[^/]+`` pattern sees two segments and the request lands
+    on 404 instead of the page. ``{name:path}`` matches slashes as well, so the decoded name reaches
+    the handler whole. The console's own per-server route uses the same converter.
+    """
+    path = site_url(site, f"{SERVER_PATH}/{{name:path}}")
 
     async def site_server(request: Request, name: str) -> HTMLResponse:
         resolved = resolve_site(request, site)

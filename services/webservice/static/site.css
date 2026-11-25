@@ -1476,9 +1476,11 @@ p:last-child { margin-bottom: 0; }
   border-left: var(--rule-w) solid var(--brass);
   border-radius: var(--radius);
 }
+.rail > .k { min-width: 0; }
 .rail > .k h2 {
   font-family: var(--disp); font-size: var(--t-xl); font-weight: 700;
   letter-spacing: -.01em; line-height: 1.15; color: var(--fg); margin: var(--sp-1) 0 0;
+  overflow-wrap: anywhere;
 }
 .rail > .k .sub { font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); margin-top: var(--sp-0h); }
 

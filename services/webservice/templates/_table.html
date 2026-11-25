@@ -96,6 +96,21 @@
   <p class="sub search-state">{% if view.search.active %}{% trans query=view.search.query, filtered=view.search.filtered, total=view.search.total %}Filter: name or UCID contains {{ query }} · {{ filtered }} of {{ total }} players{% endtrans %} · <a href="{{ search_clear }}">{% trans %}clear{% endtrans %}</a>{% else %}{% trans count=view.search.total %}{{ count }} player(s) online{% endtrans %}{% endif %}</p>
   {% endif %}
   {% elif table.name == 'bans' %}
+  {#- THE SEARCH, in the players page's own form: a GET form on this page's path, so it filters
+      server-side, is linkable and works with JavaScript off. It matches the player's name, the UCID
+      or the reason (the read model's own filter — the template computes nothing). The state line
+      states the filter and BOTH counts, so a narrowed list cannot read as a smaller ban list, and
+      `search_hidden` carries the DGSA view option while it is in force. -#}
+  <form class="search" method="get" action="{{ search_action }}" role="search">
+    <label for="q">{% trans %}Search bans{% endtrans %}</label>
+    <input type="search" id="q" name="q" value="{{ bans_search.query }}" placeholder="{% trans %}name, UCID or reason, e.g. Viper-1 or cheating{% endtrans %}">
+    {% for key, value in search_hidden.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+    <button type="submit">{% trans %}Search{% endtrans %}</button>
+    <a href="{{ search_clear }}">{% trans %}Clear{% endtrans %}</a>
+  </form>
+  {% if bans_search.active %}
+  <p class="sub search-state">{% trans query=bans_search.query, filtered=bans_search.filtered, total=bans_search.total %}Filter: name, UCID or reason contains {{ query }} · {{ filtered }} of {{ total }} bans{% endtrans %} · <a href="{{ search_clear }}">{% trans %}clear{% endtrans %}</a></p>
+  {% endif %}
   {#- THE DGSA VIEW OPTION, in the players search's own slot: a LINK, not a form. The option is a GET
       parameter on this page's path, so the hidden state states how many rows were withheld with the
       link that reveals them, and the shown state states that they are shown with the link back. It is
@@ -131,6 +146,6 @@
   <div class="bd"><p class="sub">{% trans page=directory.paging.page, pages=directory.paging.pages %}Page {{ page }} of {{ pages }}{% endtrans %}{% if directory.paging.prev %} · <a href="{{ directory.paging.prev }}">{% trans %}Previous{% endtrans %}</a>{% endif %}{% if directory.paging.next %} · <a href="{{ directory.paging.next }}">{% trans %}Next{% endtrans %}</a>{% endif %}</p></div>
   {% endif %}
   {% else %}
-  <div class="bd"><p class="empty">{% if table.name == 'players' and view.search.active %}{{ _(empty.players_matched) }}{% elif table.name == 'player_directory' and directory.query %}{{ _(directory.empty_matched) }}{% elif table.name == 'player_directory' and directory.filtered %}{{ _(directory.empty_view) }}{% else %}{{ _(empty[table.name]) }}{% endif %}</p></div>
+  <div class="bd"><p class="empty">{% if table.name == 'players' and view.search.active %}{{ _(empty.players_matched) }}{% elif table.name == 'bans' and bans_search.active %}{{ _(bans_no_match) }}{% elif table.name == 'player_directory' and directory.query %}{{ _(directory.empty_matched) }}{% elif table.name == 'player_directory' and directory.filtered %}{{ _(directory.empty_view) }}{% else %}{{ _(empty[table.name]) }}{% endif %}</p></div>
   {% endif %}
 </div>

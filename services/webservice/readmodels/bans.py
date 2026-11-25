@@ -23,11 +23,13 @@ from datetime import datetime
 from typing import Any, Mapping, Sequence
 
 from .access import text
+from .views import normalise_query
 
 __all__ = [
-    "DGSA_BANNED_BY", "DGSA_PARAM", "DGSA_ON", "PERMANENT_YEAR", "NO_BANS_MESSAGE", "ALL_SERVERS",
-    "NEVER", "UNTIL_FORMAT", "BanView", "permanent", "expires_utc", "ban_views", "dgsa_requested",
-    "split_dgsa",
+    "DGSA_BANNED_BY", "DGSA_PARAM", "DGSA_ON", "PERMANENT_YEAR", "NO_BANS_MESSAGE", "NO_MATCH_MESSAGE",
+    "ALL_SERVERS",
+    "NEVER", "UNTIL_FORMAT", "BanView", "BanSearch", "permanent", "expires_utc", "ban_views",
+    "search_bans", "dgsa_requested", "split_dgsa",
 ]
 
 
@@ -131,15 +133,17 @@ class BanView:
     """One ban ENTRY, shaped for the table.
 
     ``name`` is the ``players`` table's name for the ucid, falling back to the UCID itself (never a
-    blank). ``banned_at``/``banned_until`` are rendered UTC stamps; ``permanent`` says the second is
-    the word ``never`` instead. ``scope`` is the server names or the ``all servers`` word, with
-    ``bot_wide`` telling the two apart for the markup. ``dgsa`` marks a row the cloud plugin wrote.
-    ``key`` is the entry's IDENTITY (``<ucid>@<banned_at ISO>``) — the key its LIFT control and its
-    confirm token are built on.
+    blank). ``banned_by`` is who wrote the ban — the acting person's shown name, or the cloud
+    plugin's own name for a DGSA row. ``banned_at``/``banned_until`` are rendered UTC stamps;
+    ``permanent`` says the second is the word ``never`` instead. ``scope`` is the server names or
+    the ``all servers`` word, with ``bot_wide`` telling the two apart for the markup. ``dgsa`` marks
+    a row the cloud plugin wrote. ``key`` is the entry's IDENTITY (``<ucid>@<banned_at ISO>``) — the
+    key its LIFT control and its confirm token are built on.
     """
     name: str
     ucid: str
     reason: str
+    banned_by: str
     banned_at: str
     banned_until: str
     permanent: bool
@@ -166,6 +170,7 @@ def _view(entry: Any) -> BanView:
         name=name,
         ucid=ucid,
         reason=text(_field(entry, "reason")),
+        banned_by=text(_field(entry, "banned_by")),
         banned_at=_stamp(_field(entry, "banned_at")),
         banned_until=NEVER if is_permanent else _stamp(_field(entry, "banned_until")),
         permanent=is_permanent,
@@ -216,3 +221,41 @@ def split_dgsa(views: Sequence[BanView], *, show: bool) -> tuple[tuple[BanView, 
         return rows, 0
     shown = tuple(view for view in rows if not getattr(view, "dgsa", False))
     return shown, len(rows) - len(shown)
+
+
+#: The empty-state sentence for a search that matched no ban at all.
+NO_MATCH_MESSAGE = _("No ban matches that search.")
+
+
+@dataclass(frozen=True, slots=True)
+class BanSearch:
+    """The bans search result: the matched rows, the query as typed, and BOTH counts.
+
+    ``filtered`` alone would let the page imply the list shrank, so the unfiltered ``total`` is
+    carried beside it and every sentence is built from the same record the table is built from.
+    """
+    rows: tuple
+    query: str
+    total: int
+    filtered: int
+
+    @property
+    def active(self) -> bool:
+        return bool(self.query)
+
+
+def search_bans(rows: Sequence[BanView], query=None) -> BanSearch:
+    """Filter *rows* by a case-insensitive substring on the player's name, the UCID or the reason.
+
+    An empty (or whitespace-only, or control-only) query means NO filter: every row is returned and
+    the result reports ``active`` False, so an empty search can never look like "no bans".
+    """
+    wanted = normalise_query(query)
+    needle = wanted.casefold()
+    if not needle:
+        return BanSearch(rows=tuple(rows), query="", total=len(rows), filtered=len(rows))
+    matched = tuple(row for row in rows
+                    if needle in row.name.casefold()
+                    or needle in row.ucid.casefold()
+                    or needle in row.reason.casefold())
+    return BanSearch(rows=matched, query=wanted, total=len(rows), filtered=len(matched))

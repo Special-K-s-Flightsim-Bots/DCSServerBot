@@ -13612,3 +13612,20 @@ msgstr "Отчёт пока недоступен."
 #: services/webservice/pages/site_me.py:406
 msgid "No record on these servers."
 msgstr "Нет записей на этих серверах."
+
+#: services/webservice/templates/_table.html
+msgid "Search bans"
+msgstr "Поиск банов"
+
+#: services/webservice/templates/_table.html
+msgid "name, UCID or reason, e.g. Viper-1 or cheating"
+msgstr "имя, UCID или причина, напр. Viper-1 или читерство"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Filter: name, UCID or reason contains %(query)s · %(filtered)s of %(total)s bans"
+msgstr "Фильтр: имя, UCID или причина содержит %(query)s · %(filtered)s из %(total)s банов"
+
+#: services/webservice/readmodels/bans.py
+msgid "No ban matches that search."
+msgstr "Ни один бан не соответствует этому запросу."

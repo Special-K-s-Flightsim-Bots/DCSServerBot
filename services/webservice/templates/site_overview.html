@@ -59,7 +59,7 @@
   <form class="pickbar" method="get" action="{{ model.picker.action }}" role="search">
     <label class="pick-lbl" for="site-server">{% trans %}Server{% endtrans %}</label>
     <select class="pick" id="site-server" name="{{ model.picker.param }}" data-autosubmit>
-      {% for option in model.picker.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}
+      {% for option in model.picker.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ _(option.label) }}</option>{% endfor %}
     </select>
     <noscript><button class="pick-go" type="submit">{% trans %}Show{% endtrans %}</button></noscript>
   </form>
@@ -72,7 +72,7 @@
   </div>
   <div>
     <p>{% trans %}Our pilots' time in the air on these servers, from the first mission to today.{% endtrans %}</p>
-    <div class="src">{{ model.picker.scope }} · {% trans %}since the beginning{% endtrans %}</div>
+    <div class="src">{{ _(model.picker.scope) }} · {% trans %}since the beginning{% endtrans %}</div>
   </div>
 </div></section>
 
@@ -80,7 +80,7 @@
 <div class="boundary"><div class="in">
   <span class="no">{{ model.sections.community }}</span>
   <h2>{% trans %}This community{% endtrans %}</h2>
-  <span class="meta">{{ model.picker.scope }} · {% trans %}all time{% endtrans %}</span>
+  <span class="meta">{{ _(model.picker.scope) }} · {% trans %}all time{% endtrans %}</span>
 </div>
 <div class="in"><div class="ticks" aria-hidden="true"></div></div>
 </div>
