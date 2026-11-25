@@ -302,6 +302,31 @@ def _row(path: str, node: dict) -> dict:
     }
 
 
+def sample_excerpt(sample: Path, whole: bool = False) -> str:
+    """The sample's leading comments plus its first complete top-level block.
+
+    A block-root sample repeats top-level blocks, so stopping before the second
+    one keeps the YAML complete: a block scalar such as ``rules: |`` keeps its
+    body, and the excerpt parses on its own. ``whole`` returns the entire file
+    for a sample that is the only documentation of its block, and an excerpt
+    that still fails to parse falls back to the whole file with a warning
+    instead of aborting the build.
+    """
+    lines = sample.read_text(encoding="utf-8").splitlines()
+    heads = [index for index, line in enumerate(lines)
+             if line and not line[0].isspace() and not line.startswith("#")]
+    if whole or len(heads) < 2:
+        return "\n".join(lines)
+    excerpt = "\n".join(lines[:heads[1]])
+    try:
+        yaml.safe_load(excerpt)
+    except yaml.YAMLError as error:
+        print(f"warning: {sample.name}: excerpt does not parse ({error}); "
+              f"showing the whole file", file=sys.stderr)
+        excerpt = "\n".join(lines)
+    return excerpt
+
+
 def schema_markdown(repo: Path, document: dict, definitions: dict, name: str,
                     settings: dict, level: int = 2) -> list[str]:
     """Render one schema as headings and key tables.
@@ -327,19 +352,24 @@ def schema_markdown(repo: Path, document: dict, definitions: dict, name: str,
     out: list[str] = []
     if document.get("desc"):
         out += [document["desc"], ""]
+    # A block schema with no nested keys describes a block's shape, not a set
+    # of keys: the sample is the whole documentation and a table would be one
+    # placeholder row.
+    container_only = is_block and all(row["path"] == rows[0]["path"] for row in rows)
     for head, head_rows in sections.items():
         placeholder = next(
             (match for match in (re.match(r"^(<[^>]+>)\.", row["path"]) for row in head_rows)
              if match), None)
         section_prefix = placeholder.group(1) + "." if placeholder else ""
-        if is_block and section_prefix:
+        if is_block and (section_prefix or container_only):
             note = block_notes.get(name) or "Each top-level key is one block."
             out += [f"{heading} Blocks", "", note, ""]
             sample = repo / "samples" / f"{name}.yaml"
             if sample.is_file():
-                excerpt = "\n".join(sample.read_text().splitlines()[:16])
-                out += ["```yaml", excerpt, "```", "",
+                out += ["```yaml", sample_excerpt(sample, whole=container_only), "```", "",
                         f"The full commented sample is `samples/{name}.yaml`.", ""]
+            if container_only:
+                continue
         else:
             out += ([f"{heading} `{head}`", ""] if head else [])
             if section_prefix:

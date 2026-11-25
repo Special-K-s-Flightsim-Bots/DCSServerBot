@@ -28,6 +28,10 @@ block_notes:
     over `DEFAULT`.
   nodes: >-
     Each top-level key is one node: the machine's hostname by default.
+  presets: >-
+    Each top-level key is one preset, chosen by name when a mission is loaded.
+    A preset is either a map of mission settings (date, start time, weather,
+    wind, files, modifications) or a list of other preset names to combine.
 
 # Sidebar labels for the repo's own root documents, where the H1 is not a title.
 guide_titles:
