@@ -53,7 +53,7 @@ DEFAULT:
   punishments:              # list of punishments, based on the user's penalty points
   - points: 100             # we temp-ban the player when they reached 100 points.
     action: ban
-    days: 3                 # ban-time in days. default: 3
+    days: 3                 # ban-time in days; a list (e.g. [3, 5, 7, 10]) escalates it for repeat offenders. default: 3
   - points: 60              # we kick them from the server when their points reached 60
     action: kick
   - points: 40              # we move them to spectators when they have 40 points
@@ -128,10 +128,31 @@ These actions can be taken:
 |--------------|-----------------------------------------------|
 | kick         | Kick the player                               |
 | move_to_spec | Move the player to spectators                 |
-| ban          | Ban a player (for "days" days, default = 3)   |
+| ban          | Ban a player for "days" days (default = 3), or for the next entry of a ban ladder |
 | credits      | Take away "penalty" credits (default = 1)     |
 | warn         | Warn a player with a message (on punishments) |
 | message      | A friendly reminder                           |
+
+### Ban ladder
+A `days` list turns the ban into a ladder for repeat offenders: the first ban takes the first entry, the second the
+second, and every ban after that the last one.
+
+`reset_after_days` (default 14) is counted in days the player actually FLEW, and from the moment the last ban was
+lifted: once they have flown that many days without being banned, the ladder starts over at its first entry. Staying
+away therefore clears nothing — a player who does not fly keeps their level, however long they are gone.
+
+```yaml
+punishments:
+- points: 100
+  action: ban
+  days: [3, 5, 7, 10]     # 1st ban, 2nd, 3rd, 4th and later
+  reset_after_days: 14    # flown days without a ban before the ladder starts over
+```
+
+A flown day is a calendar day with at least one session on any of your servers. The level is read from the player's own
+ban history when the ban is raised, and only bans the punishment plugin raised count — a manual or DGSA ban does not. A
+ban that was lifted before it expired (`/forgive`, `/dcs unban`, the console) does not count either, and because nothing
+is stored, forgiving a ban lowers the level again.
 
 ### Exemptions
 User that should not be punished. Can be either ucids, Discord roles or a whole side (red / blue).

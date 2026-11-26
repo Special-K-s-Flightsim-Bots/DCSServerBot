@@ -95,10 +95,17 @@ schema;element_schema:
               desc: Action to run immediately for this event (optional).
               example: "move_to_spec"
             days:
-              type: int
+              type: any
+              func: int_or_list
               nullable: false     # ban only
-              desc: Ban duration in days when the action is ban.
-              example: "3"
+              desc: Ban duration in days when the action is ban — one number, or a ladder for repeat offenders.
+              example: "[3, 5, 7, 10]"
+            reset_after_days:
+              type: int
+              range: {min: 1}
+              nullable: false     # ban only, and only when days is a ladder
+              desc: Days actually flown without a served ban after which a ban ladder starts over at its first entry (default 14).
+              example: "14"
             penalty:
               type: int
               nullable: false  # credits only
@@ -138,10 +145,17 @@ schema;element_schema:
               desc: Action taken when the point level is reached.
               example: "ban"
             days:
-              type: int
+              type: any
+              func: int_or_list
               nullable: false     # ban only
-              desc: Ban duration in days when the action is ban.
-              example: "3"
+              desc: Ban duration in days when the action is ban — one number, or a ladder for repeat offenders.
+              example: "[3, 5, 7, 10]"
+            reset_after_days:
+              type: int
+              range: {min: 1}
+              nullable: false     # ban only, and only when days is a ladder
+              desc: Days actually flown without a served ban after which a ban ladder starts over at its first entry (default 14).
+              example: "14"
             penalty:
               type: int
               nullable: false  # credits only

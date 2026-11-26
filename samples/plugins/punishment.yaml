@@ -25,7 +25,7 @@ DEFAULT:
   punishments:              # list of punishments, based on the user's penalty points
   - points: 100             # we temp-ban the player when they reached 100 points.
     action: ban
-    days: 3                 # ban-time in days. default: 3
+    days: 3                 # ban-time in days; a list (e.g. [3, 5, 7, 10]) escalates it for repeat offenders. default: 3
   - points: 60              # we kick them from the server when their points reached 60
     action: kick
   - points: 40              # we move them to spectators when they have 40 points

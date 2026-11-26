@@ -14,7 +14,7 @@ from services.bot import DCSServerBot
 from typing import Type, cast
 
 from .listener import PunishmentEventListener
-from .writes import _ban_targets, record_event
+from .writes import _ban_targets, record_event, ban_days
 from ..creditsystem.player import CreditPlayer
 
 _ = get_translation(__name__.split('.')[1])
@@ -58,8 +58,9 @@ class Punishment(Plugin[PunishmentEventListener]):
                 return
 
             stamp = datetime.now(tz=timezone.utc)
+            days = await ban_days(self.apool, ucid, punishment, plugin_name=self.plugin_name)
             for target in _ban_targets(server, self.bus.servers) or [None]:
-                await self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3),
+                await self.bus.ban(ucid, self.plugin_name, reason, days,
                                    server_name=target, banned_at=stamp)
             if member:
                 message = _("Member {member} banned by {banned_by} for {reason}.").format(
@@ -70,7 +71,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                     await dm_channel.send(_("You have been banned from the DCS servers on {guild} for {reason} for "
                                             "the amount of {days} days.").format(guild=utils.escape_string(guild.name),
                                                                                  reason=reason,
-                                                                                 days=punishment.get('days', 3)))
+                                                                                 days=days))
             elif player:
                 message = _("Player {player} (ucid={ucid}) banned by {banned_by} for {reason}.").format(
                     player=player.name, ucid=player.ucid, banned_by=self.bot.member.display_name, reason=reason)
