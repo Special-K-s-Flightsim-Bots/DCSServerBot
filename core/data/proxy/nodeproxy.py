@@ -132,7 +132,8 @@ class NodeProxy(Node):
 
     @override
     async def dcs_update(self, branch: str | None = None, version: str | None = None,
-                         warn_times: list[int] = None, announce: bool | None = True):
+                         warn_times: list[int] = None, announce: bool | None = True,
+                         actor: str | None = None):
         return await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -141,7 +142,8 @@ class NodeProxy(Node):
                 "warn_times": warn_times,
                 "branch": branch or "",
                 "version": version or "",
-                "announce": announce
+                "announce": announce,
+                "actor": actor
             }
         }, node=self.name, timeout=600)
 

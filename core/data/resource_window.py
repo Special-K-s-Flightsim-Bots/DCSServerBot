@@ -297,6 +297,72 @@ class ResourceWindowProtocol:
         self.registry = registry or ResourceRegistry(node)
         self.windows = windows or ResourceWindows(node)
 
+    @staticmethod
+    def _running(manager, candidates) -> list:
+        """The server objects that may be up right now — the set a mismatch is judged over."""
+        return [server for server in candidates if server is not None and manager.in_service(server)]
+
+    def _mismatched(self, resource_id: str, names: set[str], running: list) -> bool:
+        """Whether none of this node's running servers is named in the dependents of *resource_id*.
+
+        The rows and the servers are compared by name, and the two names come from different files — the registry
+        rows from ``instance.server_name``, the servers from ``serverSettings.lua``. When they still disagree, this
+        node cannot act on the window at all: it would stop nothing and then publish 0 to a taker that then starts an
+        installer under a live DCS. Every caller reports the mismatch and treats the window as not served.
+
+        A node with nothing running is NOT a mismatch: it has nothing to stop and is simply done.
+
+        Reported ONCE per distinct ``(dependents, running)`` pair and dropped to DEBUG after that: the mismatch is a
+        permanent misconfiguration while ``publish`` runs every five seconds, and twelve WARNING lines a minute hide
+        everything else in the node log. A change of either set — a server started, a row rewritten — logs again.
+        """
+        if not running or any(getattr(server, 'name', None) in names for server in running):
+            return False
+        running_names = frozenset(str(getattr(server, 'name', None)) for server in running)
+        message = (f"- Federation name mismatch on {resource_id}: the registered dependents {sorted(names)} match none "
+                   f"of this node's running servers {sorted(running_names)}. Nothing can be stepped down until they "
+                   f"agree.")
+        logged = getattr(self.node, '_mismatch_logged', None)
+        if logged is None:
+            logged = self.node._mismatch_logged = {}
+        key = (frozenset(names), running_names)
+        if logged.get(resource_id) == key:
+            log.debug(message)
+        else:
+            logged[resource_id] = key
+            self.log.warning(message)
+        return True
+
+    async def _path(self, resource_id: str) -> str:
+        """The installation path an audit row names: ``resources.path``, never the resource id.
+
+        Read from the registry row so the row says what is on disk rather than which cluster registered it. The read
+        is best-effort — a missing row falls back to this node's own installation, and an unreadable one to a phrase —
+        because an audit must never be the reason a step-down or a restore fails.
+        """
+        try:
+            path = await self.registry.path(resource_id)
+        except Exception as ex:
+            log.debug(f"Could not read the path of {resource_id}: {ex}")
+            path = None
+        return path or getattr(self.node, 'installation', None) or 'the shared installation'
+
+    async def _holding(self, resource_id: str) -> str:
+        """Who holds the window and for what, phrased for an audit row. Best-effort for the same reason as ``_path``."""
+        try:
+            window = await self.windows.state(resource_id)
+        except Exception as ex:
+            log.debug(f"Could not read the window on {resource_id}: {ex}")
+            window = None
+        if window is None:
+            return "the shared installation window"
+        return f"the {window.action} window held by {window.holder_node}"
+
+    async def _audit(self, message: str) -> None:
+        """Write ONE audit row for a window action, through the bot service, never raising."""
+        from core.data.impl.nodeimpl import send_audit
+        await send_audit(self.node, message)
+
     async def step_down(self, resource_id: str, scope: str = 'server', warn_times: list[int] | None = None) -> int:
         """Stop this node's own dependents on the resource, and record what it actually stopped.
 
@@ -311,11 +377,20 @@ class ResourceWindowProtocol:
             return 0
         names = {name for _kind, name, _state in await self.registry.dependents(resource_id)}
         manager = ServerMaintenanceManager(self.node, warn_times=warn_times, message=WINDOW_MESSAGE)
-        servers = [server for server in manager.node_servers()
+        candidates = manager.node_servers()
+        running = self._running(manager, candidates)
+        if self._mismatched(resource_id, names, running):
+            # Not acknowledged, deliberately: a window is never answered by a node that stopped nothing while it is
+            # running servers. It publishes its real count instead, so the taker keeps waiting on it.
+            await self.registry.set_servers_up(resource_id, len(running))
+            return 0
+        servers = [server for server in candidates
                    if server is not None and getattr(server, 'name', None) in names]
         if not servers:
             await self.registry.set_servers_up(resource_id, 0)
             await self.windows.ack(resource_id)
+            await self._audit(f"stepped down nothing at {await self._path(resource_id)} on node {self.node.name}: "
+                              f"no server was in service for {await self._holding(resource_id)}.")
             return 0
         # flag=False deliberately: the start gate is what keeps a server from coming up during a window, and the
         # maintenance flag would be a second guard whose ownership has to be tracked across a reboot to be cleared
@@ -336,6 +411,9 @@ class ResourceWindowProtocol:
         await self.registry.set_servers_up(resource_id, len(still_up))
         await self.windows.ack(resource_id)
         self.log.info(f"- Stepped down for {resource_id}: {len(went_down)} of {len(outcome.handled)} server(s) stopped.")
+        await self._audit(f"stepped down {len(went_down)} of {len(outcome.handled)} DCS server(s) at "
+                          f"{await self._path(resource_id)} on node {self.node.name} for "
+                          f"{await self._holding(resource_id)}.")
         if still_up:
             self.log.warning(f"- {len(still_up)} server(s) on {resource_id} are still up. The update "
                              f"cannot start while they are.")
@@ -361,6 +439,8 @@ class ResourceWindowProtocol:
                              if server is not None and manager.in_service(server)))
         if servers:
             self.log.info(f"- {len(outcome.started)} server(s) restored after the window on {resource_id} closed.")
+            await self._audit(f"restored {len(outcome.started)} DCS server(s) at {await self._path(resource_id)} on "
+                              f"node {self.node.name} after {await self._holding(resource_id)} closed.")
         return len(outcome.started)
 
     async def wait_for_clear(self, resource_id: str, timeout: float) -> int:
@@ -385,14 +465,19 @@ class ResourceWindowProtocol:
         running servers all along — and a taker would then update underneath them. Written unconditionally rather than
         diffed in memory, because one small UPDATE per resource per cycle is cheaper than a cache that can go stale
         against a restart.
+
+        When the dependents rows match none of the running servers, the REAL count is published and the mismatch is
+        logged: publishing 0 there is the reading that lets an installer start under a live DCS.
         """
         manager = ServerMaintenanceManager(self.node, message=WINDOW_MESSAGE)
         names = {name for _kind, name, _state in await self.registry.dependents(resource_id)}
-        running = sum(1 for server in manager.node_servers()
-                      if server is not None and getattr(server, 'name', None) in names
-                      and manager.in_service(server))
-        await self.registry.set_servers_up(resource_id, running)
-        return running
+        running = self._running(manager, manager.node_servers())
+        if self._mismatched(resource_id, names, running):
+            await self.registry.set_servers_up(resource_id, len(running))
+            return len(running)
+        count = sum(1 for server in running if getattr(server, 'name', None) in names)
+        await self.registry.set_servers_up(resource_id, count)
+        return count
 
     async def follow(self, resource_id: str, scope: str = 'server') -> str:
         """One follower cycle for one resource: publish, read, decide, act. Returns what it did.

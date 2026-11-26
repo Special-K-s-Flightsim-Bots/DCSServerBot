@@ -167,13 +167,22 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
 .brand { display: flex; gap: 10px; align-items: center; flex: 0 0 auto;
   height: var(--nav-h); padding: 0 16px; border-bottom: 1px solid var(--line); }
 .brand img.brand-logo { height: 34px; width: auto; display: block; flex: 0 0 auto; }
-/* The brand mark is THE PROJECT'S OWN LOGO (services/webservice/static/logo.png), served from a
- * DOWNSCALED derivative: `logo-256.png` here and as the favicon, so the two share one request and
- * one cache entry. A FIXED HEIGHT with `width: auto` is what preserves the artwork's 3:2 aspect at
- * every viewport (a fixed width would stretch it). At 34px the mark draws ~51px wide at the file's
- * 3:2 aspect, from a 256px-wide derivative -- still ~5x the drawn width, so it stays sharp on a 2x
- * display. The height is stated ONCE, here; the element's own width and height attributes are only
- * a pre-CSS aspect hint. The 2.1 MB master is served by NO page.
+/* The brand mark is the ICON-ONLY mark (`logo-mark.png`: the jet and the amber wedge, no wordmark) --
+ * the same file the public site's top bar draws for a site that declares no logo. The full lockup
+ * (`logo.png`) carries its own three-line DCS / Server / Bot wordmark: at this height it is unreadable
+ * and it would put a SECOND product name beside the text brand, so the header draws the icon and the
+ * text beside it states the name.
+ *
+ * THE MARK IS EXACTLY AS TALL AS THE TEXT BLOCK BESIDE IT: `b` sets a 19px line, `small` a 14px line
+ * and its 1px top margin tops the block out at 34px -- the height the mark is drawn at, so the two
+ * share one top edge and one bottom edge instead of the mark floating shorter than the text. The
+ * three numbers move together; `tests/test_webui_branding.py` pins their sum against this height.
+ *
+ * A FIXED HEIGHT with `width: auto` is what preserves the artwork's own aspect at every viewport (a
+ * fixed width would stretch it). The mark is square, so it draws 34x34 from a 256px source -- 7.5x
+ * the drawn size, so it stays sharp on any display. The height is stated ONCE, here; the element's
+ * own width and height attributes are only a pre-CSS aspect hint. The 2.1 MB master is served by NO
+ * page.
  *
  * THE ROW IS `--nav-h`, NOT A PADDED BAND: the brand row's bottom border has to land on the same
  * line as the top bar's, so the logo and the product name sit in the band above the nav exactly as
@@ -181,8 +190,8 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
  * edges disagreed. `flex: 0 0 auto` pins it for the same reason the bar pins itself — a long nav
  * would otherwise shrink it.
  *
- * TO REGENERATE the derivatives (never logo.png itself — it is the canonical master, byte-for-byte
- * what was supplied) from the repository root, with Pillow on the interpreter:
+ * TO REGENERATE the lockup's derivatives (never logo.png itself — it is the canonical master,
+ * byte-for-byte what was supplied) from the repository root, with Pillow on the interpreter:
  *
  *   python3 - <<'PY'
  *   from PIL import Image
@@ -193,11 +202,13 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
  *                                           optimize=True)
  *   PY
  *
- * (`logo-256.png` = the header mark and the favicon; `logo-512.png` = the login page's hero, which
- * displays it at 220px CSS px — a 512px source covers a 2x display at that size.)
+ * (`logo-256.png` = the favicon; `logo-512.png` = the login page's hero, which displays it at 220px
+ * CSS px — a 512px source covers a 2x display at that size. `logo-mark.png` is its own supplied
+ * asset, not a resize of the master, and this snippet never writes it.)
  */
-.brand b { display: block; font-size: 14px; letter-spacing: .2px; }
-.brand small { display: block; color: var(--text-3); font-size: 11px; margin-top: 1px; }
+.brand b { display: block; font-size: 14px; line-height: 19px; letter-spacing: .2px; }
+.brand small { display: block; color: var(--text-3); font-size: 11px; line-height: 14px;
+  margin-top: 1px; }
 
 .nav { padding: 10px 8px; overflow: auto; flex: 1; }
 .nav .grp { display: block; color: var(--text-3);

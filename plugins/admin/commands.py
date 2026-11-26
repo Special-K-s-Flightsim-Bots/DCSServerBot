@@ -485,12 +485,11 @@ class Admin(Plugin[AdminEventListener]):
                     ephemeral=ephemeral)
                 return
 
-        await self.bot.audit(f"started an update of all DCS servers on node {node.name}.", user=interaction.user)
         msg = await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
                                         ephemeral=ephemeral)
         try:
             rc = await node.dcs_update(warn_times=[warn_time] or [120, 60], branch=branch, version=new_version,
-                                       announce=announce)
+                                       announce=announce, actor=interaction.user.display_name)
             if rc == 0:
                 branch, new_version = await node.get_dcs_branch_and_version()
                 await msg.edit(content=_("DCS updated to version {version}@{branch} on node {name}."

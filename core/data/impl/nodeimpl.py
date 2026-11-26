@@ -7,6 +7,7 @@ import discord
 import glob
 import gzip
 import json
+import logging
 import math
 import os
 import platform
@@ -111,6 +112,8 @@ LOGIN_URL = 'https://api.digitalcombatsimulator.com/gameapi/login/'
 LOGOUT_URL = 'https://api.digitalcombatsimulator.com/gameapi/logout/'
 UPDATER_URL = 'https://api.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
 LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
+
+log = logging.getLogger(__name__)
 
 RESTART = -1
 SHUTDOWN = -2
@@ -273,6 +276,69 @@ def _unpin_argv(repo: Any, state: _GitState) -> list[str] | None:
     return ['checkout', '-b', default, '--track', f'origin/{default}']
 
 
+def _dependent_names(instances) -> list[str]:
+    """The names this node's servers have to another cluster: ``instance.server_name``, never the instance key.
+
+    The rows are read by consumers that compare ``server.name`` — which comes from ``Config/serverSettings.lua``
+    and differs from the ``instances:`` key (the Saved Games folder) in any normal install. A row keyed by the
+    folder name matches no server, so a follower would publish 0 while its DCS runs.
+
+    ``None`` and the ``n/a`` placeholder name no server, so neither is registered.
+    """
+    names = set()
+    for instance in instances:
+        name = getattr(instance, 'server_name', None)
+        if name and name != 'n/a':
+            names.add(name)
+    return sorted(names)
+
+
+def update_target(branch: str | None, version: str | None) -> str:
+    """How an update's audit rows name what is being updated TO.
+
+    Built from whichever halves the caller supplied: the autoupdate timer and a cron action name the branch only, a
+    website action and ``/dcs update`` name both, and a caller that names neither still gets a readable phrase.
+    """
+    if version and branch:
+        return f"version {version}@{branch}"
+    if version:
+        return f"version {version}"
+    if branch:
+        return f"branch {branch}"
+    return "the newest version"
+
+
+async def send_audit(node, message: str, *, actor: str | None = None) -> None:
+    """Write ONE audit row through the bot service, and never raise.
+
+    The bot service runs on the master only, so a row written on any other node travels as the same RPC the update's
+    end row has always used. Auditing reports on work that is already under way: a failed write is logged to the module
+    logger and the caller continues — an audit must never be able to abort the update, the step-down or the restore it
+    reports on.
+
+    :param actor: the Discord user's display name when a person triggered the work, otherwise ``None``. It travels in
+        the entry's own ``actor`` column, never inside the message.
+    """
+    from services.bot import BotService
+    from services.servicebus import ServiceBus
+
+    params: dict[str, Any] = {"message": message}
+    if actor:
+        params["actor"] = actor
+    try:
+        bus = ServiceRegistry.get(ServiceBus)
+        if bus is None:
+            raise RuntimeError("no bot service is running in this process")
+        await bus.send_to_node({
+            "command": "rpc",
+            "service": BotService.__name__,
+            "method": "audit",
+            "params": params
+        })
+    except Exception as ex:
+        log.warning(f"- Could not write the audit entry '{message}': {ex}")
+
+
 class NodeImpl(Node):
 
     def __init__(self, name: str, config_dir: str = 'config', restarted: bool = False):
@@ -297,6 +363,10 @@ class NodeImpl(Node):
         #: the resources this node uses, as ``{resource_id: scope}`` — filled by register_resources() and followed by
         #: the federation loop, which is why it is a field and not a local
         self.resources: dict[str, str] = {}
+        #: the last dependency-name mismatch logged per resource, as ``(dependents, running)``. The mismatch is a
+        #: permanent misconfiguration and ``publish`` runs every five seconds, so it is logged once per distinct pair of
+        #: sets and repeats drop to DEBUG.
+        self._mismatch_logged: dict[str, tuple[frozenset, frozenset]] = {}
         #: whether a DCS installer is running right now. A shared installation's window must NOT be given back while
         #: it is: the window is what keeps the other clusters' servers down for the duration of the install.
         self.installer_running = False
@@ -860,12 +930,16 @@ class NodeImpl(Node):
         share one installation, so the dependency cannot depend on anybody enabling it. Harmless without a federation
         — a single cluster simply registers its own resource — and it is the row that lets a *second* cluster see the
         sharing at all.
+
+        Run twice per boot: once here, and again from ``ServiceBus.init_servers`` once ``instance.server`` is bound —
+        ``server_name`` resolves the bound server first, so a rename between boots is registered under its current
+        name. The registry upserts its rows and prunes the ones outside the new set, so the repeat is safe.
         """
         if not self.installation:
             return
         try:
             identity = utils.ResourceIdentity.of(self.installation, 'dcs_installation')
-            servers = sorted(self.instances)
+            servers = _dependent_names(self.instances.values())
             await ResourceRegistry(self).register(
                 identity, dependents=[('server', name) for name in servers])
             self.resources[identity.id] = scope_of(identity.resource_type)
@@ -2257,7 +2331,8 @@ class NodeImpl(Node):
         return next(iter(self.resources), None)
 
     async def federated_update(self, resource_id: str, *, branch: str | None = None, version: str | None = None,
-                               warn_times: list[int] | None = None) -> int:
+                               warn_times: list[int] | None = None,
+                               on_start: Callable[[], Awaitable[None]] | None = None) -> int:
         """Update the installation under a window, so every cluster sharing it stands down first.
 
         The advisory lock decides who runs the update: a node that does not get it has powered off nothing and simply
@@ -2267,6 +2342,10 @@ class NodeImpl(Node):
         implementation of "stand down", not two — and as a side effect the maintenance context inside ``update()``
         then finds nothing in service and restarts nothing, so the single-cluster path and this one compose instead of
         fighting over who brings the servers back.
+
+        :param on_start: called once the window is held and the shared installation is clear of running servers,
+            immediately before the installer starts. Both refusal paths return before it, so a caller using it to
+            report the start of an update never reports one that did not run.
         """
         protocol = ResourceWindowProtocol(self)
         scope = self.resources[resource_id]
@@ -2285,6 +2364,8 @@ class NodeImpl(Node):
                 self.log.error(f"- Not updating {resource_id}: {residue} server(s) are still up "
                                f"[{', '.join(still_up)}]. Stop them and the next run will proceed.")
                 return UPDATE_SERVERS_UP
+            if on_start is not None:
+                await on_start()
             return await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
         finally:
             # Released in this order on purpose: the window goes first, so followers can come back while this node
@@ -2301,9 +2382,17 @@ class NodeImpl(Node):
 
     @override
     async def dcs_update(self, *, branch: str | None = None, version: str | None = None,
-                         warn_times: list[int] = None, announce: bool | None = True):
+                         warn_times: list[int] = None, announce: bool | None = True,
+                         actor: str | None = None):
         from services.bot import BotService
         from services.servicebus import ServiceBus
+
+        # Every trigger — the autoupdate timer, a cron action, the website, /dcs update — ends up here, so the START
+        # row is written here and nowhere else. It is written from the point the installer is about to run, never
+        # earlier: a refused update must not claim it started.
+        async def started() -> None:
+            await send_audit(self, f"started an update to {update_target(branch, version)} of all DCS servers on "
+                                   f"node {self.name}.", actor=actor)
 
         # from here until the finally, an update owns this node — the federated and the plain path both pass through
         done = update_done_event(self)
@@ -2312,20 +2401,16 @@ class NodeImpl(Node):
             self.log.info('A new version of DCS World is available. Auto-updating ...')
             resource_id = self.resource_of_installation()
             if resource_id:
-                rc = await self.federated_update(resource_id, branch=branch, version=version, warn_times=warn_times)
+                rc = await self.federated_update(resource_id, branch=branch, version=version, warn_times=warn_times,
+                                                 on_start=started)
             else:
                 # no registered installation: nothing to coordinate, so the pre-federation behaviour is kept intact
+                await started()
                 rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
             if rc == 0:
+                await send_audit(self, f"DCS World updated to version {version} on node {self.node.name}.",
+                                 actor=actor)
                 bus = ServiceRegistry.get(ServiceBus)
-                await bus.send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": f"DCS World updated to version {version} on node {self.node.name}."
-                    }
-                })
                 config = self.locals.get('DCS', {}).get('announce')
                 if config and announce:
                     embed = discord.Embed(
@@ -2370,6 +2455,9 @@ class NodeImpl(Node):
                     message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
                                f"{utils.get_win32_error_message(rc)}!")
                 self.log.error(message)
+                if rc not in (UPDATE_STOOD_BY, UPDATE_SERVERS_UP):
+                    # the update did run: its END row names whatever the updater answered
+                    await send_audit(self, message, actor=actor)
                 await ServiceRegistry.get(ServiceBus).send_to_node({
                     "command": "rpc",
                     "service": BotService.__name__,

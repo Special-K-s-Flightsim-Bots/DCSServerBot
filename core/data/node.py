@@ -216,13 +216,17 @@ class Node(ABC):
 
     @abstractmethod
     async def dcs_update(self, branch: str | None = None, version: str | None = None,
-                         warn_times: list[int] = None, announce: bool | None = True):
+                         warn_times: list[int] = None, announce: bool | None = True,
+                         actor: str | None = None):
         """Update DCS World on this node and return the updater's exit code.
 
         ``0`` means the installer ran and reported success. An installation that is shared between clusters is
         updated under a window, and the installer is NOT started when the window could not be taken
         (:data:`UPDATE_STOOD_BY`) or when servers were still running on it (:data:`UPDATE_SERVERS_UP`) — a caller
         that reads those as success announces an update that never happened.
+
+        :param actor: the display name of the person who triggered the update, when a person did. It is carried into
+            the start and end rows of the update's audit; a timer, a cron action or the website leave it ``None``.
         """
         raise NotImplementedError()
 
