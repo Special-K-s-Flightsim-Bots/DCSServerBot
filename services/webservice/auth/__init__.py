@@ -52,7 +52,7 @@ from .. import permissions
 # the bot's ``core`` with it — deliberate: the console runs in the bot's OWN environment (the same
 # venv) and CONSUMES the one shared rule instead of keeping a second copy. The direction is pinned
 # by ``tests/test_layering_direction.py``.
-from ..scope import ADMIN_ROLE, CLUSTER_ROLES, Scope
+from ..scope import Scope, scope_from_roles
 from .throttle import LoginThrottle
 
 __all__ = [
@@ -300,19 +300,10 @@ class AuthManager:
         identity = self.authenticate(request)
         if identity is None:
             return Scope.unresolved()
-        if identity.scope.declared:
-            return identity.scope
-        roles = set(identity.roles)
-        if ADMIN_ROLE in roles:
-            return Scope.everything()
-        if not set(CLUSTER_ROLES).isdisjoint(roles):
-            # a DCS Admin whose scope the backend DERIVED from its member roles honours managed_by;
-            # a scope the backend set to unrestricted (local without a declaration, break-glass)
-            # stays unrestricted.
-            if identity.scope.unrestricted:
-                return Scope.everything()
-            return Scope.cluster(identity.scope.tokens)
-        return identity.scope
+        return scope_from_roles(identity.roles, identity.scope.tokens,
+                                unrestricted=identity.scope.unrestricted,
+                                declared=identity.scope.declared,
+                                resolved=identity.scope.resolved)
 
     def manages_any_server(self, request: Request) -> bool:
         """THE manager resolver. Installed through ``permissions.set_manager_resolver``.

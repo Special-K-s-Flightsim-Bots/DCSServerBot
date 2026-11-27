@@ -80,6 +80,7 @@ __all__ = [
     "may_manage_server",
     "server_managed_by",
     "server_in_scope",
+    "scope_from_roles",
     "gather_live_scope",
     "audit_local_scopes",
     "audit_server_managed_by",
@@ -262,6 +263,42 @@ class Scope:
     def unresolved(cls) -> "Scope":
         """The identity (or its roles) could not be resolved. DENY — never widen."""
         return cls(unrestricted=False, resolved=False)
+
+
+def scope_from_roles(roles: Iterable[str], tokens: Iterable[Any], *,
+                     unrestricted: bool = False, declared: bool = False,
+                     resolved: bool = True) -> Scope:
+    """The scope an identity with these *roles* and *tokens* has — ONE precedence, every surface.
+
+    The rules, in this order (the order IS the precedence, highest first):
+
+    * ``resolved`` False — the identity or its roles could not be resolved (bot restarting, guild
+      unreachable, empty member cache): :meth:`Scope.unresolved`, FAIL CLOSED. A view scoped to
+      nothing is the only safe answer; one scoped to everything is a leak;
+    * ``declared`` — the tokens are a DECLARATION (a local account's
+      ``auth.local.users[].scope``): they are the fact, so no role narrows or widens them;
+    * ``Admin`` (:data:`ADMIN_ROLE`) is UNSCOPED — the whole cluster, tagged or not;
+    * a CLUSTER role (``DCS Admin``) gets :meth:`Scope.cluster`: ``managed_by`` narrows it and an
+      untagged server survives. That is the same rule the bot applies
+      (``core.utils.discord.holds_scope``), so the website and Discord cannot disagree;
+    * everything else is the allow-list (:meth:`Scope.restricted`).
+
+    *unrestricted* is the operator's/emergency path (a local account that declares nothing, and
+    break-glass): a scope the backend set that way stays unscoped whatever roles it holds.
+
+    One home, because a second surface that resolves a member's reach (the console, a scoped API
+    key) must not spell this precedence differently.
+    """
+    if not resolved:
+        return Scope.unresolved()
+    if declared:
+        return Scope.restricted(tokens, declared=True)
+    role_set = frozenset(roles)
+    if ADMIN_ROLE in role_set:
+        return Scope.everything()
+    if not set(CLUSTER_ROLES).isdisjoint(role_set):
+        return Scope.everything() if unrestricted else Scope.cluster(tokens)
+    return Scope.everything() if unrestricted else Scope.restricted(tokens)
 
 
 # --------------------------------------------------------------------------- the live inputs

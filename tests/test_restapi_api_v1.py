@@ -376,7 +376,6 @@ async def test_unload_then_register_leaves_exactly_one_handler_per_v1_path(rows)
 
 
 @pytest.mark.asyncio
-@_XFAIL_UNMOUNTED_V1
 async def test_unload_removes_the_v1_install_entirely(rows):
     app = FastAPI()
     api = plugin_for(app, config=OPEN_LOCAL, servers=[])

@@ -101,20 +101,6 @@ def _appended(before: list, app: FastAPI) -> list:
 
 # ---------------------------------------------------------------------- the shared helper itself
 
-# A strict pin on a defect in the PRODUCT, not a weaker assertion: the statements below are the
-# ones the design calls for, so each is expected to fail until the product implements them, and
-# each fails the suite again (XPASS) the moment the product does.
-_XFAIL_UNMOUNTED_V1 = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "the reload bookkeeping is missing from `plugins/restapi/commands.py:RestAPI`: register_routes "
-        "does not record what it included (`_included`/`_included_v1`) and cog_unload still removes only "
-        "the routes reachable through `self.router`, so a second registration stacks and an unload "
-        "leaves one behind"
-    ),
-)
-
-
 def test_include_router_counted_names_the_objects_the_include_appended():
     """The include appends ITS OWN objects, so the router's routes are the wrong list to remove."""
     app = FastAPI()
@@ -218,7 +204,6 @@ async def test_the_legacy_route_keeps_its_own_auth_dependency():
 # ------------------------------------------------------------------------- the reload: unload + register
 
 @pytest.mark.asyncio
-@_XFAIL_UNMOUNTED_V1
 async def test_unload_then_register_leaves_exactly_one_handler_per_path():
     app = FastAPI()
     baseline = list(app.routes)
@@ -239,7 +224,6 @@ async def test_unload_then_register_leaves_exactly_one_handler_per_path():
 
 
 @pytest.mark.asyncio
-@_XFAIL_UNMOUNTED_V1
 async def test_unload_removes_the_install_entirely():
     app = FastAPI()
     baseline = list(app.routes)
@@ -254,7 +238,6 @@ async def test_unload_removes_the_install_entirely():
 
 
 @pytest.mark.asyncio
-@_XFAIL_UNMOUNTED_V1
 async def test_a_second_registration_on_one_instance_replaces_the_first():
     """A retried install must not leave the first set of handlers answering (own auth closures)."""
     app = FastAPI()

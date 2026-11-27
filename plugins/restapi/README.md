@@ -58,6 +58,22 @@ DEFAULT:
         remote: jwt
 ```
 
+### Keys for one DCS Admin's servers
+`/dks register` writes `auth.jwt.key` when an Admin runs it. When a DCS Admin runs it, it adds an entry to
+`auth.jwt.links` instead:
+```yaml
+    jwt:
+      links:
+        - key: "another-token-key"
+          owner: 123456789012345678     # Discord user id of the DCS Admin
+```
+A JWT with such a key reaches only the servers its owner manages as a DCS Admin (`managed_by`, see the
+[DKS plugin](../dks/README.md#admin-and-dcs-admin)). It can call only these GET endpoints, with one
+`server_name` it reaches: `servers` (lists only those servers), `airbases`, `airbase`, `airbase/atis`,
+`airbase/warehouse`, `mission/group/waypoints`, `mission/group`, `mission/groups`, `mission/bullseyes`,
+`mission/drawings`, `mission/unit`. Other endpoints answer 403, other servers 404. Changes to `auth.jwt` that
+you make by hand take effect when the RestAPI plugin reloads.
+
 ### Machine API v1 (`/api/v1`)
 
 A second, versioned surface serves the action rows on a fixed `/api/v1` prefix. It reads two keys:
