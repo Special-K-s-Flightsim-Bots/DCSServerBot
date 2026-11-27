@@ -412,6 +412,9 @@ class ServerView:
     node_name: str
     instance_name: str | None
     status: StatusView
+    #: the port a player JOINS on (``settings.port``, DCS's default when unstated) — the row's
+    #: address half beside :attr:`public_ip`. Deliberately not ``Server.port``, which is the server
+    #: process's own bot port.
     port: int | None
     mission_name: str | None
     mission_seconds: int

@@ -13,7 +13,7 @@ from __future__ import annotations
 from urllib.parse import quote
 
 from .. import mount
-from .access import attr, as_int, port_number, safe, text
+from .access import attr, as_int, safe, text
 from .model import (NO_SERVERS_MESSAGE, LimitView, ServerView, WeatherView, format_duration,
                     status_view)
 
@@ -307,6 +307,24 @@ def _restrictions(server) -> tuple[LimitView, ...]:
     return tuple(rows)
 
 
+#: the port a DCS client joins on when the server states none — DCS's own default.
+DEFAULT_DCS_PORT = 10308
+
+
+def _dcs_port(server) -> int | None:
+    """The port a player joins on (``settings.port``, DCS's default when unstated), or ``None``.
+
+    NOT ``Server.port``: that field carries the server process's own bot port, the internal RPC
+    port the bot talks to the process on, and it is never part of a join address. ``None`` means
+    the source carries no settings block at all, so the row draws no port.
+    """
+    settings = safe(lambda: getattr(server, "settings", None), None)
+    if not isinstance(settings, dict):
+        return None
+    port = as_int(settings.get("port"))
+    return DEFAULT_DCS_PORT if port is None else port
+
+
 def _max_players(server) -> int | None:
     """The slots a real player can take (``settings.maxPlayers`` less the bot's observer slot), or
     ``None`` when the source carries no settings (a tolerant read — ``settings`` is a dict, so it is
@@ -389,7 +407,7 @@ def server_view(server) -> ServerView:
         node_name=text(attr(attr(server, "node", None), "name", None)),
         instance_name=safe(lambda: _instance_name(server), None),
         status=status_view(attr(server, "status", None)),
-        port=port_number(attr(server, "port", None)),
+        port=_dcs_port(server),
         mission_name=mission_name,
         mission_seconds=mission_seconds,
         players=len(players),

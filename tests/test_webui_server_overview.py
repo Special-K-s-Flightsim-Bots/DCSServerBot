@@ -36,6 +36,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from core import Status
+from core.data.const import Port, PortType
 from services.webservice import dcs_install
 from services.webservice.pages import server_detail as detail_page
 from services.webservice.readmodels.servers import server_url
@@ -75,15 +76,19 @@ def mission(name, *, seconds=0, map_name="Caucasus", weather=None, clouds=None, 
 
 
 def server(name, *, status=Status.RUNNING, mission_obj=None, players=0,
-           node_name="dcs-a-01", instance="Host-A-Instance", port=10309, max_players=16,
-           display_name=None, managed_by=None, maintenance=False, settings=None):
+           node_name="dcs-a-01", instance="Host-A-Instance", port=10309, bot_port=6666,
+           max_players=16, display_name=None, managed_by=None, maintenance=False,
+           settings=None):
+    # `port` is the DCS port a player joins on (it belongs in settings, where the read model looks
+    # for it); `port` on the object itself is the process's OWN bot port, which is what production
+    # carries there — a fixture that put the DCS port in that field would grade itself.
     crew = {f"P{i}": types.SimpleNamespace(active=True, name=f"P{i}") for i in range(players)}
     return types.SimpleNamespace(
         name=name, display_name=display_name or name, status=status,
         node=types.SimpleNamespace(name=node_name),
-        instance=types.SimpleNamespace(name=instance), port=port,
+        instance=types.SimpleNamespace(name=instance), port=Port(bot_port, PortType.UDP),
         current_mission=mission_obj, players=crew, is_remote=False,
-        settings=settings if settings is not None else {"maxPlayers": max_players},
+        settings=settings if settings is not None else {"maxPlayers": max_players, "port": port},
         maintenance=maintenance,
         locals={"managed_by": list(managed_by)} if managed_by else {},
     )
@@ -379,12 +384,13 @@ async def test_the_tab_shows_ip_port_the_password_lock_and_the_restart_countdown
 
     a = server(SERVER, mission_obj=mission("M", weather=WEATHER, clouds=CLOUDS))
     a.node = types.SimpleNamespace(name="dcs-a-01", master=True, public_ip="203.0.113.7")
-    a.settings = {"maxPlayers": 16, "password": "hunter2"}
+    a.settings = {"maxPlayers": 16, "password": "hunter2", "port": 10309}
     a.restart_time = datetime.now(timezone.utc) + timedelta(hours=2)
 
     html = await open_tab(build(config_dir, cluster([a], nodes=("dcs-a-01",))))
 
     assert "203.0.113.7:10309" in html, "the embed's IP/port is not shown"
+    assert ":6666" not in html, "the process's own bot port was printed as part of the join address"
     assert "hunter2" not in html, "the password VALUE must never be rendered"
     assert "🔐" in html, "the password-lock indicator is missing"
     assert "Restart:" in html and "hour" in html, "the restart countdown is not shown"

@@ -58,13 +58,17 @@ def player(name="Maverick", ucid=None, active=True, **kwargs):
 
 
 def server(name="Training Caucasus", *, status=Status.RUNNING, node="dcs-master-01",
-           instance="Training", port=10309, mission="Caucasus_Training", mission_time=2472,
-           players=()):
+           instance="Training", port=10309, bot_port=6666, mission="Caucasus_Training",
+           mission_time=2472, players=()):
+    # `port` is the DCS port a player joins on and lives in `settings`, where the read model reads
+    # it; the object's own `port` carries the process's BOT port in production, so the double puts a
+    # different number there — a fixture that repeated the DCS port would grade itself.
     mission_obj = (types.SimpleNamespace(name=mission, mission_time=mission_time)
                    if mission else None)
     return types.SimpleNamespace(
         name=name, status=status, node=types.SimpleNamespace(name=node),
-        instance=types.SimpleNamespace(name=instance), port=port,
+        instance=types.SimpleNamespace(name=instance), port=bot_port,
+        settings={"port": port},
         current_mission=mission_obj, players={p.ucid: p for p in players}, is_remote=False)
 
 

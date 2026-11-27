@@ -33,6 +33,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from conftest import REPO_ROOT, asgi_client
+from core.data.const import Port, PortType
 from core.utils.helper import ThreadSafeDict
 from services.webservice import i18n, site_pages, site_reads
 from services.webservice.pages import site_leaderboard, site_servers
@@ -71,15 +72,18 @@ def _player(side="Blue", active=True):
 
 
 def _fleet_server(name, *, status="Running", players=None, mission=None, settings=None,
-                  restart_in=None, maintenance=False, password="", port=10308,
-                  show_web_passwords=False, managed_by=None):
-    settings = {"maxPlayers": 25, "password": password,
+                  restart_in=None, maintenance=False, password="***", port=10308,
+                  bot_port=6666, show_web_passwords=False, managed_by=None):
+    # `port` is the DCS port a player joins on and belongs in `settings`, where the read model looks
+    # for it; the object's own `port` is the process's BOT port in production, so the double carries
+    # one too — a fixture that put the DCS port there would grade itself.
+    settings = {"maxPlayers": 25, "password": password, "port": port,
                 "require_pure_clients": True, "require_pure_scripts": True,
                 "require_pure_models": True, "require_pure_textures": True,
                 "advanced": {"allow_trial_only_clients": False}} if settings is None else settings
     return types.SimpleNamespace(
         name=name, status=_status(status), players=players or {}, current_mission=mission,
-        settings=settings, maintenance=maintenance, port=port,
+        settings=settings, maintenance=maintenance, port=Port(bot_port, PortType.UDP),
         restart_time=(datetime.now(timezone.utc) + timedelta(seconds=restart_in)
                       if restart_in is not None else None),
         node=_node(), locals={"show_web_passwords": show_web_passwords,
@@ -100,7 +104,7 @@ def _root_one():
 
 def _root_two():
     return _fleet_server("Root-2", status="Stopped", players={}, mission=None,
-                         settings={"maxPlayers": 10}, port=10309)
+                         settings={"maxPlayers": 10, "port": 10309})
 
 
 def _group_one():
@@ -214,6 +218,7 @@ def test_the_detail_page_renders_the_embed_inventory(config_dir, fleet):
     assert page.status_code == 200, page.text[:600]
     body = page.text
     assert "51.83.14.22:10308" in body, "the address is not the node's public ip:port"
+    assert ":6666" not in body, "the process's own bot port was printed as part of the address"
     assert ">Locked<" in body
     assert "A password is required to join" in body, "the lock chip carries no sentence"
     assert "8 of 16" in body and "3 of 8" in body, "the per-side slot usage is missing"

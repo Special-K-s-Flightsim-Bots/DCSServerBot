@@ -1956,10 +1956,15 @@ def _restart_seconds(server: Any) -> int | None:
 
 
 def _address(server: Any) -> str:
-    """``public_ip:port`` for a server, or ``''`` when the node reports no address."""
+    """``public_ip:port`` for a server, or ``''`` when the node reports no address.
+
+    The port is the DCS port players join on (``settings.port``, 10308 when unstated) — the value
+    the Discord status embed prints. ``Server.port`` is NOT it: that field carries the server
+    process's own bot port, the internal RPC port the bot talks to the process on.
+    """
     node = getattr(server, "node", None) if server is not None else None
     ip = _text(getattr(node, "public_ip", None))
-    port = _number(getattr(server, "port", None)) if server is not None else 0
+    port = _number(_settings(server).get("port", 10308)) if server is not None else 0
     return f"{ip}:{int(port)}" if ip and port else ""
 
 
