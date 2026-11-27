@@ -26,12 +26,14 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
+from services.webservice.registry import exclude_router, include_router_counted
 
 from core.utils.yaml_helper import new_yaml
 
 if TYPE_CHECKING:
     from plugins.srs.commands import SRS
 
+from .links import enforce_reach, link_reach, match_key, parse_links
 from .models import (
     TopKill,
     ServerInfo,
@@ -100,16 +102,19 @@ class RestAPI(Plugin):
         self.web_service: WebService | None = None
         self.app: FastAPI | None = None
         self.router: APIRouter | None = None
+        #: what this instance's include appended to the app — the only thing an unload can remove
+        self._included: list[Any] = []
 
     async def cog_load(self) -> None:
         await super().cog_load()
         asyncio.create_task(self.init_webservice())
 
     async def cog_unload(self) -> None:
-        if self.app and self.router:
-            for route in self.router.routes:
-                if route in self.app.routes:
-                    self.app.routes.remove(route)
+        # remove exactly what the include appended: the router's own routes never reach app.routes,
+        # so the old handlers (with the old keys) would keep answering after a reload
+        if self.app and self._included:
+            exclude_router(self.app, self._included)
+            self._included = []
         await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
@@ -157,6 +162,7 @@ class RestAPI(Plugin):
         auth_config = default_config.get('auth', {})
         api_key = auth_config.get("api_key")
         jwt_info = auth_config.get("jwt")
+        jwt_links = parse_links(jwt_info)
         if jwt_info:
             jwt_client = jwt.PyJWKClient(jwt_info['jwks_url'])
         security_config = default_config.get('security', {})
@@ -207,7 +213,7 @@ class RestAPI(Plugin):
 
             return "remote"
 
-        async def verify_token(token: str, key: str) -> dict[str, Any] | None:
+        async def verify_token(token: str) -> dict[str, Any] | None:
             try:
                 header = jwt.get_unverified_header(token)
                 kid = header.get("kid")
@@ -229,10 +235,12 @@ class RestAPI(Plugin):
                     leeway=10
                 )
 
-                if data.get('key') != key:
+                link = match_key(jwt_links, data.get('key'))
+                if not link:
                     self.log.error("RestAPI: Signing key does not match!")
                     return None
 
+                data['_reach'] = await link_reach(self.bot, link)
                 return data
 
             except Exception as ex:
@@ -244,12 +252,13 @@ class RestAPI(Plugin):
                 credentials: HTTPAuthorizationCredentials | None,
                 provided_api_key: str | None,
         ) -> str | None:
-            if jwt_info and credentials and credentials.scheme == "Bearer":
-                payload = await verify_token(credentials.credentials, jwt_info['key'])
+            if jwt_links and credentials and credentials.scheme == "Bearer":
+                payload = await verify_token(credentials.credentials)
 
                 if payload:
                     request.state.auth_scheme = "jwt"
                     request.state.jwt_token = credentials.credentials
+                    request.state.server_reach = payload.pop('_reach')
                     request.state.jwt_payload = payload
                     return "jwt"
 
@@ -289,6 +298,7 @@ class RestAPI(Plugin):
 
                 request.state.auth_scope = scope
                 request.state.required_auth_level = required_level
+                request.state.server_reach = None
 
                 if required_level == "none":
                     request.state.auth_scheme = "none"
@@ -297,6 +307,7 @@ class RestAPI(Plugin):
                 provided_scheme = await get_authenticated_scheme(request, credentials, provided_api_key)
 
                 if provided_scheme and auth_rank[provided_scheme] >= auth_rank[required_level]:
+                    enforce_reach(request, endpoint, request.state.server_reach)
                     return
 
                 raise HTTPException(
@@ -743,7 +754,9 @@ class RestAPI(Plugin):
             tags=["Mission"]
         )
 
-        self.app.include_router(self.router)
+        if self._included:
+            exclude_router(self.app, self._included)
+        self._included = include_router_counted(self.app, self.router)
 
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
@@ -2153,7 +2166,7 @@ class RestAPI(Plugin):
         else:
             return []
 
-    async def servers(self, server_name: str | None = Query(default=None)) -> list[ServerInfo]:
+    async def servers(self, request: Request, server_name: str | None = Query(default=None)) -> list[ServerInfo]:
         self.log.debug('Calling /servers')
 
         def filter_servers(servers: list[Server]):
@@ -2168,7 +2181,9 @@ class RestAPI(Plugin):
                     yield s
 
         servers = []
-        for server in filter_servers([s for s in self.bot.servers.values() if not server_name or s.name == server_name]):
+        reach = request.state.server_reach
+        for server in filter_servers([s for s in self.bot.servers.values()
+                                      if (not server_name or s.name == server_name) and (reach is None or s.name in reach)]):
             data: dict[str, Any] = {
                 'name': server.name,
                 'description': server.settings.get('description', ''),

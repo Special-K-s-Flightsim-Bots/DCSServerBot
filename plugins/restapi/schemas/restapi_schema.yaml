@@ -25,6 +25,14 @@ schema;auth:
           nullable: false
           desc: URL of the JWKS used to verify JWT signatures.
           example: "https://digitalkneeboardsimulator.com/api/pubkey"
+        links:
+          type: seq
+          nullable: false
+          sequence:
+            - type: map
+              mapping:
+                key: {type: text, required: true, nullable: false}
+                owner: {type: int, required: true, nullable: false}
 
 schema;security:
   type: map

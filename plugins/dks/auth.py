@@ -37,6 +37,9 @@ class TokenBearer(HTTPBearer):
 
         request.state.jwt_token = credentials.credentials
         request.state.jwt_payload = payload
+        # the link the key names (linked), or the registration the one-time key was issued for
+        request.state.dks_link = payload.pop('_link', None)
+        request.state.dks_registration = payload.pop('_registration', None)
 
         return credentials.credentials
 
@@ -64,14 +67,14 @@ class TokenBearer(HTTPBearer):
             )
 
             if self.linked:
-                key = self.plugin.linked_key
-                if not key or data.get('key') != key:
+                data['_link'] = self.plugin.match_link(data.get('key'))
+                if not data['_link']:
                     self.plugin.log.warning("verify_token(): Key does not match.")
                     return None
                 return data
 
-            otp = data.pop("otp", None)
-            if not otp or otp != self.plugin.otp:
+            data['_registration'] = self.plugin.claim_otp(data.pop("otp", None))
+            if not data['_registration']:
                 self.plugin.log.warning("verify_token(): OTP does not match.")
                 return None
 

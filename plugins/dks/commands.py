@@ -6,8 +6,8 @@ import discord
 import os
 import secrets
 import ssl
+import time
 
-from asyncio import Task
 from contextlib import suppress
 from core import (Plugin, Group, PluginRequiredError, utils, get_translation, ServiceRegistry, PluginInstallationError,
                   ServiceProxy, DEFAULT_TAG, Server)
@@ -17,6 +17,7 @@ from pathlib import Path
 from plugins.dks.views import RegisterView
 from plugins.dks.auth import TokenBearer
 from plugins.restapi.commands import RestAPI
+from plugins.restapi.links import Link, link_reach, match_key, member_reach, parse_links
 from starlette.requests import Request
 from typing import Any, cast
 from urllib.parse import quote, urlparse
@@ -45,11 +46,8 @@ class DKS(Plugin):
         #: the route object(s) THIS plugin's include appended to the app (never the router's own
         #: routes) — the only thing that can be removed again on unload
         self._included: list[Any] = []
-        # Simple OTP handling
-        self._otp: str | None = None
-        self._task: Task | None = None
-        # embed to be updated
-        self.msg: discord.Message | None = None
+        # unclaimed registration links: otp -> {user_id, owner (None = bot-wide), expires, msg}
+        self._pending: dict[str, dict] = {}
 
     async def cog_load(self) -> None:
         await super().cog_load()
@@ -124,39 +122,35 @@ class DKS(Plugin):
             self._included = []
         self._included = include_router_counted(app, self.router)
 
-    @property
-    def otp(self) -> str | None:
-        try:
-            return self._otp
-        finally:
-            if self._task and not self._task.done():
-                self._task.cancel()
-                self._task = None
-            self._otp = None
+    def generate_otp(self, user_id: int, owner: int | None, ttl: int = 300) -> str:
+        now = time.monotonic()
+        # one open link per user: customers who register at the same time don't cancel each other
+        self._pending = {k: v for k, v in self._pending.items() if v['expires'] > now and v['user_id'] != user_id}
+        otp = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
+        self._pending[otp] = {"user_id": user_id, "owner": owner, "expires": now + ttl, "msg": None}
+        return otp
 
-    def generate_otp(self, ttl: int = 300) -> str:
-        async def cleanup_otp(timeout: int):
-            await asyncio.sleep(timeout)
-            self._otp = None
+    def claim_otp(self, otp) -> dict | None:
+        pending = self._pending.pop(otp, None) if isinstance(otp, str) else None
+        return pending if pending and pending['expires'] > time.monotonic() else None
 
-        # clear any existing otp
-        self._otp = self.otp
-        secret = secrets.token_bytes(32)
-        self._otp = base64.urlsafe_b64encode(secret).decode('utf-8').rstrip('=')
-        self._task = asyncio.create_task(cleanup_otp(ttl))
-        return self._otp
+    def match_link(self, key) -> Link | None:
+        restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
+        return match_key(parse_links(restapi.get_config().get('auth', {}).get('jwt')), key)
 
-    async def update_embed(self, message: str):
+    @staticmethod
+    async def update_embed(pending: dict, message: str):
         with suppress(discord.NotFound):
-            if self.msg:
-                await self.msg.edit(content=message, embed=None, view=None)
-                self.msg = None
+            if pending['msg']:
+                await pending['msg'].edit(content=message, embed=None, view=None)
+                pending['msg'] = None
 
     def _get_prefix(self) -> str:
         prefix = cast(RestAPI, self.bot.cogs.get('RestAPI')).get_config().get('prefix', '')
         return f"/{prefix}" if prefix and not prefix.startswith('/') else prefix
 
     async def register_dks(self, request: Request):
+        pending = request.state.dks_registration
         try:
             jwt_payload = request.state.jwt_payload
             key = jwt_payload.get('key')
@@ -166,12 +160,16 @@ class DKS(Plugin):
                 data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
             else:
                 data = {}
-            data.setdefault(DEFAULT_TAG, {}).setdefault('auth', {}).update({
-                "jwt": {
-                    "jwks_url": DKS_JWKS_URL,
-                    "key": key
-                }
-            })
+            auth = data.setdefault(DEFAULT_TAG, {}).setdefault('auth', {})
+            jwt_config = auth['jwt'] = auth.get('jwt') or {}
+            jwt_config['jwks_url'] = DKS_JWKS_URL
+            if pending['owner'] is None:
+                # an Admin's registration: the bot-wide key
+                jwt_config['key'] = key
+            else:
+                # a DCS Admin's: their link, replacing their previous one
+                jwt_config['links'] = [x for x in jwt_config.get('links') or []
+                                       if x.get('owner') != pending['owner']] + [{"key": key, "owner": pending['owner']}]
 
             tmp = Path(config).with_suffix('.yaml.tmp')
             with tmp.open('w', encoding='utf-8') as f:
@@ -179,9 +177,9 @@ class DKS(Plugin):
             os.replace(tmp, config)
 
             if await self.bot.reload_plugin("RestAPI"):
-                await self.update_embed(_("Your bot is now connected to DKS!"))
+                await self.update_embed(pending, _("Your bot is now connected to DKS!"))
             else:
-                await self.update_embed(_("Restarting DCSServerBot ..."))
+                await self.update_embed(pending, _("Restarting DCSServerBot ..."))
                 await self.node.restart()
 
             return {
@@ -190,13 +188,8 @@ class DKS(Plugin):
             }
         except Exception as ex:
             self.log.exception(ex)
-            asyncio.create_task(self.update_embed(_("Error while registering with DKS: {}!").format(ex)))
+            asyncio.create_task(self.update_embed(pending, _("Error while registering with DKS: {}!").format(ex)))
             raise HTTPException(status_code=500, detail='Error while registering.')
-
-    @property
-    def linked_key(self) -> str | None:
-        restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
-        return restapi.get_config().get('auth', {}).get('jwt', {}).get('key') if restapi else None
 
     @staticmethod
     async def tacview_enabled(server: Server) -> bool:
@@ -213,11 +206,13 @@ class DKS(Plugin):
         if not all(isinstance(x, str) and x for x in [server_name, claim, code]):
             raise HTTPException(status_code=400, detail="server, claimUrl and code are missing")
         server = self.bot.servers.get(server_name)
-        if not server:
+        reach = await link_reach(self.bot, request.state.dks_link)
+        if not server or (reach is not None and server_name not in reach):
             raise HTTPException(status_code=404, detail=f"Server {server_name} not found")
         if not self.get_config(server).get('allow_install', False):
-            raise HTTPException(status_code=409, detail=f"Installs from DKS are off for {server_name}. An Admin can "
-                                                        f"allow them with /dks install_permission in Discord.")
+            raise HTTPException(status_code=409, detail=f"Installs from DKS are off for {server_name}. An Admin or "
+                                                        f"DCS Admin can allow them with /dks install_permission in "
+                                                        f"Discord.")
         if urlparse(claim).scheme != 'https':
             raise HTTPException(status_code=400, detail="The claim URL must be https")
         try:
@@ -251,13 +246,20 @@ class DKS(Plugin):
 
     @dks.command(name="register")
     @app_commands.guild_only()
-    @utils.app_has_role('Admin')
+    @utils.app_has_roles(['Admin', 'DCS Admin'])
     async def register(self, interaction: discord.Interaction):
+        # an Admin links the whole bot, a DCS Admin the servers they manage
+        reach = member_reach(self.bot, interaction.user)
+        if reach is not None and not reach:
+            await interaction.response.send_message(_("You don't manage any server on this bot."), ephemeral=True)
+            return
+        owner = None if reach is None else interaction.user.id
         restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
-        if restapi.get_config().get('auth', {}).get('jwt'):
+        if any(link.owner == owner for link in parse_links(restapi.get_config().get('auth', {}).get('jwt'))):
             if not await utils.yn_question(
                 interaction,
-                message=_("You have a JWT key configured for your RestAPI service already."),
+                message=_("You have a JWT key configured for your RestAPI service already.") if owner is None
+                else _("You have linked your servers to DKS already."),
                 question=_("Do you want to overwrite it?")
             ):
                 await interaction.followup.send(_("Aborted"), ephemeral=True)
@@ -275,24 +277,32 @@ class DKS(Plugin):
             host = self.get_config().get('host', f"http://{webservice.node.public_ip}")
             port = webservice.get_ports()['WebService'].port
             callback_url = f"{host}:{port}{self._get_prefix()}/register_dks"
-        url = DKS_URL.format(otp=self.generate_otp(), callback_url=quote(callback_url))
+        otp = self.generate_otp(interaction.user.id, owner)
+        url = DKS_URL.format(otp=otp, callback_url=quote(callback_url))
         embed = discord.Embed(
             color=discord.Color.blue(),
             title="Digital Kneeboard Simulator",
             url="https://www.digitalkneeboardsimulator.com/"
         )
         embed.description = _("To register your bot with the DKS website,\nplease klick `Register` below.")
+        servers = _("All servers") if reach is None else ", ".join(sorted(reach))
+        embed.add_field(name=_("Servers"), value=servers[:1024], inline=False)
         embed.add_field(name=_("Attention!"), value=_("Your registration link will be invalidated after 5 minutes."))
         embed.set_thumbnail(url="https://www.digitalkneeboardsimulator.com/logo.png")
         view = RegisterView(url=url)
-        self.msg = await interaction.followup.send(embed=embed, view=view)
+        # ephemeral: whoever opens an unclaimed link can link these servers to their own squadron
+        self._pending[otp]['msg'] = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
     @dks.command(name="install_permission", description=_("Allow DKS to install its exporter on a server"))
     @app_commands.guild_only()
-    @utils.app_has_role('Admin')
+    @utils.app_has_roles(['Admin', 'DCS Admin'])
     async def install_permission(self, interaction: discord.Interaction,
                                  server: app_commands.Transform[Server, utils.ServerTransformer], allow: bool):
+        reach = member_reach(self.bot, interaction.user)
+        if reach is not None and server.name not in reach:
+            await interaction.response.send_message(_("Server {} not found.").format(server.name), ephemeral=True)
+            return
         config = os.path.join(self.node.config_dir, 'plugins', 'dks.yaml')
         if os.path.exists(config):
             data = new_yaml().load(Path(config).read_text(encoding='utf-8')) or {}
