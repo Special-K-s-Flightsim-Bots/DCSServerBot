@@ -3,7 +3,8 @@ This plugin will help you connect your DCSServerBot to the [Digital Kneeboard Si
 DKS can then use the [RestAPI](/plugins/restapi/README.md) to add valuable information to your DKS website.
 
 > [!IMPORTANT]
-> When linking your DCSServerBot to DKS you allow DKS to call all RestAPI endpoints on your bot.
+> When an Admin links your DCSServerBot to DKS you allow DKS to call all RestAPI endpoints on your bot
+> (a DCS Admin's link is limited, see [Admin and DCS Admin](#admin-and-dcs-admin)).
 > I have worked with Jason, the developer of DKS, to do our best to secure this connection as good as possible.
 > You can disable any endpoint or secure it, so that no external connection is possible by configuring the RestAPI
 > plugin to your needs. DKS will obey that you might not want to expose specific information or allow specific calls.
@@ -67,7 +68,8 @@ Alpha Training:
 > staff holds) if customers must not reach them.
 
 Each DCS Admin has one link; running `/dks register` again replaces it. What it reaches follows their roles:
-when a customer loses the DCS Admin role, DKS loses access to their servers at once. A DCS Admin's link can
+when a customer loses the DCS Admin role, DKS loses access to their servers within a minute (an exporter
+already installed keeps running). A DCS Admin's link can
 read the server information DKS shows (servers, airbases, mission data) and install the exporter; it cannot
 control servers. To remove a link, unlink the bot in DKS, or delete the entry from `auth.jwt.links` in
 `config/plugins/restapi.yaml` and reload the RestAPI plugin or restart the bot.

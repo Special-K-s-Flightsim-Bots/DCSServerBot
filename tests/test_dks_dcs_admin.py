@@ -416,3 +416,47 @@ async def test_install_permission_writes_only_for_a_server_in_reach(tmp_path):
     assert "bravo_ops" not in data
     assert data["commands"] == {"dks": {"register": {"roles": ["DCS Admin"]}}}, "the overrides survive"
 
+
+
+@pytest.mark.asyncio
+async def test_overlapping_claims_both_land_without_a_restart(tmp_path):
+    """Two customers' claims at once: a RestAPI reload during another one fails (and would restart
+    the bot), so the claims take turns."""
+    import asyncio
+    plugin = _plugin(tmp_path, restapi_yaml={DEFAULT_TAG: {}})
+    busy = []
+
+    async def reload_plugin(name: str) -> bool:
+        if busy:
+            return False                       # the extension is mid-reload
+        busy.append(1)
+        await asyncio.sleep(0.05)
+        busy.clear()
+        return True
+
+    async def restart():
+        raise AssertionError("the bot restarted")
+
+    plugin.bot.reload_plugin = reload_plugin
+    plugin.node.restart = restart
+    a = plugin.generate_otp(ALPHA_ID, ALPHA_ID)
+    b = plugin.generate_otp(BRAVO_ID, BRAVO_ID)
+    results = await asyncio.gather(_claim(plugin, a, ALPHA_KEY), _claim(plugin, b, BRAVO_KEY))
+    assert [r.status_code for r in results] == [200, 200]
+    assert sorted(dict(x)["owner"] for x in _jwt(tmp_path)["links"]) == [ALPHA_ID, BRAVO_ID]
+
+
+@pytest.mark.asyncio
+async def test_re_registering_replaces_a_hand_written_quoted_owner(tmp_path):
+    plugin = _plugin(tmp_path, restapi_yaml={DEFAULT_TAG: {"auth": {"jwt": {"jwks_url": "x", "links": [
+        {"key": "old-alpha", "owner": str(ALPHA_ID)}]}}}})
+    assert (await _claim(plugin, plugin.generate_otp(ALPHA_ID, ALPHA_ID), ALPHA_KEY)).status_code == 200
+    assert [dict(x) for x in _jwt(tmp_path)["links"]] == [{"key": ALPHA_KEY, "owner": ALPHA_ID}]
+
+
+@pytest.mark.asyncio
+async def test_install_permission_writes_into_the_nodes_block_when_the_file_has_one(tmp_path):
+    plugin = _plugin(tmp_path, dks_yaml={"node1": {"alpha_training": {"allow_install": True}}})
+    await DKS.install_permission.callback(plugin, _interaction(plugin, ALPHA_ID), plugin.bot.servers["Alpha Ops"], True)
+    data = new_yaml().load((tmp_path / "plugins" / "dks.yaml").read_text(encoding="utf-8"))
+    assert data == {"node1": {"alpha_training": {"allow_install": True}, "alpha_ops": {"allow_install": True}}}

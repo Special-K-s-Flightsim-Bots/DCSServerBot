@@ -31,6 +31,7 @@ from core.utils.yaml_helper import new_yaml
 _ = get_translation(__name__.split('.')[1])
 DKS_URL = "https://www.digitalkneeboardsimulator.com/api/register/dcssb?otp={otp}&connection_string={callback_url}"
 DKS_JWKS_URL = "https://www.digitalkneeboardsimulator.com/api/pubkey"
+_CLAIM_LOCK = asyncio.Lock()
 
 
 class DKS(Plugin):
@@ -151,45 +152,47 @@ class DKS(Plugin):
 
     async def register_dks(self, request: Request):
         pending = request.state.dks_registration
-        try:
-            jwt_payload = request.state.jwt_payload
-            key = jwt_payload.get('key')
+        # one claim at a time: two overlapping RestAPI reloads make the second fail, which restarts the bot
+        async with _CLAIM_LOCK:
+            try:
+                jwt_payload = request.state.jwt_payload
+                key = jwt_payload.get('key')
 
-            config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
-            if os.path.exists(config):
-                data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
-            else:
-                data = {}
-            auth = data.setdefault(DEFAULT_TAG, {}).setdefault('auth', {})
-            jwt_config = auth['jwt'] = auth.get('jwt') or {}
-            jwt_config['jwks_url'] = DKS_JWKS_URL
-            if pending['owner'] is None:
-                # an Admin's registration: the bot-wide key
-                jwt_config['key'] = key
-            else:
-                # a DCS Admin's: their link, replacing their previous one
-                jwt_config['links'] = [x for x in jwt_config.get('links') or []
-                                       if x.get('owner') != pending['owner']] + [{"key": key, "owner": pending['owner']}]
+                config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
+                if os.path.exists(config):
+                    data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
+                else:
+                    data = {}
+                auth = data.setdefault(DEFAULT_TAG, {}).setdefault('auth', {})
+                jwt_config = auth['jwt'] = auth.get('jwt') or {}
+                jwt_config['jwks_url'] = DKS_JWKS_URL
+                if pending['owner'] is None:
+                    # an Admin's registration: the bot-wide key
+                    jwt_config['key'] = key
+                else:
+                    # a DCS Admin's: their link, replacing their previous one
+                    jwt_config['links'] = [x for x in jwt_config.get('links') or []
+                                           if str(x.get('owner')) != str(pending['owner'])] + [{"key": key, "owner": pending['owner']}]
 
-            tmp = Path(config).with_suffix('.yaml.tmp')
-            with tmp.open('w', encoding='utf-8') as f:
-                new_yaml().dump(data, f)
-            os.replace(tmp, config)
+                tmp = Path(config).with_suffix('.yaml.tmp')
+                with tmp.open('w', encoding='utf-8') as f:
+                    new_yaml().dump(data, f)
+                os.replace(tmp, config)
 
-            if await self.bot.reload_plugin("RestAPI"):
-                await self.update_embed(pending, _("Your bot is now connected to DKS!"))
-            else:
-                await self.update_embed(pending, _("Restarting DCSServerBot ..."))
-                await self.node.restart()
+                if await self.bot.reload_plugin("RestAPI"):
+                    await self.update_embed(pending, _("Your bot is now connected to DKS!"))
+                else:
+                    await self.update_embed(pending, _("Restarting DCSServerBot ..."))
+                    await self.node.restart()
 
-            return {
-                "guild_id": self.node.guild_id,
-                "owner": self.bot.owner_id
-            }
-        except Exception as ex:
-            self.log.exception(ex)
-            asyncio.create_task(self.update_embed(pending, _("Error while registering with DKS: {}!").format(ex)))
-            raise HTTPException(status_code=500, detail='Error while registering.')
+                return {
+                    "guild_id": self.node.guild_id,
+                    "owner": self.bot.owner_id
+                }
+            except Exception as ex:
+                self.log.exception(ex)
+                asyncio.create_task(self.update_embed(pending, _("Error while registering with DKS: {}!").format(ex)))
+                raise HTTPException(status_code=500, detail='Error while registering.')
 
     @staticmethod
     async def tacview_enabled(server: Server) -> bool:
@@ -308,7 +311,9 @@ class DKS(Plugin):
             data = new_yaml().load(Path(config).read_text(encoding='utf-8')) or {}
         else:
             data = {}
-        data.setdefault(server.instance.name, {})['allow_install'] = allow
+        # where get_base_config reads it: the node's block if the file has one, else the flat instance entry
+        target = data[server.node.name] if server.node.name in data else data
+        target.setdefault(server.instance.name, {})['allow_install'] = allow
         tmp = Path(config).with_suffix('.yaml.tmp')
         with tmp.open('w', encoding='utf-8') as f:
             new_yaml().dump(data, f)
