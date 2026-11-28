@@ -14259,3 +14259,275 @@ msgstr "Filtre: isim, UCID veya sebep %(query)s içeriyor · %(filtered)s / %(to
 #: services/webservice/readmodels/bans.py
 msgid "No ban matches that search."
 msgstr "Bu aramayla eşleşen yasak yok."
+
+msgid "Squadron rating"
+msgstr "Filo derecesi"
+
+msgid "Members"
+msgstr "Üyeler"
+
+msgid "No squadron has flown here yet."
+msgstr "Burada henüz hiçbir filo uçmadı."
+
+msgid "That squadron was not found on this site."
+msgstr "Bu filo bu sitede bulunamadı."
+
+msgid "One squadron"
+msgstr "Bir filo"
+
+msgid "All squadrons"
+msgstr "Tüm filolar"
+
+msgid "Squadron · %(rank)s of %(total)s"
+msgstr "Filo · %(rank)s / %(total)s"
+
+msgid "Roster"
+msgstr "Kadro"
+
+msgid "Where the credits come from"
+msgstr "Puanlar nereden geliyor"
+
+msgid "A squadron's campaign points are the sum of its pilots' credits; the bars show which pilots carried it."
+msgstr "Bir filonun kampanya puanı, pilotlarının puanlarının toplamıdır; çubuklar bunu kimin taşıdığını gösterir."
+
+msgid "No campaign credits have been recorded for this squadron yet."
+msgstr "Bu filo için henüz kampanya puanı kaydedilmedi."
+
+msgid "Every figure on this page is read from the site's own servers: sorties are flights recorded against this site, and playtime is seated time, not mission time."
+msgstr "Bu sayfadaki her rakam bu sitenin sunucularından okunur: sortiler burada kaydedilen uçuşlardır ve oynama süresi görev süresi değil, kokpitte geçen süredir."
+
+msgid "Standings · campaign"
+msgstr "Sıralama · kampanya"
+
+msgid "The squadrons that fly here, ranked by the campaign points their pilots have earned. Open one to see its roster."
+msgstr "Burada uçan filolar, pilotlarının kazandığı kampanya puanına göre. Kadrosunu görmek için birini açın."
+
+msgid "Campaign standings"
+msgstr "Kampanya sıralaması"
+
+msgid "campaign points, scaled to the leader"
+msgstr "kampanya puanı, liderle ölçeklenmiş"
+
+msgid "Rating"
+msgstr "Derece"
+
+msgid "Rank by"
+msgstr "Sırala"
+
+msgid "Squadron"
+msgstr "Filo"
+
+msgid "A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. The rating is the squadron's combined TrueSkill figure."
+msgstr "Bir filo, en az bir pilotu bu sitenin sunucularından birinde uçtuysa bu sitededir ve üye sayısı yalnızca o pilotları sayar. Derece, filonun birleşik TrueSkill değeridir."
+
+msgid "A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. Rating reads — where the community runs no competitive ladder."
+msgstr "Bir filo, en az bir pilotu bu sitenin sunucularından birinde uçtuysa bu sitededir ve üye sayısı yalnızca o pilotları sayar. Derece, toplulukta rekabetçi bir lig yoksa — olarak görünür."
+
+msgid "The server scope narrows the member count and the campaign points to that server. The rating is not server-scoped: it is one figure per pilot and reads the same on every server."
+msgstr "Sunucu filtresi üye sayısını ve kampanya puanını o sunucuya daraltır. Derece sunucuya bağlı değildir: pilot başına tek bir değerdir ve her sunucuda aynıdır."
+
+msgid "How the Squadrons page presents its standings"
+msgstr "Filo sayfası sıralamasını nasıl sunar"
+
+msgid "The same standings, drawn as one card per squadron or as one dense table. It changes no figure and no address."
+msgstr "Aynı sıralama, filo başına bir kart ya da yoğun bir tablo olarak çizilir. Hiçbir sayıyı ve hiçbir adresi değiştirmez."
+
+msgid "Cards"
+msgstr "Kartlar"
+
+msgid "List"
+msgstr "Liste"
+
+msgid "Carrier"
+msgstr "Uçak gemisi"
+
+msgid "No carrier qualification has been recorded here yet."
+msgstr "Burada henüz hiçbir uçak gemisi yeterliliği kaydedilmedi."
+
+msgid "That pilot has no carrier record on this site."
+msgstr "Bu pilotun bu sitede hiçbir uçak gemisi kaydı yok."
+
+msgid "No carrier pass has been recorded for you on this site's servers yet."
+msgstr "Bu sitenin sunucularında senin için henüz hiçbir iniş kaydedilmedi."
+
+msgid "Grade"
+msgstr "Not"
+
+msgid "All airframes"
+msgstr "Tüm uçaklar"
+
+msgid "Traps on these servers"
+msgstr "Bu sunuculardaki inişler"
+
+msgid "Pilots qualified"
+msgstr "Yeterliliği olan pilotlar"
+
+msgid "Perfect passes"
+msgstr "Kusursuz inişler"
+
+msgid "Night traps"
+msgstr "Gece inişleri"
+
+msgid "Traps"
+msgstr "İnişler"
+
+msgid "At night"
+msgstr "Gece"
+
+msgid "Last trap"
+msgstr "Son iniş"
+
+msgid "Average points"
+msgstr "Ortalama puan"
+
+msgid "Carrier · qualifications"
+msgstr "Uçak gemisi · yeterlilikler"
+
+msgid "Who has been trapping on these servers, how the LSO graded each pass, and how the last weeks ran — one column per day."
+msgstr "Bu sunucularda kimler iniş yaptı, LSO her geçişi nasıl notladı ve son haftalar nasıl geçti — her gün için bir sütun."
+
+msgid "Traps recorded"
+msgstr "Kayıtlı inişler"
+
+msgid "Airframe"
+msgstr "Uçak"
+
+msgid "The board"
+msgstr "Tablo"
+
+msgid "Avg points"
+msgstr "Ort. puan"
+
+msgid "Perfect"
+msgstr "Kusursuz"
+
+msgid "Night"
+msgstr "Gece"
+
+msgid "unranked"
+msgstr "sıralamasız"
+
+msgid "night pass"
+msgstr "gece inişi"
+
+msgid "How a pass is graded"
+msgstr "Bir geçiş nasıl notlanır"
+
+msgid "LSO grade"
+msgstr "LSO notu"
+
+msgid "Every trap carries the LSO's grade and the points it earns. A tile is one pass, oldest on the left; up to two are drawn per day and the rest are counted."
+msgstr "Her iniş LSO notunu ve kazandığı puanı taşır. Bir kutu bir geçiştir, en eskisi solda; günde en çok iki tane çizilir, geri kalanı sayılır."
+
+msgid "%(points)s pts"
+msgstr "%(points)s puan"
+
+msgid "Night pass"
+msgstr "Gece inişi"
+
+msgid "The pass that counts"
+msgstr "Sayılan geçiş"
+
+msgid "A pilot is ranked from five passes on these servers; fewer than that is listed below the board, unranked, whatever the average. The average is the pilot's whole record on these servers."
+msgstr ""
+
+msgid "The server scope narrows every figure and the grid to that server."
+msgstr "Sunucu filtresi her sayıyı ve tabloyu o sunucuya daraltır."
+
+msgid "Carrier record not found"
+msgstr "Uçak gemisi kaydı bulunamadı"
+
+msgid "Carrier record"
+msgstr "Uçak gemisi kaydı"
+
+msgid "No carrier record"
+msgstr "Uçak gemisi kaydı yok"
+
+msgid "Back to the carrier board"
+msgstr "Uçak gemisi tablosuna dön"
+
+msgid "Carrier · record"
+msgstr "Uçak gemisi · kayıt"
+
+msgid "Every trap this pilot has flown on these servers, with the LSO's grade and remark."
+msgstr "Bu pilotun bu sunuculardaki her inişi, LSO notu ve yorumuyla."
+
+msgid "Carrier badges"
+msgstr "Uçak gemisi rozetleri"
+
+msgid "earned from the trap record"
+msgstr "iniş kaydından kazanılır"
+
+msgid "%(left)s to go"
+msgstr "%(left)s kaldı"
+
+msgid "Wire"
+msgstr "Tel"
+
+msgid "Remark"
+msgstr "Yorum"
+
+msgid "Only the newest passes are listed."
+msgstr "Yalnızca en yeni geçişler listelenir."
+
+msgid "no pass recorded"
+msgstr "kayıtlı geçiş yok"
+
+msgid "%(count)s traps"
+msgstr "%(count)s iniş"
+
+msgid "The passes you flew on this site's servers, newest first, with the LSO's grade and remark and the trap sheet the pass was graded from. Nobody else sees these sheets — the grades and the remarks are the part the board shows."
+msgstr "Bu sitenin sunucularında uçtuğun geçişler, en yenisi başta, LSO notu ve yorumuyla ve geçişin notlandığı trap sheet ile. Bu sheet'leri başka kimse görmez — notlar ve yorumlar tablonun gösterdiği kısımdır."
+
+msgid "Your traps"
+msgstr "İnişlerin"
+
+msgid "Trap sheet"
+msgstr "Trap sheet"
+
+msgid "Newer passes"
+msgstr "Daha yeni geçişler"
+
+msgid "Older passes"
+msgstr "Daha eski geçişler"
+
+msgid "The pass"
+msgstr "Geçiş"
+
+msgid "wire %(wire)s"
+msgstr "tel %(wire)s"
+
+msgid "Trap sheet plot of the pass"
+msgstr "Geçişin trap sheet grafiği"
+
+msgid "Glideslope, lineup and angle of attack for that pass, as the LSO graded it."
+msgstr "O geçişin süzülme yolu, hattı ve hücum açısı, LSO'nun notladığı gibi."
+
+msgid "%(points)s points"
+msgstr "%(points)s puan"
+
+msgid "First trap"
+msgstr "İlk iniş"
+
+msgid "Century"
+msgstr "Yüz"
+
+msgid "Perfect pass"
+msgstr "Kusursuz iniş"
+
+msgid "Night qual"
+msgstr "Gece yeterliliği"
+
+msgid "Every wire"
+msgstr "Her tel"
+
+msgid "Clean fifty"
+msgstr "Temiz elli"
+
+
+
+msgid "one column per trap"
+msgstr ""
+
+msgid "Trap %(number)s"
+msgstr ""

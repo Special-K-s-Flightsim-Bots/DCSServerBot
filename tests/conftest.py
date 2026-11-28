@@ -762,3 +762,16 @@ def reset_console_mount_prefix(request):
         yield
     finally:
         mount._PREFIX = saved
+
+@pytest.fixture(autouse=True)
+def _plugin_list_unstated():
+    """The site's loaded-plugin list is PROCESS state; a test that does not state it sees none stated.
+
+    ``PluginManager.load_plugins`` records the list on ``services.webservice.site_pages`` (so a page
+    whose plugin is not loaded stops being offered), and a test that exercises the loader would
+    otherwise leave the *next* test's site missing every plugin-backed page.
+    """
+    site_pages = importlib.import_module("services.webservice.site_pages")
+    site_pages.set_loaded_plugins(None)
+    yield
+    site_pages.set_loaded_plugins(None)

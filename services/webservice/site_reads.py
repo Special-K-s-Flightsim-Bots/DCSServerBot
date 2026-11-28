@@ -48,6 +48,11 @@ WHICH TABLE ANSWERS WHICH READ
 * SQUADRON MEMBERSHIP -> the site's pilot set is a scoped DISTINCT over ``mv_site_pilots`` (the same
   join, already reduced to one row per server and pilot), so a squadron's member count never scans
   ``statistics``.
+* CARRIER QUALIFICATIONS -> ``plugins/greenieboard``'s ``traps`` table (one row per LSO-graded
+  pass), joined to ``missions`` for the site scope like every other read. The grade vocabulary and a
+  grade's points are the plugin's ``const.GRADES``; the floor that keeps three lucky passes off the
+  top of the board, the badge thresholds and the sheet size bound are declared HERE. A database
+  without that plugin's table answers "no carrier data" (``None``/``False``), never an error.
 * A PILOT'S PROGRESS -> ``missionstats``, the event stream. A sortie cannot be read from
   ``statistics``: one slot row can hold two takeoff/landing pairs, and a row that never left the
   ramp is not a flight. :func:`pilot_progress` reconstructs the flights with
@@ -153,6 +158,7 @@ __all__ = [
     "pilot_profile",
     "pilot_search",
     "squadrons",
+    "squadron_detail",
     "server_board",
     "my_statistics",
     "PROGRESS_BUCKETS",
@@ -161,6 +167,17 @@ __all__ = [
     "my_ucids",
     "STANDING_FLOOR",
     "STANDING_BANDS",
+    "CARRIER_TABLE",
+    "CARRIER_RANK_FLOOR",
+    "CARRIER_BOARD_ROWS",
+    "CARRIER_BOARD_TRAPS",
+    "CARRIER_TRAP_PAGE_SIZE",
+    "CARRIER_SHEET_MAX_BYTES",
+    "CARRIER_ACHIEVEMENTS",
+    "carrier_available",
+    "carrier_board",
+    "carrier_record",
+    "trap_sheet",
 ]
 
 #: The one substring every scoped statement carries — the ratchet's assertion, and the shape a new
@@ -172,6 +189,8 @@ SERVER_FILTER = "server_name = ANY(%(servers)s::text[])"
 EXEMPT_STATEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "squadrons": (("to_regclass",
                    "a catalog probe: a table exists per database, not per site"),),
+    "squadron_detail": (("to_regclass",
+                         "a catalog probe: a table exists per database, not per site"),),
     "pilot_profile": (
         ("to_regclass", "a catalog probe: a table exists per database, not per site"),
         ("FROM trueskill",
@@ -197,6 +216,18 @@ EXEMPT_STATEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("to_regclass", "a catalog probe: a table exists per database, not per site"),
     ),
     "leaderboard": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+    ),
+    "carrier_available": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+    ),
+    "carrier_board": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+    ),
+    "carrier_record": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+    ),
+    "trap_sheet": (
         ("to_regclass", "a catalog probe: a table exists per database, not per site"),
     ),
 }
@@ -1717,8 +1748,15 @@ async def squadrons(site: Any, pool: Any) -> list[dict]:
     site-scoped — TrueSkill holds one rating per pilot UCID and has no server column, so every site
     reports the same value for the same squadron. ``rating`` is ``None`` when competitive is not
     loaded or no member is rated, and ``rating_available`` states which of the two it is.
+
+    ``[]`` — never an error — when this database has no ``squadrons`` table: the CreditSystem plugin
+    is not loaded, so the vocabulary does not exist and no page can describe it. The existence probe
+    runs on this function's OWN connection, so a caller pays one pool round trip for the answer
+    including the probe.
     """
     async with pool.connection() as conn:
+        if not await _table_exists(conn, "squadrons"):
+            return []
         rows = await _fetch_all(conn, _SQUADRON_SQL, _params(site))
         points = {int(row["squadron_id"]): _number(row.get("campaign_points"))
                   for row in await _fetch_all(conn, _SQUADRON_POINTS_SQL, _params(site))}
@@ -1745,6 +1783,131 @@ async def squadrons(site: Any, pool: Any) -> list[dict]:
         "rating": ratings.get(int(row.get("id"))),
         "rating_available": competitive,
     } for row in rows]
+
+
+#: One squadron's roster over the site's servers: the members that have a row on this site, each
+#: with the figures the site's own views state. The site's pilot set comes from ``mv_site_pilots``
+#: (the same join ``squadrons`` scopes on) and the per-pilot figures from ``mv_site_pilot_totals``,
+#: so no statement here aggregates ``statistics`` or ``missionstats`` itself.
+_SQUADRON_ROSTER_SQL = f"""
+WITH site_players AS (
+    SELECT DISTINCT player_ucid
+      FROM mv_site_pilots
+     WHERE {SERVER_FILTER}
+), members AS (
+    SELECT sm.player_ucid
+      FROM squadron_members sm
+      JOIN site_players sp ON sp.player_ucid = sm.player_ucid
+     WHERE sm.squadron_id = %(squadron_id)s
+), totals AS (
+    SELECT ms.player_ucid,
+           SUM(ms.playtime) AS playtime,
+           SUM(ms.takeoffs) AS takeoffs,
+           SUM(ms.kills) AS kills,
+           SUM(ms.deaths_planes + ms.deaths_helicopters + ms.deaths_ships
+               + ms.deaths_sams + ms.deaths_ground) AS deaths
+      FROM mv_site_pilot_totals ms
+     WHERE ms.{SERVER_FILTER}
+     GROUP BY ms.player_ucid
+)
+SELECT p.ucid, p.name, p.last_seen,
+       COALESCE(t.playtime, 0)::bigint AS playtime,
+       COALESCE(t.takeoffs, 0)::bigint AS takeoffs,
+       COALESCE(t.kills, 0)::bigint AS kills,
+       COALESCE(t.deaths, 0)::bigint AS deaths
+  FROM members mb
+  JOIN players p ON p.ucid = mb.player_ucid
+  LEFT JOIN totals t ON t.player_ucid = mb.player_ucid
+ ORDER BY COALESCE(t.playtime, 0) DESC, LOWER(COALESCE(p.name, '')), p.ucid
+"""
+
+#: The credits one squadron's members hold, per member. The campaign join is
+#: :data:`_SQUADRON_POINTS_SQL`'s own, so the split's total is the figure ``squadrons`` states.
+_SQUADRON_CREDITS_SQL = f"""
+SELECT cr.player_ucid AS ucid,
+       COALESCE(SUM(cr.points), 0)::bigint AS points
+  FROM credits cr
+  JOIN campaigns_servers cs ON cs.campaign_id = cr.campaign_id
+ WHERE cs.{SERVER_FILTER}
+   AND cr.player_ucid = ANY(%(ucids)s::text[])
+ GROUP BY 1
+"""
+
+
+def _kd(kills: Any, deaths: Any) -> float | None:
+    """A pilot's K/D over the site: ``kills / deaths``, or the kills themselves when nothing died.
+
+    The rule is :data:`METRIC_SQL`'s ``kd_ratio`` — one definition of the figure on this site — and
+    a member with no recorded sortie at all answers ``None`` (the page prints its dash) rather than
+    a zero that reads as a flown-but-unscored record.
+    """
+    scored = _number(kills)
+    lost = _number(deaths)
+    if not scored and not lost:
+        return None
+    return round(scored / lost, 2) if lost else round(float(scored), 2)
+
+
+async def squadron_detail(site: Any, pool: Any, squadron_id: Any) -> dict | None:
+    """One squadron of the site: its :func:`squadrons` row, its roster and its credit split.
+
+    ``None`` — never an empty page — when the id is not a squadron THIS site carries: the row is
+    looked up in :func:`squadrons`' own answer, so a squadron with no member who flew on the site's
+    servers is not served here at all. ``None`` too when the database has no squadron tables (the
+    CreditSystem plugin is not loaded): the vocabulary does not exist, so no page can describe it.
+
+    ``rank`` and ``total`` are the list page's own order (campaign points, descending), read off the
+    same answer rather than a second query — the masthead states "n of total" and the list states
+    the same standing.
+
+    The roster and the credits list only members with a row on this site's servers, and every
+    figure is the site's own: playtime, takeoffs, kills and deaths come from
+    ``mv_site_pilot_totals``, ``sorties`` is raised to the event stream's start count when the
+    ``missionstats`` plugin is loaded (the site's own definition of a flight), and ``kd`` is
+    :func:`_kd`. ``last_seen`` is the player record's own stamp.
+    """
+    try:
+        wanted = int(squadron_id)
+    except (TypeError, ValueError):
+        return None
+    async with pool.connection() as conn:
+        if not await _table_exists(conn, "squadrons"):
+            return None
+    rows = await squadrons(site, pool)
+    ordered = sorted(rows, key=lambda row: (-int(row.get("campaign_points") or 0),
+                                            str(row.get("name") or "").lower()))
+    found = next((entry for entry in ordered if int(entry.get("id") or 0) == wanted), None)
+    if found is None:
+        return None
+    rank = ordered.index(found) + 1
+    async with pool.connection() as conn:
+        members = await _fetch_all(conn, _SQUADRON_ROSTER_SQL,
+                                   _params(site, squadron_id=wanted))
+        ucids = [str(member.get("ucid")) for member in members if member.get("ucid")]
+        starts = await sortie_starts(conn, site, ucids) if ucids else None
+        credits: dict[str, int] = {}
+        if ucids and await _table_exists(conn, "credits"):
+            for entry in await _fetch_all(conn, _SQUADRON_CREDITS_SQL,
+                                          _params(site, ucids=ucids)):
+                credits[str(entry.get("ucid"))] = int(_number(entry.get("points")))
+    roster: list[dict] = []
+    split: list[dict] = []
+    for member in members:
+        ucid = str(member.get("ucid") or "")
+        takeoffs = _number(member.get("takeoffs"))
+        roster.append({
+            "ucid": ucid,
+            "name": member.get("name") or "",
+            "sorties": max(takeoffs, (starts or {}).get(ucid, 0)),
+            "playtime": _number(member.get("playtime")),
+            "kd": _kd(member.get("kills"), member.get("deaths")),
+            "last_seen": _stamp(member.get("last_seen")),
+        })
+        if ucid in credits:
+            split.append({"ucid": ucid, "name": member.get("name") or "",
+                          "points": credits[ucid]})
+    split.sort(key=lambda entry: (-entry["points"], str(entry["name"]).lower()))
+    return {**found, "rank": rank, "total": len(ordered), "roster": roster, "credits": split}
 
 
 # --------------------------------------------------------------------------- server board
@@ -2741,3 +2904,458 @@ async def pilot_progress(site: Any, pool: Any, ucid: Any, period: str = "quarter
         "kd": _rate(len(kills), len(lost)),
         "return_rate": _rate(len(returned), len(sorties)),
     }
+
+
+# ------------------------------------------------------- carrier qualifications
+#
+# THE CARRIER READS. ``plugins/greenieboard`` writes one ``traps`` row per LSO-graded pass, joined
+# to ``missions`` for the site scope — the same join every other read uses. Nothing here writes,
+# and a database without that plugin's table answers "no carrier data" instead of an error.
+#
+# THE GRADE VOCABULARY IS THE PLUGIN'S. A grade's colour and its points are read from
+# ``plugins.greenieboard.const.GRADES`` (imported inside the functions, so this module carries no
+# import-time edge into a plugin), never copied here. What this module declares is the RULES over
+# that vocabulary: which grade is a perfect pass, which one is a cut, and every badge threshold.
+
+#: the plugin table every carrier read takes its rows from.
+CARRIER_TABLE = "traps"
+
+#: the calendar days the board's grid covers, today last. UTC days, so two requests in the same
+#: minute render the same grid whatever the host's timezone is.
+#: how many traps the board draws per row — the axis keeps its first *CARRIER_BOARD_TRAPS* columns
+#: rather than 200 that would need a scrollbar, so column 1 is each pilot's first pass on these
+#: servers and the header never starts anywhere but at 1.
+CARRIER_BOARD_TRAPS = 20
+
+#: how many pilots the board draws, ranked first. A board is a leaderboard, not a dump of every
+#: pilot the servers ever saw: this keeps the page bounded when a community numbers in the thousands,
+#: and the rest of the roster is one search or one profile away.
+CARRIER_BOARD_ROWS = 50
+
+#: the fewest traps a pilot needs IN THE WINDOW to be ranked. It guards the average: three lucky
+#: passes would otherwise top a board of two hundred, so a pilot under the floor is listed after
+#: the ranked rows and marked unranked however good their average is.
+CARRIER_RANK_FLOOR = 5
+
+#: the traps ONE page of a pilot's history lists, newest first.
+CARRIER_TRAP_PAGE_SIZE = 50
+
+#: the largest trap sheet this module will hand out, in bytes. A sheet is a plotted PNG of a few
+#: hundred kilobytes; anything past this is not a sheet this page serves, and the statement refuses
+#: it inside the database rather than streaming it here to be measured.
+CARRIER_SHEET_MAX_BYTES = 4 * 1024 * 1024
+
+#: The six carrier badges, each a rule over the pilot's WHOLE trap history on this site:
+#: ``(id, mark, figure, threshold)``. *mark* is the two-or-three characters the badge disc prints
+#: (never translated — it is a glyph, not a word); the badge's NAME is the page's, which marks it for
+#: translation. *figure* names a column of the achievement statement's answer — ``traps``,
+#: ``perfect``, ``night`` (counts), ``wires`` (wires 1-4 each caught once) and ``streak`` (the
+#: longest run of passes without a cut). The badge is earned at *threshold*, and the page prints what
+#: is left until then.
+CARRIER_ACHIEVEMENTS: tuple[tuple[str, str, str, int], ...] = (
+    ("first", "1", "traps", 1),
+    ("century", "100", "traps", 100),
+    ("perfect", "OK", "perfect", 1),
+    ("night", "N", "night", 10),
+    ("wires", "4", "wires", 4),
+    ("clean", "50", "streak", 50),
+)
+
+#: the wire numbers a carrier landing can catch; ``wire`` outside this range is not a caught wire.
+CARRIER_WIRES = (1, 2, 3, 4)
+
+#: One board row: the pilot's whole record on this site's servers, plus the passes inside the grid's
+#: window (``{airframe}`` is the optional narrow clause). ``perfect`` is bound as the grade id
+#: :func:`_perfect_grade` reads out of the plugin's vocabulary.
+_CARRIER_BOARD_SQL = f"""
+SELECT t.player_ucid AS ucid,
+       COALESCE(p.name, '') AS name,
+       COUNT(*) AS traps,
+       AVG(t.points) AS average_points,
+       COUNT(*) FILTER (WHERE t.grade = %(perfect)s) AS perfect,
+       COUNT(*) FILTER (WHERE t.night) AS night,
+       MAX(t.time) AS last_trap
+  FROM traps t
+  JOIN missions m ON m.id = t.mission_id
+  LEFT JOIN players p ON p.ucid = t.player_ucid
+ WHERE m.{SERVER_FILTER}{{airframe}}
+ GROUP BY t.player_ucid, p.name
+"""
+
+#: The passes the grid draws: every pass of the site's servers, oldest first, each carrying its
+#: ordinal in its pilot's own sequence. The grid's x-axis IS the number of traps — column *n* is the
+#: pilot's n-th pass on these servers — so the ordering here is the axis, not a date bucket.
+_CARRIER_PASS_SQL = f"""
+SELECT t.player_ucid AS ucid, t.time AS time, t.grade AS grade, t.night AS night,
+       t.points AS points, t.wire AS wire, t.unit_type AS unit_type,
+       ROW_NUMBER() OVER (PARTITION BY t.player_ucid ORDER BY t.time, t.id) AS ordinal
+  FROM traps t
+  JOIN missions m ON m.id = t.mission_id
+ WHERE m.{SERVER_FILTER}{{airframe}}
+ ORDER BY t.player_ucid, ordinal
+"""
+
+#: The airframes the board can be narrowed to: every ``unit_type`` flown on this site's servers.
+_CARRIER_AIRFRAME_SQL = f"""
+SELECT DISTINCT t.unit_type AS unit_type
+  FROM traps t
+  JOIN missions m ON m.id = t.mission_id
+ WHERE m.{SERVER_FILTER}
+ ORDER BY 1
+"""
+
+#: One pilot's whole record in one row: the totals, and the four figures the badges are rules over.
+#: ``last_cut`` is the run-length trick that makes the clean streak an aggregate — the row's position
+#: minus the position of the last cut at or before it is the number of passes since that cut.
+_CARRIER_RECORD_SQL = f"""
+WITH ordered AS (
+    SELECT t.grade AS grade, t.night AS night, t.points AS points, t.time AS time,
+           t.wire AS wire, ROW_NUMBER() OVER (ORDER BY t.time, t.id) AS seq
+      FROM traps t
+      JOIN missions m ON m.id = t.mission_id
+     WHERE m.{SERVER_FILTER}
+       AND t.player_ucid = ANY(%(ucids)s::text[])
+), marks AS (
+    SELECT seq, grade,
+           MAX(CASE WHEN grade = %(cut)s THEN seq END)
+               OVER (ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS last_cut
+      FROM ordered
+)
+SELECT (SELECT COUNT(*) FROM ordered) AS traps,
+       (SELECT p.name FROM players p WHERE p.ucid = ANY(%(ucids)s::text[]) ORDER BY p.ucid
+         LIMIT 1) AS name,
+       (SELECT AVG(points) FROM ordered) AS average_points,
+       (SELECT COUNT(*) FROM ordered WHERE grade = %(perfect)s) AS perfect,
+       (SELECT COUNT(*) FROM ordered WHERE night) AS night,
+       (SELECT MAX(time) FROM ordered) AS last_trap,
+       (SELECT COUNT(DISTINCT wire) FROM ordered WHERE wire IN (1, 2, 3, 4)) AS wires,
+       (SELECT COALESCE(MAX(CASE WHEN grade <> %(cut)s
+                                 THEN seq - COALESCE(last_cut, 0) END), 0) FROM marks) AS streak
+"""
+
+#: One page of a pilot's passes, newest first, without the sheet bytes. Whether a pass carries a
+#: sheet is NOT answered here: the sheet lookup is the page's own statement (:func:`trap_sheets`),
+#: which binds the page's ids and the viewer's UCIDs once instead of annotating every row of a scan.
+_CARRIER_TRAP_SQL = f"""
+SELECT t.id AS id, t.time AS time, t.unit_type AS unit_type, t.grade AS grade,
+       t.points AS points, t.wire AS wire, t.night AS night, t.comment AS comment
+  FROM traps t
+  JOIN missions m ON m.id = t.mission_id
+ WHERE m.{SERVER_FILTER}
+   AND t.player_ucid = ANY(%(ucids)s::text[])
+ ORDER BY t.time DESC, t.id DESC
+ LIMIT %(limit)s OFFSET %(offset)s
+"""
+
+#: Which of ONE page's passes carry a trap sheet the viewer may see: the page's ids and the viewer's
+#: UCIDs in one statement. The ownership rule is the sheet route's own — the same site scope, the
+#: same ``ANY(ucids)`` filter, a non-NULL sheet — so an id the viewer does not own matches no row and
+#: answers as a pass with no sheet. The bytes themselves stay on the sheet route: a page of
+#: thumbnails reads presence here and one image per address it printed.
+_CARRIER_SHEETS_SQL = f"""
+SELECT t.id AS id
+  FROM traps t
+  JOIN missions m ON m.id = t.mission_id
+ WHERE m.{SERVER_FILTER}
+   AND t.id = ANY(%(trap_ids)s::bigint[])
+   AND t.player_ucid = ANY(%(ucids)s::text[])
+   AND t.trapsheet IS NOT NULL
+"""
+
+#: One pass's sheet, filtered by BOTH the site and the pilot the caller must be. The size bound is
+#: applied inside the statement, so an oversized value answers NULL instead of being transferred.
+_CARRIER_SHEET_SQL = f"""
+SELECT CASE WHEN octet_length(t.trapsheet) <= %(max_bytes)s THEN t.trapsheet END AS sheet
+  FROM traps t
+  JOIN missions m ON m.id = t.mission_id
+ WHERE m.{SERVER_FILTER}
+   AND t.id = %(trap_id)s
+   AND t.player_ucid = ANY(%(ucids)s::text[])
+   AND t.trapsheet IS NOT NULL
+"""
+
+
+def _trap_ids(value: Any) -> list[int]:
+    """The pass ids of *value* as sorted ints; anything that is not one is left out."""
+    ids: set[int] = set()
+    for item in (value if isinstance(value, (list, tuple, set, frozenset)) else (value,)):
+        try:
+            ids.add(int(item))
+        except (TypeError, ValueError):
+            continue
+    return sorted(ids)
+
+
+async def trap_sheets(conn: Any, site: Any, trap_ids: Any, ucid: Any) -> set[int]:
+    """The ids among *trap_ids* whose pass carries a sheet *ucid* owns on this site's servers.
+
+    ONE statement for a whole page of rows, whatever the page's length, on the caller's own
+    connection: it binds the page's ids and the whole UCID array a signed-in viewer owns, so a page
+    of fifty thumbnails costs one read instead of fifty plus a probe each. ``ucid`` is the ownership
+    filter (:func:`trap_sheet`'s), so an id the viewer does not own, a pass of another site's server
+    and a NULL sheet all answer as absent — never as an error.
+    """
+    ids = _trap_ids(trap_ids)
+    owners = _ucid_list(ucid)
+    if not ids or not owners:
+        return set()
+    rows = await _fetch_all(conn, _CARRIER_SHEETS_SQL, _params(site, trap_ids=ids, ucids=owners))
+    return {int(row["id"]) for row in rows if row.get("id") is not None}
+
+
+def _grade_specs() -> dict[str, dict]:
+    """``plugins.greenieboard.const.GRADES``, the one grade vocabulary — imported where it is used.
+
+    ``{}`` on a build without that plugin: a read then counts no perfect pass and no cut, which is
+    the honest answer for a database that carries no carrier table either, and never an exception on
+    the way to the page that prints one sentence.
+    """
+    try:
+        from plugins.greenieboard.const import GRADES
+    except ImportError:
+        return {}
+    return dict(GRADES)
+
+
+def _perfect_grade(specs: dict[str, dict] | None = None) -> str:
+    """The grade id that counts as a perfect pass: the one carrying GRADES' highest rating."""
+    grades = _grade_specs() if specs is None else specs
+    rated = {key: float(spec["rating"]) for key, spec in grades.items() if "rating" in spec}
+    return max(rated, key=lambda key: rated[key]) if rated else ""
+
+
+def _cut_grade(specs: dict[str, dict] | None = None) -> str:
+    """The grade id that counts as a cut: the rated grade worth zero points."""
+    grades = _grade_specs() if specs is None else specs
+    for key, spec in grades.items():
+        if "rating" in spec and not float(spec["rating"]):
+            return key
+    return ""
+
+
+def _ucid_list(value: Any) -> list[str]:
+    """One UCID or a collection of them as a list of non-empty strings.
+
+    A pilot's record is keyed by UCID; a signed-in viewer may own several (one Discord link, two
+    player rows), so every carrier statement binds an ARRAY and a single UCID is simply a list of
+    one. That keeps one statement shape for both callers.
+    """
+    if value is None or isinstance(value, (bytes, str, int)):
+        items = [value]
+    else:
+        try:
+            items = list(value)
+        except TypeError:
+            items = [value]
+    return [str(item).strip() for item in items if str(item).strip()]
+
+
+def _airframe_clause(airframe: str | None) -> str:
+    """The bare ``AND`` clause that narrows a statement to one airframe, or nothing for all."""
+    return " AND t.unit_type = %(airframe)s" if airframe else ""
+
+
+def _carrier_pass(row: dict) -> dict:
+    """One pass as the grid draws it: its grade, its night mark, its points, and what the cell's
+    tooltip needs — the day it was flown, and the wire it caught."""
+    wire = row.get("wire")
+    return {"grade": str(row.get("grade") or ""), "night": bool(row.get("night")),
+            "points": _number(row.get("points")), "time": _stamp(row.get("time")),
+            "wire": _number(wire) if wire is not None else None,
+            "ordinal": _number(row.get("ordinal"))}
+
+
+def _carrier_row(row: dict) -> dict:
+    """One board entry from the totals statement's row, with the ranking rule applied.
+
+    The floor counts the pilot's WHOLE record on this site's servers: no pass of theirs is outside
+    a window, so a pilot cannot be listed as unranked over a quiet month.
+    """
+    try:
+        recorded = int(row.get("traps") or 0)
+    except (TypeError, ValueError):
+        recorded = 0
+    average = row.get("average_points")
+    return {
+        "ucid": str(row.get("ucid") or ""),
+        "name": str(row.get("name") or ""),
+        "traps": _number(row.get("traps")),
+        "average_points": round(float(average), 2) if average is not None else None,
+        "perfect": _number(row.get("perfect")),
+        "night": _number(row.get("night")),
+        "last_trap": _stamp(row.get("last_trap")),
+        "ranked": recorded >= CARRIER_RANK_FLOOR,
+        "passes": [],
+    }
+
+
+def _board_order(rows: list[dict]) -> list[dict]:
+    """The board's order: ranked pilots by average points, then the rest by trap count.
+
+    A pilot under :data:`CARRIER_RANK_FLOOR` never outranks a ranked one, and the name breaks every
+    tie, so the same figures always render in the same order.
+    """
+    def average(row: dict) -> float:
+        value = row.get("average_points")
+        return float(value) if isinstance(value, (int, float)) else -1.0
+
+    ranked = sorted((row for row in rows if row["ranked"]),
+                    key=lambda row: (-average(row), str(row["name"]).lower(), row["ucid"]))
+    unranked = sorted((row for row in rows if not row["ranked"]),
+                      key=lambda row: (-int(row["traps"] or 0), str(row["name"]).lower(),
+                                       row["ucid"]))
+    return ranked + unranked
+
+
+async def carrier_available(site: Any, pool: Any) -> bool:
+    """Whether this database carries the carrier plugin's ``traps`` table.
+
+    A PROBE, not a figure: a page uses it to decide whether to draw its carrier section at all, and
+    it answers ``False`` — never an error — on an install without the GreenieBoard plugin.
+    """
+    async with pool.connection() as conn:
+        return await _table_exists(conn, CARRIER_TABLE)
+
+
+async def carrier_board(site: Any, pool: Any,
+                        airframe: str | None = None) -> dict | None:
+    """The carrier board: every pilot's record and one grid column per TRAP.
+
+    Each pilot entry carries its WHOLE record on this site's servers — ``traps``, the average
+    points, the perfect and night counts, the newest trap — and that record is what
+    :data:`CARRIER_RANK_FLOOR` guards.
+
+    The grid's x-axis is the NUMBER OF TRAPS, not a calendar: column *n* is a pilot's n-th pass on
+    these servers, oldest on the left, so two pilots side by side show the same ordinal rather than
+    the same day, and a quiet month never opens a hole in the grid. ``passes`` on each entry is that
+    pilot's own sequence, oldest first, one entry per column; a pilot whose sequence is shorter than
+    the board's widest leaves the cells at the END blank. The columns stop at
+    :data:`CARRIER_BOARD_TRAPS` so the board never needs a horizontal scrollbar.
+
+    Answers ``None`` when the ``traps`` table is absent — the page then prints one sentence instead
+    of an empty grid, and never infers its own visibility from the database.
+    """
+    clause = _airframe_clause(airframe)
+    params = _params(site, perfect=_perfect_grade(), **({"airframe": airframe}
+                                                       if airframe else {}))
+    async with pool.connection() as conn:
+        if not await _table_exists(conn, CARRIER_TABLE):
+            return None
+        totals = await _fetch_all(conn, _CARRIER_BOARD_SQL.format(airframe=clause), params)
+        passes = await _fetch_all(conn, _CARRIER_PASS_SQL.format(airframe=clause), params)
+        airframes = await _fetch_all(conn, _CARRIER_AIRFRAME_SQL, _params(site))
+    rows = {str(row.get("ucid") or ""): _carrier_row(row) for row in totals}
+    for row in passes:
+        entry = rows.get(str(row.get("ucid") or ""))
+        if entry is not None:
+            entry["passes"].append(_carrier_pass(row))
+    ordered = _board_order(list(rows.values()))[:CARRIER_BOARD_ROWS]
+    for row in ordered:
+        row["passes"] = row["passes"][:CARRIER_BOARD_TRAPS]
+    return {
+        "columns": max((len(row["passes"]) for row in ordered), default=0),
+        "airframes": [str(row.get("unit_type") or "") for row in airframes
+                      if str(row.get("unit_type") or "")],
+        "pilots": ordered,
+        "totals": {
+            "traps": sum(int(row["traps"] or 0) for row in ordered),
+            "pilots": len(ordered),
+            "perfect": sum(int(row["perfect"] or 0) for row in ordered),
+            "night": sum(int(row["night"] or 0) for row in ordered),
+        },
+    }
+
+
+async def carrier_record(site: Any, pool: Any, ucid: Any,
+                         offset: Any = 0) -> dict | None:
+    """One pilot's carrier record on this site's servers, or ``None`` without the plugin's table.
+
+    ``None`` is the INSTALL-level fact and only that: this database carries no ``traps`` table, so
+    the page draws no carrier band at all. A pilot the site knows but who has not trapped here
+    answers a record whose ``totals.traps`` is ``0`` and whose ``traps`` list is empty — the caller
+    prints its own sentence instead of hiding the band.
+
+    ``totals`` are the whole record's; ``traps`` is ONE page of it —
+    :data:`CARRIER_TRAP_PAGE_SIZE` rows, newest first, without the sheet bytes. ``achievements`` are
+    the six badges of :data:`CARRIER_ACHIEVEMENTS`, each earned or pending, computed over the WHOLE
+    history in the same statement as the totals. ``truncated`` says whether another page follows.
+
+    ONE connection for the whole answer, and ONE probe: the trap list does not annotate its rows
+    with sheet presence, :func:`trap_sheets` answers that for the page's ids in one statement, bound
+    to the viewer's own UCIDs (``has_sheet`` per row comes from it). The sheet BYTES are never read
+    here — they belong to the sheet route, one image per address the page printed.
+    """
+    wanted = _ucid_list(ucid)
+    if not wanted:
+        return {}
+    start = _offset(offset)
+    async with pool.connection() as conn:
+        if not await _table_exists(conn, CARRIER_TABLE):
+            return None
+        answer = await _fetch_one(conn, _CARRIER_RECORD_SQL,
+                                  _params(site, ucids=wanted, perfect=_perfect_grade(),
+                                          cut=_cut_grade()))
+        traps = await _fetch_all(conn, _CARRIER_TRAP_SQL,
+                                 _params(site, ucids=wanted, limit=CARRIER_TRAP_PAGE_SIZE,
+                                         offset=start))
+        sheets = await trap_sheets(conn, site, [row.get("id") for row in traps], wanted)
+    average = answer.get("average_points")
+    return {
+        "ucid": wanted[0] if len(wanted) == 1 else "",
+        "name": str(answer.get("name") or ""),
+        "totals": {
+            "traps": _number(answer.get("traps")),
+            "perfect": _number(answer.get("perfect")),
+            "night": _number(answer.get("night")),
+            "average_points": round(float(average), 2) if average is not None else None,
+            "last_trap": _stamp(answer.get("last_trap")),
+        },
+        "traps": [{
+            "id": _number(row.get("id")),
+            "time": _stamp(row.get("time")),
+            "unit_type": str(row.get("unit_type") or ""),
+            "grade": str(row.get("grade") or ""),
+            "points": _number(row.get("points")),
+            "wire": _number(row.get("wire")) if row.get("wire") is not None else None,
+            "night": bool(row.get("night")),
+            "comment": str(row.get("comment") or ""),
+            "has_sheet": _number(row.get("id")) in sheets,
+        } for row in traps],
+        "achievements": [{
+            "id": ident,
+            "mark": mark,
+            "earned": int(_number(answer.get(figure))) >= need,
+            "have": int(_number(answer.get(figure))),
+            "need": need,
+        } for ident, mark, figure, need in CARRIER_ACHIEVEMENTS],
+        "page": start // CARRIER_TRAP_PAGE_SIZE + 1,
+        "truncated": len(traps) >= CARRIER_TRAP_PAGE_SIZE
+                     and start + CARRIER_TRAP_PAGE_SIZE < int(_number(answer.get("traps"))),
+    }
+
+
+async def trap_sheet(site: Any, pool: Any, trap_id: Any, ucid: Any) -> bytes | None:
+    """The trap sheet image of one pass *ucid* flew on this site's servers, or ``None``.
+
+    ``ucid`` is REQUIRED and is the ownership filter, not a lookup: the statement matches the trap's
+    own pilot, so a caller holding somebody else's trap id reaches no row and no bytes are read for
+    it. It takes one UCID or the whole list a signed-in viewer owns (``_ucid_list``). A trap of another site matches no row either (the same ``missions`` join), a NULL sheet
+    matches no row, and a sheet larger than :data:`CARRIER_SHEET_MAX_BYTES` is refused INSIDE the
+    database — the oversized value is never transferred here.
+    """
+    owners = _ucid_list(ucid)
+    if not owners:
+        return None
+    try:
+        wanted = int(trap_id)
+    except (TypeError, ValueError):
+        return None
+    async with pool.connection() as conn:
+        if not await _table_exists(conn, CARRIER_TABLE):
+            return None
+        row = await _fetch_one(conn, _CARRIER_SHEET_SQL,
+                               _params(site, trap_id=wanted, ucids=owners,
+                                       max_bytes=CARRIER_SHEET_MAX_BYTES))
+    sheet = row.get("sheet")
+    return bytes(sheet) if isinstance(sheet, (bytes, bytearray, memoryview)) else None
+

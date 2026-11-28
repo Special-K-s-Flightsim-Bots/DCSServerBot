@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.webservice import site_pages
+from services.webservice import site_pages, sites
 from services.webservice.sites import NAV_PAGE_IDS
 from test_webui_site_settings_page import (  # noqa: F401 - fixtures imported on purpose
     ADMIN, SITE_KEY, _probe, live_config, served,
@@ -133,7 +133,11 @@ def test_a_nav_reorder_writes_the_bar_s_nav(report, served):
     assert rows_before[:2] == [first, second], rows_before
     assert rows_after[:2] == [second, first], (
         f"the page's own rows did not move: {rows_after}")
-    moved = [ident for ident in rows_after if ident in dict(NAV_ORDER)]
+    # the frame draws the entries this site offers unasked: a page the site has not switched on, or
+    # an optional entry it never ticked, has a row in the console's list and no entry in the bar
+    unasked = sites.default_nav(())
+    moved = [ident for ident in rows_after
+             if ident in dict(NAV_ORDER) and ident in unasked]
     assert report["nav_after"] == [_address(site_pages.NAV_PATHS[ident]) for ident in moved], (
         f"the frame's nav reads {report['nav_after']} after the rows read {rows_after}")
 

@@ -1359,7 +1359,9 @@ async def test_the_two_closed_sets_list_every_id_and_offer_no_add_and_no_remove(
     form = _root_form(html)
     for leaf, vocabulary in CLOSED_SETS:
         block = blocks[leaf]
-        assert _row_ids(block) == list(vocabulary), (
+        # every id is drawn; the ORDER is the site's own (its menu first, then the rest in
+        # vocabulary order), pinned by the hidden-row test below
+        assert sorted(_row_ids(block)) == sorted(vocabulary), (
             f"the {leaf} block draws {_row_ids(block)}, the vocabulary is {list(vocabulary)}")
         assert not [node for node in block.walk() if "data-cfg-add" in node.attrs], (
             f"the {leaf} block draws an Add control")
@@ -1372,8 +1374,8 @@ async def test_the_two_closed_sets_list_every_id_and_offer_no_add_and_no_remove(
                   if node.tag == "input" and node.attrs.get("name") == f"f.sites.root.{leaf}"]
         assert values and values[0] == "", (
             f"the {leaf} block posts no empty value to state itself: {values}")
-        assert values[1:] == list(vocabulary), (
-            f"the {leaf} block posts {values[1:]}, the vocabulary is {list(vocabulary)}")
+        assert values[1:] == _row_ids(block), (
+            f"the {leaf} block posts {values[1:]}, its rows read {_row_ids(block)}")
 
 
 @pytest.mark.asyncio
@@ -1439,9 +1441,9 @@ def test_every_tile_id_has_a_label_and_the_nav_labels_are_the_bar_s_own():
 def test_a_hidden_id_is_drawn_after_the_shown_ones_in_vocabulary_order():
     """PIN 5: the sequence holds the SHOWN ids, so a hidden one has no stored position."""
     rows = site_page.list_rows(("players", "overview"), sites.NAV_PAGE_IDS, {})
-    assert [row["id"] for row in rows] == ["players", "overview", "servers", "leaderboard",
-                                           "squadrons"]
-    assert [row["on"] for row in rows] == [True, True, False, False, False]
+    assert [row["id"] for row in rows] == ["players", "overview", "leaderboard", "carrier",
+                                           "squadrons", "servers"]
+    assert [row["on"] for row in rows] == [True, True, False, False, False, False]
     duplicates = site_page.list_rows(("players", "players"), sites.NAV_PAGE_IDS, {})
     assert [row["id"] for row in duplicates].count("players") == 1, (
         "a repeated id is drawn twice")
@@ -1549,7 +1551,9 @@ async def test_a_reordered_list_saves_in_the_posted_order(app, site_file):
                                config_dir=site_file.parent)
     root = next(site for site in catalog.sites if site.key == "root")
     assert list(root.nav) == wanted, f"{sites.SITE_FILE} carries {list(root.nav)}"
-    assert _row_ids(_blocks(html)["nav"]) == wanted, (
+    # the file's own order first, then every id it does not name, in the vocabulary's order
+    hidden = [ident for ident in sites.NAV_PAGE_IDS if ident not in wanted]
+    assert _row_ids(_blocks(html)["nav"]) == wanted + hidden, (
         "the page draws an order the file no longer carries")
     assert "notice bad" not in html, notice_of(html)
 
@@ -1600,6 +1604,14 @@ async def test_the_nav_editor_offers_servers_and_the_tick_moves_the_public_menu(
         assert "Servers" in _dump(row), f"the servers row reads {_dump(row)!r}"
         assert [node for node in row.walk() if node.tag == "input" and "checked" in node.attrs], (
             "the row for a page the site offers is drawn unticked")
+        # the two OPTIONAL entries are drawn, and drawn unticked: a new site's bar starts without
+        # them, and each is one tick in this list
+        for optional in sites.OPTIONAL_NAV_IDS:
+            node = next(node for node in rows
+                        if node.attrs.get("data-reorder-id") == optional)
+            assert not [child for child in node.walk()
+                        if child.tag == "input" and "checked" in child.attrs], (
+                f"the {optional} row is ticked on a site that never asked for it")
 
         kept = [ident for ident in _row_ids(_blocks(html)["nav"]) if ident != SERVERS_ID]
         reply = await post(http, html, {"_site": "root", "f.sites.root.nav": kept})
@@ -1609,7 +1621,7 @@ async def test_the_nav_editor_offers_servers_and_the_tick_moves_the_public_menu(
         assert written == kept, f"the file carries nav: {written!r}"
         unticked = await _public_menu(config_dir)
         assert unticked == [("Overview", "/"), ("Leaderboard", "/rankings"),
-                            ("Pilots", "/players")], (
+                            ("Pilots", "/players"), ("Squadrons", "/squads")], (
             f"the menu still offers the entry the card unticked: {unticked}")
 
         html = await open_page(http)
@@ -1617,12 +1629,14 @@ async def test_the_nav_editor_offers_servers_and_the_tick_moves_the_public_menu(
         reply = await post(http, html, {"_site": "root", "f.sites.root.nav": back})
         assert reply.status_code == 303, reply.text[:300]
 
-    assert root_block().get("nav") == back
-    # a re-ticked row is drawn AFTER the rows that stayed on, so the tick's own order is the file's
+    # a re-ticked row is drawn AFTER the rows that stayed on, so the tick's own order is the file's.
+    # Here that order IS the shipped default, so the save drops the key and the default applies —
+    # either way the menu below is the one this order renders.
+    assert root_block().get("nav") in (None, back), root_block().get("nav")
     assert back[0] == "overview" and back[-1] == SERVERS_ID, back
     menu = await _public_menu(config_dir)
     assert menu == [("Overview", "/"), ("Leaderboard", "/rankings"), ("Pilots", "/players"),
-                    ("Servers", "/fleet")], menu
+                    ("Squadrons", "/squads"), ("Servers", "/fleet")], menu
 
 
 @pytest.mark.asyncio
@@ -1637,7 +1651,8 @@ async def test_a_save_that_hides_nothing_drops_the_nav_key_again(app, config_dir
         return (sites.load_site_block(site_file.parent) or {}).get("root") or {}
 
     def served_order() -> list[str]:
-        return [ident for ident in sites.NAV_PAGE_IDS if ident in site_pages.SERVED_NAV_IDS]
+        """The rows a site that names nothing offers: the default menu, in the bar's order."""
+        return [ident for ident in sites.default_nav(()) if ident in site_pages.SERVED_NAV_IDS]
 
     async with client(app) as http:
         await sign_in_as(http, ADMIN)
@@ -1648,8 +1663,8 @@ async def test_a_save_that_hides_nothing_drops_the_nav_key_again(app, config_dir
     assert "nav" not in root_block(), (
         f"a save that hides nothing still wrote nav: {root_block().get('nav')!r}")
     menu = await _public_menu(config_dir)
-    assert menu == [("Overview", "/"), ("Servers", "/fleet"), ("Leaderboard", "/rankings"),
-                    ("Pilots", "/players")], menu
+    assert menu == [("Overview", "/"), ("Leaderboard", "/rankings"), ("Pilots", "/players"),
+                    ("Servers", "/fleet")], menu
 
 
 @pytest.mark.asyncio
@@ -3048,3 +3063,76 @@ async def test_a_wrong_type_is_refused_on_save_and_the_file_is_untouched(app, si
     assert "Schema validation failed" in landed.text, (
         "the save was refused by something other than the schema")
     assert site_file.read_bytes() == before, "a refused document reached the file"
+
+
+# ------------------------------------------------------------------ the plugin gate
+#: a page whose data comes from a plugin exists only while that plugin is loaded: the card draws no
+#: row for it, no switch, and the save keeps an entry the card could not draw.
+
+@pytest.fixture
+def loaded_plugins():
+    """State the plugin list for one test, and put the module back to UNSTATED afterwards."""
+    def state(names):
+        site_pages.set_loaded_plugins(names)
+    yield state
+    site_pages.set_loaded_plugins(None)
+
+
+def _carrier_controls(html: str) -> tuple[list[str], int]:
+    """The ROOT card's carrier nav rows, and the number of its ``pages.carrier`` switches."""
+    card = _root_form(html)
+    rows = [node.attrs.get("data-reorder-id") for node in card.walk()
+            if node.attrs.get("data-reorder-id") == "carrier"]
+    switches = [node for node in card.walk() if node.attrs.get("data-sc-page") == "carrier"]
+    return rows, len(switches)
+
+
+@pytest.mark.asyncio
+async def test_the_card_draws_no_carrier_controls_while_greenieboard_is_unloaded(app,
+                                                                                loaded_plugins):
+    """No plugin, no board: the row and the switch would be controls over nothing."""
+    loaded_plugins(["os", "mission", "userstats"])
+    async with client(app) as http:
+        await sign_in_as(http, ADMIN)
+        html = await open_page(http)
+    rows, switches = _carrier_controls(html)
+    assert rows == [], f"the menu block draws a carrier row: {rows}"
+    assert switches == 0, "the pages block draws the carrier switch with no plugin behind it"
+
+    loaded_plugins(["os", "greenieboard"])
+    async with client(app) as http:
+        await sign_in_as(http, ADMIN)
+        html = await open_page(http)
+    rows, switches = _carrier_controls(html)
+    assert rows == ["carrier"], f"the loaded plugin's row is missing: {rows}"
+    assert switches == 1, "the loaded plugin's switch is missing"
+
+
+@pytest.mark.asyncio
+async def test_a_save_keeps_a_carrier_entry_the_card_could_not_draw(config_dir, site_file,
+                                                                    loaded_plugins):
+    """The row is not drawn, so it is not posted: the stored entry must survive the save anyway."""
+    site_file.write_text("""sites:
+  root:
+    slug: ""
+    nav: [servers, overview, leaderboard, carrier, players]
+    pages:
+      carrier: true
+    branding:
+      title: Community
+""", encoding="utf-8")
+    loaded_plugins(["os", "mission"])
+    app = build(config_dir, cluster(), users=_users())
+    async with client(app) as http:
+        await sign_in_as(http, ADMIN)
+        html = await open_page(http)
+        rows, _switches = _carrier_controls(html)
+        assert rows == [], "this pin needs the carrier row NOT drawn"
+        reply = await post(http, html, {"_site": "root",
+                                        "f.sites.root.nav": ["servers", "overview", "leaderboard",
+                                                             "players"]})
+        assert reply.status_code == 303, reply.text[:300]
+
+    written = ((sites.load_site_block(config_dir) or {}).get("root") or {}).get("nav")
+    assert written == ["servers", "overview", "leaderboard", "carrier", "players"], (
+        f"the save dropped the carrier entry the card could not draw: {written!r}")

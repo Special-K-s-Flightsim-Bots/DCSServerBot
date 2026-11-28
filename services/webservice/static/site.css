@@ -106,6 +106,12 @@
   --bar-h: 3px;
   --bar-h-lg: 10px;
   --monogram: 56px;
+  /* the squadron mark: the monogram tile on a list row, its large form on a card and a masthead,
+   * and the two smaller sizes the phone draws */
+  --sqmark: 34px;
+  --sqmark-lg: 64px;
+  --sqmark-sm: 28px;
+  --sqmark-lg-sm: 52px;
   --focus-w: 2px;
   --focus-offset: 3px;
 
@@ -125,7 +131,7 @@
   --readout-h: 126px;
   --rank-w: 56px;
   --rank-w-sm: 40px;
-  --search-w: 150px;
+  --search-w: 210px;   /* wide enough that the placeholder reads whole beside the submit label */
 
   /* the bar's right cluster: the identity chip, the console door, the language pill */
   --chip-h: 36px;
@@ -145,9 +151,11 @@
   --door-ink: var(--brass);
   --door-line-hi: var(--brass);
   --door-ink-hi: var(--brass-hi);
-  /* the field: its width, and the floor it never drops below */
+  /* the field: its width, and the floor it never drops below. On one row the floor is the icon
+   * alone, so the nav can keep every entry; the pill's own floor applies once the bar has wrapped */
   --search-w-md: 130px;
   --search-min: 170px;
+  --search-icon-w: 44px;
   /* the bar's real height once it wraps: the sticky offsets and the language menu read this */
   --top-h-2: 116px;
   --top-h-3: 162px;
@@ -275,8 +283,13 @@ p:last-child { margin-bottom: 0; }
   display: block; font-family: var(--body); font-size: var(--t-2xs); letter-spacing: 0;
   text-transform: none; color: var(--fg-3); line-height: 1.2;
 }
+/* The nav is the bar's content, so it never yields: it grows and keeps its width, while the
+ * search gives way first and shrinks to its icon. Six entries, the brand, the search and the
+ * cluster do not share one row on a laptop; without this the nav scrolls silently and its last
+ * entry is clipped with no scrollbar to say so. */
 .nav { display: flex; gap: var(--nav-gap); margin-left: auto; min-width: 0; overflow-x: auto;
-       scrollbar-width: none; align-items: center; padding: var(--sp-0f) 0; }
+       scrollbar-width: none; align-items: center; padding: var(--sp-0f) 0;
+       flex: 1 0 auto; }
 .nav::-webkit-scrollbar { display: none; }
 .nav a {
   font-family: var(--body); font-size: var(--t-sm); font-weight: 500;
@@ -327,15 +340,20 @@ p:last-child { margin-bottom: 0; }
 }
 
 /* the search field keeps its 2px corner while the three controls are pills, joins their height, and
- * gives way first: its shrink factor is far above the nav's */
-.top .search { height: var(--chip-h); min-width: var(--search-min); flex: 0 100 auto; }
+ * holds its own width: a field squeezed below `--search-w` stops being a field and draws as a stub
+ * with an icon and a "Search" button, which reads as broken. The bar WRAPS instead (see the
+ * responsive block), so the field never has to shrink in the first place. */
+.top .search { height: var(--chip-h); min-width: var(--search-w); flex: 0 0 var(--search-w); }
 .top .search > svg { flex: 0 0 auto; }
 .top .search input { padding: 0; }
 
 /* the site title is capped by a token, so a long one truncates in place instead of widening or
  * wrapping the bar. `width: max-content` sizes each line to its own text — without it a shrink-to-fit
  * box paints an ellipsis at its natural width — and `max-width: inherit` takes the span's cap */
-.brand { flex: 0 1 auto; min-width: 0; }
+/* The site's own name is the bar's identity, so it never yields: it keeps its cap while the search
+ * collapses to its icon and, only if that is not enough, the nav scrolls. A brand that shrank first
+ * let six entries eat the title — a site called "Growling Sidewinder" drew as "Growling". */
+.brand { flex: 0 0 auto; min-width: 0; }
 .brand > span { min-width: 0; max-width: var(--brand-w); overflow: hidden; }
 .brand b, .brand small {
   display: block; width: max-content; max-width: inherit;
@@ -1093,8 +1111,13 @@ p:last-child { margin-bottom: 0; }
 
 /* the search box's own suggestions: the list hangs under the field, above the page */
 .sr-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
+/* THE POPUP IS WIDER THAN THE FIELD. A search box in the bar is a couple of hundred pixels — the
+ * room for a field, not for a callsign — and a popup that matched it cut every name to three
+ * characters ("[JDS] S…"), which is no help at all. It opens left-aligned under the field and takes
+ * the width it needs, capped so it never runs off a phone. */
 .sr-list {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 40;
+  position: absolute; top: 100%; left: 0; z-index: 40;
+  min-width: min(22rem, 80vw); max-width: min(32rem, 92vw);
   list-style: none; margin: var(--sp-0u) 0 0; padding: var(--sp-0u) 0;
   background: var(--panel); border: var(--hair-w) solid var(--line-2); border-radius: var(--radius);
   max-height: 18rem; overflow-y: auto;
@@ -1243,6 +1266,24 @@ p:last-child { margin-bottom: 0; }
 .foot .sp { margin-left: auto; }
 
 /* ---------------------------------------------------------------- responsive */
+
+/* Six nav entries plus the brand, the search and the cluster do not share one row on a laptop.
+ * The bar wraps HERE, before the rest of the page does: the nav takes the second row, so every
+ * entry stays on screen and the search keeps a field-shaped width. The breakpoint is the width
+ * where the row stops fitting, measured on the shipped bar with six entries and a full-length site
+ * name; the page's own columns keep their wider breakpoints. */
+@media (max-width: 1420px) {
+  :root { --top-h: var(--top-h-2); --mark-h: 26px; --who-w: var(--who-w-sm); }
+  .top .in { gap: var(--sp-3); flex-wrap: wrap; height: auto;
+             padding-top: var(--sp-0q); padding-bottom: var(--sp-0q); row-gap: var(--sp-0q); }
+  .brand { margin-right: auto; }
+  .top .nav { order: 2; flex: 1 0 100%; margin-left: 0; overflow: visible; }
+  /* the field keeps its own width on the first row and closes it with the cluster; the word goes
+   * so the placeholder still reads inside that width */
+  .top .search { order: 0; flex: 0 1 var(--search-w); min-width: var(--search-min); }
+  .top .search button { display: none; }
+}
+
 @media (max-width: 1180px) {
   /* the bar tightens: the door sheds its words, the grips shorten, the nav keeps its items */
   :root { --top-gap: var(--sp-0v); --nav-gap: var(--sp-3); --who-w: var(--who-w-md);
@@ -1637,4 +1678,180 @@ p:last-child { margin-bottom: 0; }
   .rail .xtiles { grid-template-columns: minmax(0, 1fr); }
   .rail .schedweek { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
   .rail .sched { max-width: none; }
+}
+
+/* ---------------------------------------------------------------- the squadrons
+ * One list in two layouts — a grid of cards and a dense table — and the squadron's own page. The
+ * mark is the same tile in a row, on a card and in a masthead; a squadron with an image draws it
+ * instead of its monogram. The collapse points are the mockup's: three cards become two at 1100px
+ * and one at 760px, where the table's role sub-line is the first thing a phone drops.
+ */
+.sqmark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: var(--sqmark); height: var(--sqmark); flex: 0 0 auto; border-radius: var(--radius);
+  border: var(--hair-w) solid var(--line-2); background: var(--panel-2);
+  font-family: var(--mono); font-size: var(--t-2xs); font-weight: 700;
+  letter-spacing: .04em; color: var(--brass); text-transform: uppercase;
+}
+.sqmark.lg { width: var(--sqmark-lg); height: var(--sqmark-lg); font-size: var(--t-lg); }
+.sqmark img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius); }
+
+/* the table's mark + name + role cell: the role is ONE line, clipped rather than wrapped */
+.tbl .badge .sq-name { display: flex; flex-direction: column; gap: var(--sp-0x); min-width: 0; }
+.tbl .badge .sq-name .sub {
+  font-size: var(--t-2xs); color: var(--fg-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* the cards layout */
+.sq-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+.sq-card {
+  display: flex; flex-direction: column; gap: var(--sp-0u);
+  padding: var(--sp-0w) var(--sp-0w) var(--sp-0u);
+  background: var(--panel); border: var(--hair-w) solid var(--line);
+  border-radius: var(--radius); text-decoration: none; color: inherit;
+  transition: border-color .12s ease, background .12s ease;
+}
+.sq-card:hover { border-color: var(--brass-dim); background: var(--panel-2); }
+.sq-card .top-row { display: flex; align-items: center; gap: var(--sp-0q); }
+.sq-card .nm { font-family: var(--disp); font-size: var(--t-lg); font-weight: 700; line-height: 1.2; }
+.sq-card .desc {
+  font-size: var(--t-xs); color: var(--fg-3); line-height: 1.5; min-height: 3em; margin: 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* the share bar: the card's own width against the leader's campaign points */
+.sq-card .bar { height: var(--bar-h); background: var(--panel-2); position: relative; margin-top: var(--sp-0h); }
+.sq-card .bar b { position: absolute; inset: 0 auto 0 0; background: var(--brass-dim); }
+.sq-card .figs {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2);
+  border-top: var(--hair-w) solid var(--line); padding-top: var(--sp-0u); margin-top: auto;
+}
+.sq-card .figs .v { font-family: var(--disp); font-size: var(--t-xl); font-weight: 700; line-height: 1.1; }
+.sq-card .figs .lbl { display: block; }
+.sq-card .foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+
+/* the squadron's own page */
+.sq-page-head { display: flex; align-items: center; gap: var(--sp-0w); }
+.roster .nm { font-weight: 600; }
+.creditbars .track { height: var(--bar-h-lg); }
+
+@media (max-width: 1100px) {
+  .sq-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .sq-cards { grid-template-columns: minmax(0, 1fr); }
+  .tbl .badge .sq-name .sub { display: none; }
+  .sqmark { width: var(--sqmark-sm); height: var(--sqmark-sm); }
+  .sqmark.lg { width: var(--sqmark-lg-sm); height: var(--sqmark-lg-sm); font-size: var(--t-md); }
+}
+
+/* ---------------------------------------------------------------- carrier qualifications
+ *
+ * A GRADE'S COLOUR IS NOT DECLARED HERE. The grade vocabulary and its colours live in
+ * plugins/greenieboard/const.py:GRADES, the same table the Discord board draws from, and the page
+ * writes each tile's and each chip's background inline from that row (pages/site_carrier.grade()).
+ * This section therefore carries tokens only, so the site and the board cannot disagree about what
+ * a colour means — and the one grade the plugin has no colour for (a perfect pass) draws in --brass.
+ *
+ * Tile geometry is the deck board's: 16px squares, 2px apart, a black dot on a night pass. A day
+ * cell holds two of them and the rest of that day's passes as a count.
+ */
+:root {
+  --ctile: 16px;        /* one pass tile on the board */
+  --ctile-gap: 2px;
+  --ctile-dot: 6px;     /* the night marker inside a tile */
+  --cday: 24px;        /* one trap column: one tile and its padding */
+  --cday-sm: 22px;
+  --cgrade: 14px;      /* the legend's swatch */
+  --cmark: 22px;       /* a badge's disc */
+  --cthumb: 62px;      /* a trap sheet thumbnail in a list row */
+  --cthumb-h: 40px;
+  --cthumb-sm: 48px;
+  --cthumb-h-sm: 32px;
+}
+.cband { overflow-x: auto; overflow-y: hidden; }
+.cgrid { width: max-content; min-width: 100%; }
+.cgrid th, .cgrid td { white-space: nowrap; vertical-align: middle; }
+.cgrid th.cd, .cgrid td.cc {
+  /* ONE width for every trap column: one tile, so twenty of them fit without a scrollbar */
+  width: var(--cday); min-width: var(--cday);
+  text-align: center; padding-left: var(--sp-1); padding-right: var(--sp-1);
+}
+.cgrid td.cc { border-left: var(--hair-w) solid var(--hair); }
+.cgrid th.cd { font-family: var(--mono); font-size: var(--t-2xs); color: var(--fg-3); }
+.ctile {
+  width: var(--ctile); height: var(--ctile); display: inline-block; position: relative;
+  border-radius: var(--radius); box-shadow: inset 0 0 0 var(--hair-w) var(--line-2);
+}
+.ctile + .ctile { margin-left: var(--ctile-gap); }
+/* the night marker: the deck's own black dot, ringed so it reads on a dark grade as well */
+.ctile.n::after {
+  content: ""; position: absolute; inset: 0; margin: auto;
+  width: var(--ctile-dot); height: var(--ctile-dot);
+  border-radius: 50%; background: var(--black); box-shadow: 0 0 0 var(--hair-w) var(--fg-2);
+}
+/* a day with no pass: a faint square, so the columns stay aligned and the gap is visible */
+.ctile.none { background: transparent; box-shadow: inset 0 0 0 var(--hair-w) var(--line); opacity: .55; }
+.cmore { font-family: var(--mono); font-size: var(--t-2xs); color: var(--fg-3); margin-left: var(--sp-1); }
+
+/* the legend: one row per grade, its colour swatch and what it is worth */
+.gradekey { display: flex; flex-wrap: wrap; gap: var(--sp-0w) var(--sp-3); list-style: none; margin: 0; padding: 0; }
+.gradekey li { display: flex; align-items: center; gap: var(--sp-0h); font-size: var(--t-2xs); color: var(--fg-2); }
+.gradekey i {
+  width: var(--cgrade); height: var(--cgrade); border-radius: var(--radius); display: block;
+  position: relative; box-shadow: inset 0 0 0 var(--hair-w) var(--line-2);
+}
+.gradekey i.n { background: transparent; }
+.gradekey i.n::after {
+  content: ""; position: absolute; inset: 0; margin: auto;
+  width: var(--ctile-dot); height: var(--ctile-dot);
+  border-radius: 50%; background: var(--black); box-shadow: 0 0 0 var(--hair-w) var(--fg-2);
+}
+.gradekey .nm { color: var(--fg); font-weight: 600; }
+
+/* the badge row of one pilot's record: earned ones lit, the rest dimmed with what is left */
+.badges { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.badge-card {
+  display: flex; align-items: center; gap: var(--sp-0h); padding: var(--sp-0y) var(--sp-0t);
+  border: var(--hair-w) solid var(--line-2); border-radius: var(--radius); background: var(--panel-2);
+  font-size: var(--t-2xs); color: var(--fg-2);
+}
+.badge-card b { color: var(--fg); font-weight: 700; font-size: var(--t-xs); }
+.badge-card .mk {
+  width: var(--cmark); height: var(--cmark); border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; border: var(--hair-w) solid var(--brass-dim); color: var(--brass);
+  font-family: var(--mono); font-size: var(--t-2xs); font-weight: 700;
+}
+.badge-card.locked { opacity: .45; }
+.badge-card.locked .mk { border-color: var(--line); color: var(--fg-3); }
+
+/* a trap sheet at thumbnail size: a shape, not a chart — enough to tell a clean pass from a scattered one */
+.trapthumb {
+  width: var(--cthumb); height: var(--cthumb-h); display: block; background: var(--panel-2);
+  border: var(--hair-w) solid var(--line); border-radius: var(--radius); overflow: hidden;
+}
+.trapthumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.trapthumb.none {
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--t-2xs); color: var(--fg-3);
+}
+
+/* the selected pass, at reading size */
+.big-shot {
+  background: var(--panel-2); border: var(--hair-w) solid var(--line);
+  border-radius: var(--radius); padding: var(--sp-2); margin: 0;
+}
+.big-shot img { width: 100%; height: auto; display: block; }
+.big-shot figcaption { margin-top: var(--sp-2); font-size: var(--t-2xs); color: var(--fg-3); }
+
+/* A narrower window keeps the trap columns and gives up the two figures beside them: twenty
+   columns are the board's axis, and a scrollbar under it is worse than a missing column. */
+@media (max-width: 1200px) {
+  .cgrid .hide-sm { display: none; }
+  .cgrid th.cd, .cgrid td.cc { width: var(--cday-sm); min-width: var(--cday-sm); }
+}
+
+@media (max-width: 760px) {
+  .trapthumb { width: var(--cthumb-sm); height: var(--cthumb-h-sm); }
+  .cgrid th.cd, .cgrid td.cc { width: var(--cday-sm); min-width: var(--cday-sm); }
 }

@@ -138,6 +138,16 @@ DEFAULT:
   #                               #   the site does not offer is never rendered. Example:
   #                               #     metrics: [playtime, air_targets, ships, air_defence,
   #                               #               ground_targets, kd_ratio, pvp_kd_ratio]
+  #     layout:                   # default cards. How a page that renders one model two ways
+  #                               #   presents it — a map of page id -> layout. The one such page
+  #                               #   today is `squadrons`: `cards` draws a grid of squadron cards,
+  #                               #   `list` draws one dense table with a rank-by and a server
+  #                               #   control. An absent key, or an absent leaf, keeps the default,
+  #                               #   so a site that declares nothing renders the shipped cards. A
+  #                               #   page id this block does not carry, and a layout that page does
+  #                               #   not offer, are both refused at startup. Example:
+  #                               #     layout:
+  #                               #       squadrons: list
   #     character: pvpve          # default pvpve — the kind of community this site is, which
   #                               #   decides which figures a page LEADS with (never which figures
   #                               #   exist): pvp = the player-versus-player record first, pve =

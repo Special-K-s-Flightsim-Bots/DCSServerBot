@@ -1,0 +1,116 @@
+{% extends "site_base.html" %}
+{#-
+  The public site's squadrons — ONE model, TWO layouts.
+
+  Every figure is a value `pages/site_squads.view()` composed from `site_reads.squadrons`' own
+  answer; no number here is typed by hand. `model.cards` and `model.table` are the site's stored
+  layout (`sites.<name>.layout.squadrons`), so the template draws one branch and never both.
+
+  THE TWO CONTROL ROWS BELONG TO THE LIST. They are the leaderboard's `ctlrows` block: each link
+  carries the other parameter, so switching the order keeps the chosen server and the reverse. The
+  cards branch has one order (campaign points, descending) and draws no control row at all.
+
+  The note under the section states the two things a reader cannot see: what puts a squadron on
+  this site, and that the rating reads its dash where the community runs no competitive ladder.
+  `model.rating_available` decides WHICH sentence is printed — never the value in a row.
+-#}
+{% block title %}{% trans %}Squadrons{% endtrans %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}Standings · campaign{% endtrans %}</div>
+      <h1>{% trans %}Squadrons{% endtrans %}</h1>
+      <p class="sub">{% trans %}The squadrons that fly here, ranked by the campaign points their pilots have earned. Open one to see its roster.{% endtrans %}</p>
+    </div>
+    <div class="side">
+      <div class="lbl">{% trans %}Squadrons{% endtrans %}</div>
+      <div class="big">{{ model.total }}</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  {% if model.unavailable %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <p class="note">{% trans %}Statistics are not available yet. They appear as soon as the servers report in.{% endtrans %}</p>
+  </section>
+  {% elif model.empty %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <p class="note">{{ _(model.sentence) }}</p>
+  </section>
+  {% else %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    {% if model.cards %}
+    <div class="sect-head"><span class="no">01</span><h2>{% trans %}Campaign standings{% endtrans %}</h2>
+      <span class="meta">{% trans %}campaign points, scaled to the leader{% endtrans %}</span></div>
+    <div class="sq-cards">
+      {% for row in model.rows %}
+      <a class="sq-card" href="{{ row.href }}">
+        <div class="top-row">
+          {% if row.image_url %}<span class="sqmark lg"><img src="{{ row.image_url }}" alt=""></span>{% else %}<span class="sqmark lg">{{ row.monogram }}</span>{% endif %}
+          <div class="nm">{{ row.name }}</div>
+        </div>
+        <p class="desc">{{ row.description }}</p>
+        <div class="bar"><b style="width:{{ row.share }}%"></b></div>
+        <div class="figs">
+          <div><span class="v">{{ row.members }}</span><span class="lbl">{% trans %}Members{% endtrans %}</span></div>
+          <div><span class="v">{{ row.points }}</span><span class="lbl">{% trans %}Points{% endtrans %}</span></div>
+          <div><span class="v">{{ row.rating or "—" }}</span><span class="lbl">{% trans %}Rating{% endtrans %}</span></div>
+        </div>
+        <div class="foot"><span class="lbl">{% trans %}Roster{% endtrans %} →</span></div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="controls">
+      <div class="ctlrows">
+        <div class="ctlrow"><span class="ctl-lbl">{% trans %}Rank by{% endtrans %}</span>
+          <div class="seg">
+          {% for option in model.rank_options %}<a href="{{ option.href }}"{% if option.on %} class="on" aria-current="true"{% endif %}>{{ _(option.label) }}</a>{% endfor %}
+          </div>
+        </div>
+        <div class="ctlrow"><span class="ctl-lbl">{% trans %}Server{% endtrans %}</span>
+          <div class="seg">
+          {% for option in model.server_options %}<a href="{{ option.href }}"{% if option.on %} class="on" aria-current="true"{% endif %}>{{ _(option.label) }}</a>{% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticks" aria-hidden="true" style="margin:10px 0 var(--gap)"></div>
+
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}Campaign standings{% endtrans %}</h2><span class="meta">{% trans first=model.first, last=model.last %}rows {{ first }} – {{ last }}{% endtrans %}</span></div>
+      <table class="tbl">
+        <thead><tr>
+          <th class="rk">#</th><th>{% trans %}Squadron{% endtrans %}</th>
+          <th class="r">{% trans %}Members{% endtrans %}</th>
+          <th class="r">{% trans %}Campaign points{% endtrans %}</th>
+          <th class="r hide-sm">{% trans %}Rating{% endtrans %}</th>
+        </tr></thead>
+        <tbody>
+          {% for row in model.rows %}
+          <tr{% if row.medal %} class="podium"{% endif %}>
+            <td class="rk">{% if row.medal %}<span class="medal {{ row.medal }}">{{ row.rank }}</span>{% else %}{{ row.rank }}{% endif %}</td>
+            <td><a class="badge" href="{{ row.href }}">{% if row.image_url %}<span class="sqmark"><img src="{{ row.image_url }}" alt=""></span>{% else %}<span class="sqmark">{{ row.monogram }}</span>{% endif %}<span class="sq-name"><span class="nm">{{ row.name }}</span><span class="sub">{{ row.description }}</span></span></a></td>
+            <td class="r">{{ row.members }}</td>
+            <td class="r ranked">{{ row.points }}</td>
+            <td class="r hide-sm">{% if row.rating %}<span class="mono">{{ row.rating }}</span>{% else %}<span class="quiet">—</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <p class="note">
+    {% if model.rating_available %}{% trans %}A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. The rating is the squadron's combined TrueSkill figure.{% endtrans %}{% else %}{% trans %}A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. Rating reads — where the community runs no competitive ladder.{% endtrans %}{% endif %}
+    {% if model.table and model.server %}{% trans %}The server scope narrows the member count and the campaign points to that server. The rating is not server-scoped: it is one figure per pilot and reads the same on every server.{% endtrans %}{% endif %}
+    </p>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

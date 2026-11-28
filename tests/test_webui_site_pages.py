@@ -798,10 +798,10 @@ def test_the_nav_offers_the_pages_that_are_served(config_dir, bus):
     assert "/squadrons" not in markup, "the nav offers a page this build does not serve"
 
 
-#: the menu a site renders when its block names NO ``nav:``: the model's own order, without the id
-#: whose page this build does not serve (``squadrons``), each at the address the site serves it at.
-DEFAULT_MENU = [("Overview", ""), ("Servers", "/fleet"), ("Leaderboard", "/rankings"),
-                ("Pilots", "/players")]
+#: the menu a site renders when its block names NO ``nav:``: the default ids at the address the
+#: site serves each one. The optional entries (``carrier``, ``squadrons``) are not in it.
+DEFAULT_MENU = [("Overview", ""), ("Leaderboard", "/rankings"), ("Pilots", "/players"),
+                ("Servers", "/fleet")]
 
 
 def _menu(markup: str) -> list[tuple[str, str]]:
@@ -830,8 +830,11 @@ def test_a_site_that_names_no_nav_renders_the_default_menu_with_servers(config_d
     menu = _menu(get(app, "/").text)
     assert menu == _expected_menu(), menu
     assert ("Servers", "/fleet") in menu, menu
+    # the two optional entries stay out of an unasked bar, though both pages answer when typed
+    assert ("Squadrons", "/squads") not in menu and ("Carrier", "/carrier") not in menu, menu
     for _label, href in menu:
         assert get(app, href).status_code == 200, f"the menu entry {href} does not answer"
+    assert get(app, "/squads").status_code == 200, "the squadrons page is not served"
 
 
 def test_a_group_site_renders_the_same_menu_inside_its_own_prefix(config_dir, bus):
@@ -988,7 +991,8 @@ def test_the_page_helpers_format_the_figures_the_bot_reports():
 def test_the_players_page_is_the_search_path_the_nav_declares():
     assert site_pages.SEARCH_PATH == site_pages.NAV_PATHS["players"]
     assert site_pages.page_modules()[1] is site_leaderboard
-    assert set(site_pages.SERVED_NAV_IDS) == {"overview", "leaderboard", "servers", "players"}
+    assert set(site_pages.SERVED_NAV_IDS) == {"overview", "leaderboard", "squadrons", "servers",
+                                              "carrier", "players"}
 
 
 # ----------------------------------------------------------------------------- the sign-in control

@@ -313,6 +313,14 @@ def _check_character_sets() -> None:
                                f"{unknown_sections + unknown_metrics}")
 
 
+def _check_layout_labels(labels: Mapping) -> None:
+    """Refuse to serve a layout vocabulary the row cannot name, or a label with no value."""
+    offered = set(sites.PAGE_LAYOUTS["squadrons"])
+    if set(labels) != offered:
+        raise RuntimeError(f"the layout row is keyed by {sorted(labels)}, "
+                           f"the model offers {sorted(offered)}")
+
+
 _check_character_sets()
 
 # ---------------------------------------------------------------- the page's own sentences
@@ -320,6 +328,15 @@ SITE_EMPTY = i18n._("No site is configured yet, so there is nothing to edit here
 SITE_READ_FAILED = i18n._("The site settings could not be read.")
 SITE_BRANDING = i18n._("Branding")
 SITE_PAGES = i18n._("Pages")
+#: the PAGES block's one hand-rendered row: the Squadrons page's presentation. The two values are
+#: the model's own (:data:`services.webservice.sites.PAGE_LAYOUTS`), the stored one is drawn checked,
+#: and a site that stores nothing draws the shipped default.
+SITE_LAYOUT_Q = i18n._("How the Squadrons page presents its standings")
+SITE_LAYOUT_HINT = i18n._(
+    "The same standings, drawn as one card per squadron or as one dense table. It changes no "
+    "figure and no address.")
+SITE_LAYOUT_LABELS = {"cards": i18n._("Cards"), "list": i18n._("List")}
+_check_layout_labels(SITE_LAYOUT_LABELS)
 #: the password block: its heading, the one line saying what the switch does, the switch's own two
 #: words, the row's "no password" cell, the Save's label and the sentence the empty state prints.
 SITE_PASSWORDS = i18n._("Server passwords")
@@ -1110,6 +1127,20 @@ def _field_list(field: configgen.Field, paths: tuple[tuple[str, ...], ...]) -> l
     return found
 
 
+def _layout_choice(document, field: configgen.Field) -> str:
+    """The Squadrons page's layout the card draws: the document's own value, else the default.
+
+    *document* is the card's MERGED one — the file with this session's draft laid over it — so a
+    pill pressed before Save is the one drawn back, exactly like every generated leaf. A value the
+    page does not offer falls back to the default: the radio group can only show one of the two,
+    and a stored value outside them never reaches the page (the loader refuses it first).
+    """
+    leaf = _leaf(field, "layout", "squadrons")
+    stored = configgen.value_at(document, leaf.path) if leaf is not None else None
+    value = readmodels.text(stored)
+    return value if value in sites.PAGE_LAYOUTS["squadrons"] else sites.DEFAULT_PAGE_LAYOUT
+
+
 #: the tokens a preset tile previews its palette with: the ground, the panel, the accent and the
 #: text colour of the sheet it names.
 _PREVIEW_TOKENS: tuple[str, ...] = ("--ground", "--panel", "--brass", "--fg")
@@ -1418,8 +1449,9 @@ BRANDING_ROWS: tuple[BrandingRow, ...] = (
 BRANDING_PATHS: tuple[tuple[str, ...], ...] = tuple(row.path for row in BRANDING_ROWS)
 
 #: the generated leaves of one card, grouped by the block they render in. ``enabled``, ``character``,
-#: ``sections``, ``metrics``, ``nav``, ``tiles``, ``branding.footer_links``, ``theme.preset`` and
-#: ``theme.expert`` are NOT here: they are hand-rendered so their default is visible.
+#: ``sections``, ``metrics``, ``nav``, ``tiles``, ``layout.squadrons``, ``pages.carrier``,
+#: ``branding.footer_links``, ``theme.preset`` and ``theme.expert`` are NOT here: they are
+#: hand-rendered so their default is visible.
 _PAGES_PATHS: tuple[tuple[str, ...], ...] = (("lang",),)
 #: the deprecated ``theme.light`` alias keeps its generated row; ``theme.preset`` and
 #: ``theme.expert`` are hand-rendered by the palette block.
@@ -1561,8 +1593,10 @@ def _card(request: Request, tree: configgen.Field, site: "sites.Site", document,
     wizard = wizard_payload(request, site, sheet)
     palette_say = (SITE_PALETTE_SAY_OPEN if stored_sheet.strip()
                    else SITE_PALETTE_SAY_SHEET if state["id"] == "sheet" else SITE_PALETTE_SAY)
-    nav_labels = {ident: i18n.translate(request, NAV_LABEL_SOURCE[ident])
-                  for ident in sites.NAV_PAGE_IDS}
+    # the ids this INSTALLATION offers: a page whose plugin is not loaded has no row to tick, so the
+    # list is drawn from the vocabulary minus those, never from the site's stored list
+    nav_ids = tuple(ident for ident in sites.NAV_PAGE_IDS if site_pages.page_offered(ident))
+    nav_labels = {ident: i18n.translate(request, NAV_LABEL_SOURCE[ident]) for ident in nav_ids}
     tile_labels = {ident: i18n.translate(request, TILE_LABELS[ident]) for ident in sites.TILE_IDS}
     brand_rows = branding_rows(field)
     return {
@@ -1602,22 +1636,30 @@ def _card(request: Request, tree: configgen.Field, site: "sites.Site", document,
         "live": live,
         "mock": not live,
         "pages_fields": _field_list(field, _PAGES_PATHS),
+        # the PAGES block's one hand-rendered row: the Squadrons page's presentation, read from the
+        # SAME merged document the generated leaves read (so a pill pressed before Save comes back
+        # pressed) and drawn from the model's own vocabulary with the shipped default checked.
+        "layout_squadrons": _layout_choice(document, field),
+        "layouts": [(ident, i18n.translate(request, SITE_LAYOUT_LABELS[ident]))
+                    for ident in sites.PAGE_LAYOUTS["squadrons"]],
+        "layout_q": i18n.translate(request, SITE_LAYOUT_Q),
+        "layout_hint": i18n.translate(request, SITE_LAYOUT_HINT),
         # §C: the three list blocks. The two closed sets carry every id of the vocabulary and post
         # ONE checkbox per row under the block's own name; the footer keeps the generated sequence
         # contract, hand-drawn as the design's row.
         "footer_links": _footer_links(request, site, token),
         "closed_sets": [
             _closed_set(request, token, "nav",
-                        list_rows(site.nav, sites.NAV_PAGE_IDS, nav_labels),
+                        list_rows(site.nav, nav_ids, nav_labels),
                         kind="bar", key=f"{site.key}.nav", what=SITE_NAV_WHAT, need=SITE_NAV_NEED,
                         caption=SITE_NAV_DRAW, off=SITE_NAV_OFF,
-                        ids=", ".join(sites.NAV_PAGE_IDS),
+                        ids=", ".join(nav_ids),
                         # the bar's own menu is the one thing on this page whose ORDER the frame
                         # draws: the block carries the element and each id's address, so a drag
                         # repaints the document's nav before Save
                         drives=".top .nav",
                         order={ident: site_pages.site_url(site, site_pages.NAV_PATHS[ident])
-                               for ident in sites.NAV_PAGE_IDS
+                               for ident in nav_ids
                                if ident in site_pages.NAV_PATHS}),
             _closed_set(request, token, "tiles",
                         list_rows(site.tiles, sites.TILE_IDS, tile_labels),
@@ -1897,6 +1939,7 @@ def page_context(request: Request) -> dict:
         # the schema identifiers the card prints VERBATIM (a key is an identifier, never prose)
         "keys": {"slug": "slug", "group_role": "group_role", "enabled": "enabled",
                  "character": "character", "sections": "sections", "metrics": "metrics",
+                 "layout": "layout.squadrons",
                  "theme_preset": "theme.preset", "theme_expert": "theme.expert",
                  "avatar": "avatar"},
     }
@@ -1997,6 +2040,49 @@ def _apply_absent_false(document, form, key: str) -> None:
 _EMPTY_LIST_FIELDS: tuple[str, ...] = ("nav", "tiles")
 
 
+def _unoffered_nav_ids() -> set[str]:
+    """The nav ids this installation does not draw, because the plugin behind the page is absent."""
+    from .. import site_pages
+
+    return {ident for ident in sites.NAV_PAGE_IDS if not site_pages.page_offered(ident)}
+
+
+def _restore_unoffered_nav(document, key: str, before) -> None:
+    """Put back a nav id the card could not draw, in the place it held.
+
+    A page whose plugin is not loaded has no row on the card, so its checkbox is never posted: without
+    this, one save would delete an entry the site had chosen and loading the plugin again would not
+    bring it back. The id keeps its position among the ids that stayed. An all-off save is left alone
+    — an empty list is a decision — and so is a save that posts no ``nav`` at all.
+    """
+    block = document.get("sites")
+    entry = block.get(key) if isinstance(block, Mapping) else None
+    if not isinstance(entry, dict):
+        return
+    posted = entry.get("nav")
+    if not isinstance(posted, list) or not posted:
+        return
+    hidden = _unoffered_nav_ids()
+    if not hidden.intersection(before or ()):
+        return
+    sequence = [str(item) for item in posted]
+    merged: list[str] = []
+    remaining = list(sequence)
+    for ident in before:
+        if ident in hidden:
+            merged.append(ident)
+        elif ident in remaining:
+            while remaining and remaining[0] != ident:
+                merged.append(remaining.pop(0))
+            merged.append(remaining.pop(0))
+    merged.extend(remaining)
+    if merged == sequence:
+        return
+    from ruamel.yaml.comments import CommentedSeq
+
+    entry["nav"] = CommentedSeq(merged)
+
+
 def _apply_empty_lists(document, form, key: str) -> None:
     """Write the empty sequence an all-off closed set posts for a key the site does not state yet.
 
@@ -2030,18 +2116,23 @@ def _apply_empty_lists(document, form, key: str) -> None:
 _DEFAULT_LIST_FIELDS: tuple[str, ...] = ("nav",)
 
 
-def _served_nav_default() -> tuple[str, ...]:
-    """The ``nav`` a site naming nothing hidden stores: the served page ids, in the model's order."""
+def _served_nav_default(entry) -> tuple[str, ...]:
+    """The ``nav`` a site that leaves every row as it was created stores.
+
+    The ids this build serves and puts in a new site's menu — :func:`sites.default_nav` — read off
+    the same rule a parse applies, so a save that changes nothing still drops the key.
+    """
     from .. import site_pages
 
-    return tuple(ident for ident in sites.NAV_PAGE_IDS if ident in site_pages.SERVED_NAV_IDS)
+    return tuple(ident for ident in sites.default_nav() if ident in site_pages.SERVED_NAV_IDS)
 
 
 def _drop_default_lists(document, key: str) -> None:
     """Remove a list key whose value IS the default, so the default goes on applying.
 
-    Two spellings are the default: the served ids in the model's order (what the card draws when
-    every row that has a page is ticked) and :data:`sites.DEFAULT_NAV` (every id, served or not).
+    Two spellings are the default: the default ids this build serves (what the card draws when
+    every row is left as it was created) and :data:`sites.DEFAULT_NAV` (every id a site offers
+    unasked), so an optional entry left unticked is not a decision.
     Anything else — a hidden page, a reordered bar, an all-off empty list — is a decision and stays
     written.
     """
@@ -2058,8 +2149,33 @@ def _drop_default_lists(document, key: str) -> None:
         if not hasattr(stored, "__iter__"):
             continue
         sequence = tuple(str(item) for item in stored)
-        if sequence in (sites.DEFAULT_NAV, _served_nav_default()):
+        if sequence in (sites.DEFAULT_NAV, _served_nav_default(entry)):
             del entry[leaf]
+
+
+def _drop_default_page_choices(document, key: str) -> None:
+    """Remove the page choices that ARE the shipped default, so the defaults go on applying.
+
+    A site that stores nothing and a site that stores the default serve the same page, so a stored
+    value is a decision only when it names the other answer: ``layout.<page>`` when the page renders
+    a layout other than :data:`services.webservice.sites.DEFAULT_PAGE_LAYOUT`. A map whose every
+    leaf is the default goes with its last leaf, so a save that
+    leaves every control at its shipped value writes nothing at all — the same rule
+    :func:`_drop_default_lists` applies to a list that names every page.
+    """
+    block = document.get("sites")
+    if not isinstance(block, Mapping):
+        return
+    entry = block.get(key)
+    if not isinstance(entry, dict):
+        return
+    layout = entry.get("layout")
+    if isinstance(layout, dict):
+        for page_id in sites.PAGE_LAYOUTS:
+            if readmodels.text(layout.get(page_id)) == sites.DEFAULT_PAGE_LAYOUT:
+                del layout[page_id]
+        if not layout:
+            del entry["layout"]
 
 
 def _restore_expert(block, document, key: str) -> None:
@@ -2785,9 +2901,11 @@ def add_routes(router: APIRouter) -> APIRouter:
         def mutate(target):
             _seed(target, legacy)
             configgen.apply_form(target, form, tree)
+            _restore_unoffered_nav(target, key, site.nav)
             _apply_absent_false(target, form, key)
             _apply_empty_lists(target, form, key)
             _drop_default_lists(target, key)
+            _drop_default_page_choices(target, key)
 
         # THE EXPERT SHEET IS CHECKED BY ITS OWN VALIDATOR FIRST: the parser bounds it but does not
         # read its grammar, and a sheet the site would refuse to SERVE must be refused where it is

@@ -5,9 +5,11 @@
   shipped schema's `sites:` rule, and `render_field` (shared with every generated page) draws each
   one. The groups a generated control would describe badly are HAND-RENDERED from their code-side
   vocabulary, so the DEFAULT is visible: `enabled`, `character`, the section switches, the offered
-  metrics, the preset gallery and the expert sheet. Their posted names are the ordinary leaves
-  (`f.sites.<site>.<path>`), so the save path is the shared one and a value outside the vocabulary is
-  refused by the tree, by the closed schema mapping and by the loader's parser.
+  metrics, the Squadrons page's layout, the pages a site must switch on, the preset gallery and the
+  expert sheet. Their posted names
+  are the ordinary leaves (`f.sites.<site>.<path>`), so the save path is the shared one and a value
+  outside the vocabulary is refused by the tree, by the closed schema mapping and by the loader's
+  parser.
 
   THE PAGE IS TWO COLUMNS AND ONE PREVIEW: the blocks in their order — branding, palette, character,
   menu & tiles, footer links, pages, the site itself, expert mode — in the editing column, and the
@@ -596,12 +598,32 @@
             </div>
           </section>
 
-          {#-  6 · PAGES — the language leaf. The nav page ids and the overview tiles are the block
-               above (their uniform vocabulary is drawn from the code, not from a generated row
-               list).  -#}
+          {#-  6 · PAGES — the language leaf and the Squadrons page's presentation. The nav page ids
+               and the overview tiles are the block above (their uniform vocabulary is drawn from the
+               code, not from a generated row list).  -#}
           <section class="sc-sec" data-sc-block="pages">
             <div class="sc-sechd">
               <h3>{{ _(labels.pages) }}</h3>
+            </div>
+            {#-  THE SQUADRONS PAGE'S PRESENTATION — the block's one hand-rendered row, beside the
+                 language leaf because both decide "which page, in what form". Two pills in the
+                 character card's own idiom, posting the ordinary `layout.squadrons` leaf: Save
+                 writes it and the parser refuses any value the page does not offer. It changes no
+                 figure and no address.  -#}
+            <div class="st-row">
+              <div class="st-lab">
+                <div class="nm">{{ card.layout_q }}</div>
+                <div class="kk"><span class="key mono">{{ keys.layout }}</span></div>
+                <div class="hp">{{ card.layout_hint }}</div>
+              </div>
+              <div class="st-w sc-seg" role="radiogroup" aria-label="{{ card.layout_q }}">
+                {% for ident, label in card.layouts %}
+                <label class="sc-pill">
+                  <input type="radio" name="f.sites.{{ card.token }}.layout.squadrons" value="{{ ident }}" {{ 'checked' if ident == card.layout_squadrons }}>
+                  <span>{{ label }}</span>
+                </label>
+                {% endfor %}
+              </div>
             </div>
             {% for leaf in card.pages_fields %}{{ render_field(leaf, card.vals, card.rows, card.customs, card.elements, card.choices, 1, {}, card.hidden, card.picks, card.removable) }}{% endfor %}
           </section>

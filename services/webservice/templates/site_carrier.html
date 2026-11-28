@@ -1,0 +1,128 @@
+{% extends "site_base.html" %}
+{#-
+  The public site's carrier board — one row per pilot, one column per UTC calendar day.
+
+  Every figure is a value `pages/site_carrier.view()` composed from `site_reads.carrier_board`'s own
+  answer; no number here is typed by hand. A cell draws the tiles `view()` gave it and prints `+n`
+  for the passes it could not draw, so a busy night never hides a pass.
+
+  A TILE'S COLOUR IS INLINE, AND IT IS THE PLUGIN'S. The grade vocabulary lives in
+  `plugins/greenieboard/const.GRADES` — the same table the Discord board draws from — so the colour
+  is written onto the element here and the stylesheet carries tokens only.
+
+  The page draws NOTHING but a sentence while the site's database has no `traps` table: no grid, no
+  legend, no empty table. What a site shows is configuration (`sites.<name>.pages.carrier`), never
+  an inference from the database, so the switch has already decided the page exists.
+-#}
+{% block title %}{% trans %}Carrier{% endtrans %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}Carrier · qualifications{% endtrans %}</div>
+      <h1>{% trans %}Carrier{% endtrans %}</h1>
+      <p class="sub">{% trans %}Who has been trapping on these servers, how the LSO graded each pass, and how the last weeks ran — one column per day.{% endtrans %}</p>
+    </div>
+    {% if model.available %}
+    <div class="side">
+      <div class="lbl">{% trans %}Traps recorded{% endtrans %}</div>
+      <div class="big">{{ model.readouts[0].value }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  {% if model.unavailable or not model.available or model.empty %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <p class="note">{{ _(model.sentence) }}</p>
+  </section>
+  {% else %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <div class="strip four">
+      {% for readout in model.readouts %}
+      <div class="readout">
+        <div class="v">{{ readout.value }}</div>
+        <div class="k">{{ _(readout.label) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="controls" style="margin-top:var(--gap)">
+      <div class="ctlrows">
+        <div class="ctlrow"><span class="ctl-lbl">{% trans %}Airframe{% endtrans %}</span>
+          <div class="seg">
+          {% for option in model.airframe_options %}<a href="{{ option.href }}"{% if option.on %} class="on" aria-current="true"{% endif %}>{{ _(option.label) }}</a>{% endfor %}
+          </div>
+        </div>
+        <div class="ctlrow"><span class="ctl-lbl">{% trans %}Server{% endtrans %}</span>
+          <div class="seg">
+          {% for option in model.server_options %}<a href="{{ option.href }}"{% if option.on %} class="on" aria-current="true"{% endif %}>{{ _(option.label) }}</a>{% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticks" aria-hidden="true" style="margin:10px 0 var(--gap)"></div>
+
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}The board{% endtrans %}</h2>
+        <span class="meta">{% trans %}one column per trap{% endtrans %}</span></div>
+      {#- THE BAND'S HOOK. It carries `data-cband-end` for `site-carrier.js`, which opens the band at
+          its RIGHT edge so the first thing a visitor sees is the latest traps. The columns keep
+          their order — trap 1 on the left — and the axis is the trap count, never a date. Without
+          the script the band is simply a wide table with its own horizontal scroll. -#}
+      <div class="cband" data-cband-end>
+        <table class="tbl cgrid">
+          <thead>
+            <tr>
+              <th class="rk">#</th>
+              <th>{% trans %}Pilot{% endtrans %}</th>
+              <th class="r">{% trans %}Avg points{% endtrans %}</th>
+              <th class="r">{% trans %}Traps{% endtrans %}</th>
+              <th class="r hide-sm">{% trans %}Perfect{% endtrans %}</th>
+              <th class="r hide-sm">{% trans %}Night{% endtrans %}</th>
+              {% for column in model.columns %}<th class="cd" title="{% trans number=column.index %}Trap {{ number }}{% endtrans %}">{{ column.label }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in model.rows %}
+            <tr{% if row.medal %} class="podium"{% endif %}>
+              <td class="rk">{% if row.rank %}{% if row.medal %}<span class="medal {{ row.medal }}">{{ row.rank }}</span>{% else %}{{ row.rank }}{% endif %}{% else %}<span class="quiet">—</span>{% endif %}</td>
+              <td><a class="nm" href="{{ row.href }}">{{ row.name }}</a>{% if not row.ranked %} <span class="tag">{% trans %}unranked{% endtrans %}</span>{% endif %}</td>
+              <td class="r ranked">{% if row.ranked %}{{ row.average }}{% else %}<span class="quiet">{{ row.average }}</span>{% endif %}</td>
+              <td class="r">{{ row.traps }}</td>
+              <td class="r hide-sm">{{ row.perfect }}</td>
+              <td class="r hide-sm">{{ row.night }}</td>
+              {% for cell in row.cells %}
+              {% if cell.empty %}<td class="cc"></td>{% else %}<td class="cc" title="{% trans number=cell.tile.ordinal %}Trap {{ number }}{% endtrans %} · {{ cell.tile.stamp }}"><i class="ctile{% if cell.tile.night %} n{% endif %}" style="background:{{ cell.tile.color }}" title="{{ cell.tile.legend }}{% if cell.tile.points %} · {{ cell.tile.points }}{% endif %}{% if cell.tile.night %} · {% trans %}night pass{% endtrans %}{% endif %}"></i></td>{% endif %}
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="grid" style="margin-top:var(--gap)">
+      <section class="panel c8">
+        <div class="hd"><h2>{% trans %}How a pass is graded{% endtrans %}</h2><span class="meta">{% trans %}LSO grade{% endtrans %}</span></div>
+        <p class="note plain" style="margin-bottom:var(--sp-3)">{% trans %}Every trap carries the LSO's grade and the points it earns. A tile is one pass, oldest on the left; up to two are drawn per day and the rest are counted.{% endtrans %}</p>
+        <ul class="gradekey">
+          {% for entry in model.legend %}<li><i style="background:{{ entry.color }}"></i><span class="nm">{{ entry.legend }}</span> {% trans points=entry.points %}{{ points }} pts{% endtrans %}</li>{% endfor %}
+          <li><i class="n"></i><span class="nm">{% trans %}Night pass{% endtrans %}</span></li>
+        </ul>
+      </section>
+      <section class="panel c4">
+        <div class="hd"><h2>{% trans %}The pass that counts{% endtrans %}</h2></div>
+        <p class="note plain">{% trans %}A pilot is ranked from five passes on these servers; fewer than that is listed below the board, unranked, whatever the average. The average is the pilot's whole record on these servers.{% endtrans %}</p>
+        {% if model.server %}<p class="note plain">{% trans %}The server scope narrows every figure and the grid to that server.{% endtrans %}</p>{% endif %}
+      </section>
+    </div>
+  </section>
+  {% endif %}
+</main>
+<script src="/static/site-carrier.js?v={{ asset_version }}" defer></script>
+{% endblock %}

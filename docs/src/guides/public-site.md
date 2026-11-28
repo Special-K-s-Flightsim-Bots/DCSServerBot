@@ -21,18 +21,160 @@ site named `root`, which is served at `/` when enabled.
 | `<site>/rankings` | The leaderboard: pilots ranked by one chosen metric, filterable by server and period, every column a sort |
 | `<site>/players` | Pilot search: a name search with paging, one row per pilot, each linking to the profile |
 | `<site>/player/<ucid>` | One pilot's profile: totals, airframes, the servers they flew, and their other UCIDs if one Discord account links several |
+| `<site>/squads` | The squadron list: the squadrons that fly on this site's servers, in the layout the site chose |
+| `<site>/squads/<id>` | One squadron's page: its roster, its figures and where its credits come from |
+| `<site>/fleet` | The server list: one row per server of this site, up first, each row its state, mission, address, slots and clocks |
+| `<site>/fleet/<name>` | One server's page: how to join, its mission, its weather, the limits it enforces, its weekly schedule, its extensions and its versions. `<name>` is the server's name as one percent-encoded path segment |
+| `<site>/fleet.json` | The fleet's live cells, as JSON (see [The Servers pages](#the-servers-pages)) |
+| `<site>/carrier` | The carrier board: one row per pilot and one column per trap, with the grade legend. Served only where the site's menu links to it (see [The Carrier pages](#the-carrier-pages)) |
+| `<site>/carrier/<ucid>` | One pilot's carrier record: their totals, the six badges and their trap list |
+| `<site>/carrier/trap/<id>` | One pass's trap sheet, as a PNG — served only to the signed-in pilot who flew it |
 | `<site>/me` | The signed-in visitor's own statistics — the same figures the profile already shows, reached from the shell's own chip |
 | `<site>/search.json` | The search box's suggestions, as JSON (see [Read the numbers from the API](#read-the-numbers-from-the-api)) |
 | `<site>/language` | The language switch (see [Carry the language](#carry-the-language)) |
 | `<site>/theme.css` | The site's palette sheet, when one of `theme.preset`, `theme.sheet` or `theme.expert` is declared |
 | `<site>/logo.png` | The site's own logo, when `branding.logo` declares a raster image |
 
-Two addresses do **not** exist, and the site is deliberate about both:
+One address does **not** exist, and the site is deliberate about it:
 
 - `<site>/console` is not a site page: the Command Center is at `/console` while a site owns the
   root, and a visitor the console would refuse gets its refusal, not a public page.
-- `squadrons` is a nav id with no page in this build: the id is refused nothing at configuration
-  time, but it renders no menu entry and `<site>/squads` answers `404`.
+
+## The Squadrons pages
+
+`<site>/squads` is the squadron list and `<site>/squads/<id>` is one squadron's page. `<id>` is the
+squadron's own identity in the database, not its name, so renaming a squadron keeps its address. A
+squadron is on a site when at least one of its pilots has flown on one of that site's servers, and
+its member count is those pilots only; a squadron with no pilot on the site's servers is not served,
+and its address answers the site's not-found page.
+
+The list page presents the same standings as **cards** or as a **table**. The choice is per site. In
+the console it is Settings → **Public site** → the site → the *Pages* block, the *Cards / List* pair;
+in the file it is the `layout` key:
+
+```yaml
+layout:
+  squadrons: cards      # or: list; absent means cards
+```
+
+The layout changes the presentation only — no figure moves, no address changes and no link appears.
+
+The table layout ranks by campaign points, squadron rating or members, and can be narrowed to one of
+the site's servers. The rating is not server-scoped: the competitive plugin holds one rating per
+pilot and carries no server column, so narrowing the server leaves the squadron's rating unchanged.
+
+One squadron's page shows its members, its playtime, its squadron rating and its sorties; its roster
+with each pilot's sorties, playtime and K/D; and the split of the squadron's credits across its
+pilots.
+
+## The Servers pages
+
+`<site>/fleet` is the server list and `<site>/fleet/<name>` is one server's page. The nav entry's
+label reads *Servers*, and its address is `/fleet`, never `/servers`: the legacy REST surface claims
+`/servers` on the same application, and a site page is a lower-priority route, so `/fleet` keeps the
+two apart. The build serves the `servers` page, and the default `nav` list already names it — a site
+that wants that entry reordered or removed declares its own `nav:` list.
+
+The list shows one full-width strip per server of the site, the running ones first and then by name.
+Each strip carries the server's state with its live mark, its name — with a *Locked* chip when it
+requires a password — its mission and map, its address, the two coalitions' slot usage and the two
+clocks (*Runtime* and *Restart in*). The whole strip is the link to the server's page. A server that
+is not running keeps its row, marked as off. The header carries two live figures — *N of M up* and
+*N pilots in the air* — and the count of servers. A site with no server states that in one sentence.
+
+One server's page gathers what that server reports:
+
+| Block | What it shows |
+|:------|:--------------|
+| How to join | The address; whether a password is required (*Locked* / *Open*), its value printed only when the server's `show_web_passwords` is on; the Blue and Red slot usage, or the coalition note when seats are assigned by role |
+| Mission | The mission's name and map, its date and time, its runtime and the time to the next restart |
+| Weather | A cached live read (300 s): temperature, QNH, clouds, visibility and the wind at ground, low and high |
+| Client limits | The switches the server enforces, or one sentence when none is in force |
+| The weekly schedule | One row per period with its seven day cells and the legend; the block is absent when there is no schedule to draw |
+| Extensions | A cached live read (300 s): one tile per extension with its version and its own rows, and a chip for any credential line withheld |
+| Version | The DCS version, the bot version and when the page last read |
+
+The weather and extensions blocks are cached reads from the game server, labelled as such; a block
+with nothing to read states that in one sentence instead of drawing empty instruments. The weekly
+schedule is the scheduler's own configuration, so a stopped server keeps it. A name that is not this
+site's server answers this site's not-found page, never another site's server.
+
+`<site>/fleet.json` is the JSON the list page repaints from: the same live cells the strips carry —
+the state, the players, the mission, the clocks and the slot usage — read from the process's own
+registry with no database query and no RPC, so the page may poll it as often as it likes.
+`?server=<name>` narrows it to one server of the site and adds the state of that server's cached live
+read.
+
+## The Carrier pages
+
+`<site>/carrier` is the carrier board, `<site>/carrier/<ucid>` is one pilot's carrier record and
+`<site>/carrier/trap/<id>` is one pass's trap sheet, answered as a PNG. All three read the
+GreenieBoard plugin's data for this site's servers.
+
+The page is **off unless the site puts it in its menu**. In the console it is Settings → **Public
+site** → the site → the *Menu* block, the **Carrier** row; in the file it is one id in `nav`:
+
+```yaml
+nav: [overview, leaderboard, carrier, players, servers]
+```
+
+The menu tick is the only control — there is no separate page switch. A page a site's bar links to is
+served at its address; a page it does not link to answers the site's not-found page, so a site that
+never wants the carrier board simply leaves the row unticked. It is **on the bar as soon as the row
+is ticked and the page is saved**, with no restart.
+
+The page also needs the **GreenieBoard plugin**. On an installation that does not load it there is no
+carrier data at all, so the entry is not drawn and the console offers no row for it: a site's stored
+tick is kept as it was and takes effect again when the plugin is loaded.
+
+### The board
+
+The board's x-axis is **the number of traps**, not a calendar: one row per pilot and one column per
+pass, numbered 1, 2, 3 … from the left, column *n* being a pilot's n-th pass on these servers. The
+grid is capped at **20 columns** so it never needs a horizontal scrollbar: a longer history stops at
+trap 20 instead of pushing the board sideways. A pilot with fewer passes leaves the cells at the end
+blank, and each cell's tooltip gives the day the pass was flown. The board lists the **top 50
+pilots**, ranked first. Every figure and the ranking cover the pilot's WHOLE record on these
+servers.
+
+The four readouts above it count the traps on these servers, the pilots qualified, the perfect passes
+and the night traps. A cell holds the one pass it stands for, as a 16px tile coloured by grade, and a
+night pass carries a dot. The grade legend sits under the grid: each grade, its colour and the points
+it earns, then the night-pass mark.
+
+A pilot is **ranked once they have at least 5 traps on these servers**; the others follow, marked
+*unranked*, however good their average — the floor keeps a handful of lucky passes from topping the
+board.
+
+### One pilot's record
+
+`<site>/carrier/<ucid>` gathers one pilot's whole history on these servers: the totals (traps,
+perfect passes, night traps, the average points and the newest trap), the six badges and the trap
+list — newest first, each pass with its time, airframe, grade, wire, night mark, points and the LSO's
+remark.
+
+| Badge | Earned at |
+|:------|:----------|
+| First trap | 1 trap |
+| Century | 100 traps |
+| Perfect pass | 1 perfect pass |
+| Night qual | 10 night traps |
+| Every wire | wires 1, 2, 3 and 4 each caught once |
+| Clean fifty | 50 passes in a row without a cut |
+
+A pilot with no trap on this site's servers answers the site's not-found page. The public record
+draws no trap sheet and links to none.
+
+### Your own page
+
+`<site>/me` carries a Carrier section with the signed-in pilot's own traps and their trap sheets. It
+is rendered only when the GreenieBoard plugin's data exists — no `traps` table, no section — and it
+is the viewer's own: no other pilot's passes ever appear on it.
+
+A trap sheet is **private**. `<site>/carrier/trap/<id>` answers the PNG only for the signed-in pilot
+who flew the pass, on this site's servers; every other request — an anonymous visitor, another pilot,
+another site, a pass with no sheet — answers the site's not-found page, so the address never confirms
+a trap id.
 
 ## Turning it on
 
@@ -52,7 +194,8 @@ sites:
 ```
 
 `root: {}` is the smallest valid block: the site with no group token, served at `/`, showing the
-servers that declare no `managed_by`, every page id in the menu and the shipped look. `root:` with
+servers that declare no `managed_by`, the default menu (every page id except the optional entries)
+and the shipped look. `root:` with
 nothing under it is YAML `null` and is refused (`sites.root: must be a map (the site's own block)`) —
 write the braces.
 
@@ -128,13 +271,16 @@ Admin's.
 | `enabled` | boolean | `true` | Whether the site is served at all. `false` keeps the block but registers no route, so the site owns no address — a switched-off root site does not move the console (see the warning under [Turning it on](#turning-it-on)). |
 | `branding` | map | none | [Title, logo and footer](#branding). |
 | `theme` | map | none | [Palette overrides](#theme). |
-| `nav` | list of ids | `[overview, leaderboard, squadrons, players]` | The menu entries, in order. Known ids: `overview`, `leaderboard`, `squadrons`, `players`. A single string is refused (it would iterate as characters). |
+| `nav` | list of ids | `[overview, leaderboard, players, servers]` | The menu entries, in order — and the ONLY control over a page, because a page is served where its entry is. Known ids: `overview`, `leaderboard`, `carrier`, `players`, `squadrons`, `servers`. `carrier` and `squadrons` are **optional entries**: a site that names no `nav` leaves them out, so they appear only where the owner ticks them — and `servers` keeps its place at the end. An id the bar does not name answers the site's not-found page. A single string is refused (it would iterate as characters). |
 | `tiles` | list of ids | `[active_week, online_now, playtime_total, avg_session, peak_hour]` | Known ids: `active_week`, `online_now`, `playtime_total`, `avg_session`, `peak_hour`. See the note below — this key is validated but nothing renders from it yet. |
 | `lang` | string | `en` | The language the site renders in when a visitor has chosen none. Must be a language that has a `webui` catalog, otherwise the block is refused. |
 | `character` | string | `pvpve` | The kind of community the site is: exactly `pvp`, `pve` or `pvpve`. It decides which figures a page **leads** with — never which figures exist. See [the community's character](#the-communitys-character). |
+| `layout` | map | `cards` | The presentation of a page that offers more than one. The one page id is `squadrons`, accepting `cards` or `list`. See [The Squadrons pages](#the-squadrons-pages). |
+| ~~`pages`~~ | map | — | **Retired.** It named the one page a site had to switch on; the menu tick decides that now. A file that still carries it loads, and the log says the key was ignored. |
 
 A typo is never silent: an unknown key, a non-list `nav` or `tiles`, an unknown id, an unknown
-`character`, a duplicate or non-URL-safe slug, a `theme` block that names two palettes, or a
+`character`, a `layout` value a page does not offer, a duplicate or non-URL-safe slug, a `theme`
+block that names two palettes, or a
 `group_role` no server names all raise at startup and stop the web UI from installing. The message
 names the offending key.
 
@@ -461,9 +607,10 @@ Two limits come with a frame, and neither is a bug:
 
 ### Read the numbers from the API
 
-The public site itself has no JSON twin for its pages. Exactly one JSON address exists on it —
-`<site>/search.json` — and the overview, the leaderboard, the pilots page and the profile have no
-JSON form at all. A site that wants the numbers in its own layout reads them from the REST API,
+The public site itself has no JSON twin for its pages. Exactly two JSON addresses exist on it —
+`<site>/search.json` (the search box's suggestions) and `<site>/fleet.json` (the fleet's live cells)
+— and the overview, the leaderboard, the pilots page, the profile, the squadrons pages and the server
+pages have no JSON form at all. A site that wants the numbers in its own layout reads them from the REST API,
 which is the surface that answers JSON:
 
 ```bash

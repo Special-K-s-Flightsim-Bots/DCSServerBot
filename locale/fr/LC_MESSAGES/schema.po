@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-24 22:06+0100\n"
+"POT-Creation-Date: 2026-11-28 13:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -17,10 +17,10 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #. punishment_schema:schema;element_schema.exemptions.discord.[0]
-#: plugins/punishment/schemas/punishment_schema.yaml:230
+#: plugins/punishment/schemas/punishment_schema.yaml:244
 msgid "A Discord role name."
 msgstr "Un nom de rôle Discord."
 
@@ -30,7 +30,7 @@ msgid "A MizEdit setting name."
 msgstr "Un nom de paramètre MizEdit."
 
 #. punishment_schema:schema;element_schema.exemptions.ucid.[0]
-#: plugins/punishment/schemas/punishment_schema.yaml:219
+#: plugins/punishment/schemas/punishment_schema.yaml:233
 msgid "A player UCID."
 msgstr "Un UCID de joueur."
 
@@ -40,7 +40,7 @@ msgid "A time of day in HH:MM format."
 msgstr "Une heure de la journée au format HH:MM."
 
 #. restapi_schema:schema;security.trusted.[0]
-#: plugins/restapi/schemas/restapi_schema.yaml:45
+#: plugins/restapi/schemas/restapi_schema.yaml:53
 msgid "A trusted network in CIDR notation."
 msgstr "Un réseau de confiance en notation CIDR."
 
@@ -83,17 +83,17 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "Clé d'accès secrète AWS utilisée pour Amazon Polly."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:568
+#: services/webservice/schemas/webservice_schema.yaml:597
 msgid "Account name of the local console user."
 msgstr "Nom du compte de l'utilisateur local de la console."
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:557
+#: services/webservice/schemas/webservice_schema.yaml:586
 msgid "Accounts that may sign in with a username and password."
 msgstr "Comptes autorisés à se connecter avec un nom d'utilisateur et un mot de passe."
 
 #. punishment_schema:schema;element_schema.punishments.[0].action
-#: plugins/punishment/schemas/punishment_schema.yaml:138
+#: plugins/punishment/schemas/punishment_schema.yaml:145
 msgid "Action taken when the point level is reached."
 msgstr "Action effectuée lorsque le seuil de points est atteint."
 
@@ -113,7 +113,7 @@ msgid "Action to run immediately for this event (optional)."
 msgstr "Action à exécuter immédiatement pour cet événement (facultatif)."
 
 #. punishment_schema:schema;element_schema.punishments
-#: plugins/punishment/schemas/punishment_schema.yaml:116
+#: plugins/punishment/schemas/punishment_schema.yaml:123
 msgid "Actions triggered when a player reaches a point level."
 msgstr "Actions déclenchées lorsqu'un joueur atteint un niveau de points."
 
@@ -373,6 +373,7 @@ msgid "Anomalous ticks in a row needed to confirm DDoS start."
 msgstr "Ticks anormaux consécutifs nécessaires pour confirmer le début d'un DDoS."
 
 #. admin_schema:schema;element_schema
+#. anticheat_schema:schema;element_schema
 #. cleanup_schema:schema;element_schema
 #. competitive_schema:schema;element_schema
 #. creditsystem_schema:schema;element_schema
@@ -401,7 +402,8 @@ msgstr "Ticks anormaux consécutifs nécessaires pour confirmer le début d'un D
 #. ups_schema:schema;element_schema
 #. userstats_schema:schema;element_schema
 #. voting_schema:schema;element_schema
-#: plugins/admin/schemas/admin_schema.yaml:91 plugins/competitive/schemas/competitive_schema.yaml:14
+#: plugins/admin/schemas/admin_schema.yaml:91 plugins/anticheat/schemas/anticheat_schema.yaml:14
+#: plugins/competitive/schemas/competitive_schema.yaml:14
 #: plugins/creditsystem/schemas/creditsystem_schema.yaml:37
 #: plugins/discord/schemas/discord_schema.yaml:4 plugins/flightplan/schemas/flightplan_schema.yaml:45
 #: plugins/funkman/schemas/funkman_schema.yaml:75
@@ -424,6 +426,7 @@ msgid "Applies to every instance."
 msgstr "S'applique à chaque instance."
 
 #. admin_schema:schema;instance_schema
+#. anticheat_schema:schema;instance_schema
 #. cleanup_schema:schema;instance_schema
 #. competitive_schema:schema;instance_schema
 #. creditsystem_schema:schema;instance_schema
@@ -448,7 +451,8 @@ msgstr "S'applique à chaque instance."
 #. ups_schema:schema;instance_schema
 #. userstats_schema:schema;instance_schema
 #. voting_schema:schema;instance_schema
-#: plugins/admin/schemas/admin_schema.yaml:73 plugins/competitive/schemas/competitive_schema.yaml:5
+#: plugins/admin/schemas/admin_schema.yaml:73 plugins/anticheat/schemas/anticheat_schema.yaml:5
+#: plugins/competitive/schemas/competitive_schema.yaml:5
 #: plugins/creditsystem/schemas/creditsystem_schema.yaml:28
 #: plugins/funkman/schemas/funkman_schema.yaml:5
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:163
@@ -497,6 +501,11 @@ msgstr "Arguments transmis à la commande ou à l'événement de jeu."
 msgid "Arguments passed to the command; supports placeholders."
 msgstr "Arguments transmis à la commande ; prend en charge les placeholders."
 
+#. anticheat_schema:schema;element_schema.detectors.g_limit_default
+#: plugins/anticheat/schemas/anticheat_schema.yaml:67
+msgid "Assumed airframe limit in g when no type table entry exists."
+msgstr ""
+
 #. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).attribution
 #: extensions/olympus/schemas/olympus_schema.yaml:322
 msgid "Attribution text displayed on this map layer."
@@ -514,19 +523,19 @@ msgstr "Interrogation du journal d'audit utilisée lorsque les intents privilég
 
 #. restapi_schema:schema;endpoint.regex;(.+).security.local
 #. restapi_schema:schema;security.local
-#: plugins/restapi/schemas/restapi_schema.yaml:60 plugins/restapi/schemas/restapi_schema.yaml:103
+#: plugins/restapi/schemas/restapi_schema.yaml:68 plugins/restapi/schemas/restapi_schema.yaml:111
 msgid "Auth required for loopback (local) requests."
 msgstr "Authentification requise pour les requêtes loopback (locales)."
 
 #. restapi_schema:schema;endpoint.regex;(.+).security.remote
 #. restapi_schema:schema;security.remote
-#: plugins/restapi/schemas/restapi_schema.yaml:72 plugins/restapi/schemas/restapi_schema.yaml:115
+#: plugins/restapi/schemas/restapi_schema.yaml:80 plugins/restapi/schemas/restapi_schema.yaml:123
 msgid "Auth required for requests from the internet."
 msgstr "Authentification requise pour les requêtes provenant d'Internet."
 
 #. restapi_schema:schema;endpoint.regex;(.+).security.trusted
 #. restapi_schema:schema;security.trusted
-#: plugins/restapi/schemas/restapi_schema.yaml:66 plugins/restapi/schemas/restapi_schema.yaml:109
+#: plugins/restapi/schemas/restapi_schema.yaml:74 plugins/restapi/schemas/restapi_schema.yaml:117
 msgid "Auth required for requests from trusted networks."
 msgstr "Authentification requise pour les requêtes provenant de réseaux de confiance."
 
@@ -727,9 +736,10 @@ msgstr "Sauvegarde de la configuration et des rapports du bot."
 
 #. punishment_schema:schema;element_schema.penalties.[0].days
 #. punishment_schema:schema;element_schema.punishments.[0].days
-#: plugins/punishment/schemas/punishment_schema.yaml:100
-#: plugins/punishment/schemas/punishment_schema.yaml:143
-msgid "Ban duration in days when the action is ban."
+#: plugins/punishment/schemas/punishment_schema.yaml:101
+#: plugins/punishment/schemas/punishment_schema.yaml:151
+#, fuzzy
+msgid "Ban duration in days when the action is ban — one number, or a ladder for repeat offenders."
 msgstr "Durée du bannissement en jours lorsque l'action est ban."
 
 #. cloud_schema:DEFAULT.dcs-ban
@@ -1072,7 +1082,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "Efface tout indicateur de maintenance au démarrage du serveur."
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:628
+#: services/webservice/schemas/webservice_schema.yaml:657
 msgid "Client id of your Discord application."
 msgstr "ID client de votre application Discord."
 
@@ -1155,6 +1165,11 @@ msgstr "Coalition qui reçoit le rappel."
 #: services/music/schemas/music_schema.yaml:95
 msgid "Coalition this radio is played for."
 msgstr "Coalition pour laquelle cette radio est diffusée."
+
+#. anticheat_schema:schema;element_schema.enabled
+#: plugins/anticheat/schemas/anticheat_schema.yaml:19
+msgid "Collect behavioural evidence on this server. No finding ever sanctions a player."
+msgstr ""
 
 #. greenieboard_schema:schema;default_schema.theme
 #. greenieboard_schema:schema;element_schema.theme
@@ -1347,7 +1362,7 @@ msgid "Credit points threshold for this achievement."
 msgstr "Seuil de points de crédit pour ce succès."
 
 #. punishment_schema:schema;element_schema.penalties.[0].penalty
-#: plugins/punishment/schemas/punishment_schema.yaml:105
+#: plugins/punishment/schemas/punishment_schema.yaml:112
 msgid "Credits taken away when the action is credits."
 msgstr "Crédits retirés lorsque l'action est credits."
 
@@ -1458,8 +1473,17 @@ msgstr "Utilisateur de la base de données utilisé par la sauvegarde."
 msgid "Days a player is banned for by the vote."
 msgstr "Nombre de jours de bannissement d'un joueur décidé par le vote."
 
+#. punishment_schema:schema;element_schema.penalties.[0].reset_after_days
+#. punishment_schema:schema;element_schema.punishments.[0].reset_after_days
+#: plugins/punishment/schemas/punishment_schema.yaml:107
+#: plugins/punishment/schemas/punishment_schema.yaml:157
+msgid ""
+"Days actually flown without a served ban after which a ban ladder starts over at its first entry "
+"(default 14)."
+msgstr ""
+
 #. punishment_schema:schema;element_schema.decay.[0].days
-#: plugins/punishment/schemas/punishment_schema.yaml:192
+#: plugins/punishment/schemas/punishment_schema.yaml:206
 msgid "Days after which this decay weight applies."
 msgstr "Nombre de jours après lequel ce poids de décroissance s'applique."
 
@@ -1489,7 +1513,7 @@ msgid "Default Google Cloud voice used for text-to-speech."
 msgstr "Voix Google Cloud par défaut utilisée pour la synthèse vocale."
 
 #. restapi_schema:DEFAULT
-#: plugins/restapi/schemas/restapi_schema.yaml:124
+#: plugins/restapi/schemas/restapi_schema.yaml:132
 msgid "Default RestAPI settings applied to all servers."
 msgstr "Paramètres RestAPI par défaut appliqués à tous les serveurs."
 
@@ -1586,13 +1610,18 @@ msgstr "Rayon de détection de la livraison en mètres."
 msgid "Deprecated CPU affinity for DCS_Server.exe; use auto_affinity."
 msgstr "Affinité CPU obsolète pour DCS_Server.exe ; utilisez auto_affinity."
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).pages
+#: services/webservice/schemas/webservice_schema.yaml:476
+msgid "Deprecated and ignored — a page is served where the menu (nav) links to it."
+msgstr ""
+
 #. webservice_schema:DEFAULT.sites.regex;(.+).branding.copyright
 #: services/webservice/schemas/webservice_schema.yaml:318
 msgid "Deprecated and ignored — the footer carries the fixed attribution."
 msgstr ""
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.servers
-#: services/webservice/schemas/webservice_schema.yaml:466
+#: services/webservice/schemas/webservice_schema.yaml:467
 msgid "Deprecated and ignored — the server band left the overview; the line may be deleted."
 msgstr ""
 
@@ -1760,7 +1789,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "Ignore les vols plus courts que ce nombre de minutes."
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:613
+#: services/webservice/schemas/webservice_schema.yaml:642
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Connexion OAuth Discord ; la seconde porte d'entrée dans la console."
 
@@ -2063,7 +2092,7 @@ msgid "Discord roles that grant VIP status."
 msgstr "Rôles Discord qui accordent le statut VIP."
 
 #. punishment_schema:schema;element_schema.exemptions.discord
-#: plugins/punishment/schemas/punishment_schema.yaml:224
+#: plugins/punishment/schemas/punishment_schema.yaml:238
 msgid "Discord roles whose members are exempt from punishments."
 msgstr "Rôles Discord dont les membres sont exemptés des sanctions."
 
@@ -2091,6 +2120,11 @@ msgstr "Jeton du webhook Discord pour ces alertes."
 #: plugins/creditsystem/schemas/creditsystem_schema.yaml:223
 msgid "Display name of the badge."
 msgstr "Nom d'affichage du badge."
+
+#. anticheat_schema:schema;element_schema.weapons.gun_max_range_m
+#: plugins/anticheat/schemas/anticheat_schema.yaml:109
+msgid "Distance beyond which a gun hit is reported as a finding."
+msgstr ""
 
 #. slotblocking_schema:schema;element_schema.balancing.activation_threshold
 #: plugins/slotblocking/schemas/slotblocking_schema.yaml:190
@@ -2137,7 +2171,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "Paramètres du fournisseur de synthèse vocale ElevenLabs."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:675
+#: services/webservice/schemas/webservice_schema.yaml:704
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Identifiant d'administrateur de secours pour un fournisseur d'identité défaillant."
 
@@ -2182,7 +2216,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "Activer la détection DDoS (nécessite NPCAP sous Windows)."
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:623
+#: services/webservice/schemas/webservice_schema.yaml:652
 msgid "Enable Discord OAuth login."
 msgstr "Activer la connexion OAuth Discord."
 
@@ -2230,7 +2264,7 @@ msgid "Enable or disable the punishment system on this server."
 msgstr "Activer ou désactiver le système de sanctions sur ce serveur."
 
 #. restapi_schema:schema;endpoint.regex;(.+).enabled
-#: plugins/restapi/schemas/restapi_schema.yaml:88
+#: plugins/restapi/schemas/restapi_schema.yaml:96
 msgid "Enable or disable this API endpoint."
 msgstr "Activer ou désactiver ce point d'accès API."
 
@@ -2322,7 +2356,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Activer le plugin competitive pour ce serveur."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:685
+#: services/webservice/schemas/webservice_schema.yaml:714
 msgid "Enable the emergency Admin credential."
 msgstr "Activer l'identifiant d'administrateur de secours."
 
@@ -2352,7 +2386,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "Activer les fonctionnalités de tournoi sur cette instance de serveur."
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:552
+#: services/webservice/schemas/webservice_schema.yaml:581
 msgid "Enable username/password login for the console."
 msgstr "Activer la connexion par nom d'utilisateur/mot de passe pour la console."
 
@@ -2467,7 +2501,7 @@ msgid "Fall back to the legacy cloud model if needed."
 msgstr "Revenir à l'ancien modèle de nuages si nécessaire."
 
 #. restapi_schema:schema;security
-#: plugins/restapi/schemas/restapi_schema.yaml:50
+#: plugins/restapi/schemas/restapi_schema.yaml:58
 msgid "Fallback auth rule for endpoints without their own."
 msgstr "Règle d'authentification de secours pour les points d'accès qui n'en ont pas."
 
@@ -2558,7 +2592,7 @@ msgid "Fixed set of values the user can pick from."
 msgstr "Ensemble fixe de valeurs parmi lesquelles l'utilisateur peut choisir."
 
 #. punishment_schema:schema;element_schema.flightHoursWeight.[0].time
-#: plugins/punishment/schemas/punishment_schema.yaml:168
+#: plugins/punishment/schemas/punishment_schema.yaml:182
 msgid "Flight hours from which this weight applies."
 msgstr "Heures de vol à partir desquelles ce poids s'applique."
 
@@ -2640,7 +2674,7 @@ msgid "For load, do not reload an already running mission."
 msgstr "Pour le chargement, ne pas recharger une mission déjà en cours."
 
 #. punishment_schema:schema;element_schema.decay.[0].weight
-#: plugins/punishment/schemas/punishment_schema.yaml:197
+#: plugins/punishment/schemas/punishment_schema.yaml:211
 msgid "Fraction of the points kept after those days."
 msgstr "Fraction des points conservée après ces jours."
 
@@ -2893,8 +2927,13 @@ msgstr "Heures avant l'expiration d'une tâche non réclamée."
 msgid "Hours to cache downloaded OpenAIP navigation data."
 msgstr "Heures de mise en cache des données de navigation OpenAIP téléchargées."
 
+#. anticheat_schema:schema;element_schema.flush_seconds
+#: plugins/anticheat/schemas/anticheat_schema.yaml:37
+msgid "How many seconds of samples are shipped to the bot in one message."
+msgstr ""
+
 #. punishment_schema:schema;element_schema.decay
-#: plugins/punishment/schemas/punishment_schema.yaml:178
+#: plugins/punishment/schemas/punishment_schema.yaml:192
 msgid "How penalty points fade away over time."
 msgstr "Comment les points de pénalité s'estompent avec le temps."
 
@@ -2980,7 +3019,7 @@ msgid "Id of a shipped palette preset; at most one theme source may be set."
 msgstr "Id d'un préréglage de palette fourni ; au plus une source de thème peut être définie."
 
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:508
+#: services/webservice/schemas/webservice_schema.yaml:537
 msgid "Identity layer of the admin web UI; optional."
 msgstr "Couche d'identité de l'interface web d'administration ; facultative."
 
@@ -3005,7 +3044,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "Injecter la météo réelle dans la mission."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:636
+#: services/webservice/schemas/webservice_schema.yaml:665
 #, fuzzy
 msgid "Inline Discord client secret; moved to the secret store at startup."
 msgstr "Secret client Discord en ligne ; utilisé lorsqu'aucune clé n'est définie."
@@ -3145,12 +3184,12 @@ msgid "Label shown for this entry in the /download list."
 msgstr "Libellé affiché pour cette entrée dans la liste /download."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).lang
-#: services/webservice/schemas/webservice_schema.yaml:489
+#: services/webservice/schemas/webservice_schema.yaml:518
 msgid "Language the site renders in."
 msgstr ""
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).metrics
-#: services/webservice/schemas/webservice_schema.yaml:477
+#: services/webservice/schemas/webservice_schema.yaml:506
 msgid ""
 "Leaderboard metric ids the site offers; the board opens on the character's first choice among "
 "them, else the first one listed."
@@ -3746,6 +3785,11 @@ msgstr "Nombre minimal de cœurs réservés à Node.js."
 msgid "Minimum number of database connections kept in the pool."
 msgstr "Nombre minimal de connexions à la base de données conservées dans le pool."
 
+#. anticheat_schema:schema;element_schema.detectors.cooldown_s
+#: plugins/anticheat/schemas/anticheat_schema.yaml:91
+msgid "Minimum seconds between two findings of the same detector for one player."
+msgstr ""
+
 #. realweather_schema:schema;instance_realweather_schema.options.weather.dust.visibility-minimum
 #: extensions/realweather/schemas/realweather_schema.yaml:808
 msgid "Minimum visibility in meters with dust."
@@ -3933,10 +3977,20 @@ msgstr "Replacer les joueurs en spectateurs lorsqu'ils quittent SRS."
 msgid "Multiplier applied to credits earned on proper landings."
 msgstr "Multiplicateur appliqué aux crédits gagnés lors d'atterrissages corrects."
 
+#. anticheat_schema:schema;element_schema.detectors.g_margin
+#: plugins/anticheat/schemas/anticheat_schema.yaml:73
+msgid "Multiplier applied to the airframe limit before a turn rate counts as a finding."
+msgstr ""
+
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.scale-factor
 #: extensions/realweather/schemas/realweather_schema.yaml:622
 msgid "Multiplier applied to the generated wind speed."
 msgstr "Multiplicateur appliqué à la vitesse du vent générée."
+
+#. anticheat_schema:schema;element_schema.detectors.displacement_margin
+#: plugins/anticheat/schemas/anticheat_schema.yaml:85
+msgid "Multiplier on the displacement a sample interval can plausibly cover."
+msgstr ""
 
 #. srs_schema:schema;instance_srs_schema.global_lobby_frequencies
 #. srs_schema:schema;node_srs_schema.global_lobby_frequencies
@@ -4046,7 +4100,7 @@ msgid "Name shown for this instance's LotAtc entry in the status embed."
 msgstr "Nom affiché pour l'entrée LotAtc de cette instance dans l'embed de statut."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).nav
-#: services/webservice/schemas/webservice_schema.yaml:394
+#: services/webservice/schemas/webservice_schema.yaml:395
 msgid "Nav page ids the site offers, in order."
 msgstr ""
 
@@ -4105,7 +4159,7 @@ msgid "Number of chat log files kept on disk."
 msgstr "Nombre de fichiers de journal de discussion conservés sur le disque."
 
 #. punishment_schema:schema;element_schema.punishments.[0].penalty
-#: plugins/punishment/schemas/punishment_schema.yaml:148
+#: plugins/punishment/schemas/punishment_schema.yaml:162
 msgid "Number of credits to take when the action is credits."
 msgstr "Nombre de crédits à prélever lorsque l'action est credits."
 
@@ -4335,7 +4389,7 @@ msgid "Optional Discord message posted after every LotAtc update."
 msgstr "Message Discord facultatif publié après chaque mise à jour LotAtc."
 
 #. restapi_schema:DEFAULT.prefix
-#: plugins/restapi/schemas/restapi_schema.yaml:135
+#: plugins/restapi/schemas/restapi_schema.yaml:143
 msgid "Optional URL prefix prepended to every endpoint."
 msgstr "Préfixe d'URL facultatif ajouté à chaque point de terminaison."
 
@@ -4413,12 +4467,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "Limite de bande passante réseau sortante par client en octets/s."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:575
+#: services/webservice/schemas/webservice_schema.yaml:604
 msgid "PBKDF2 hash of the account's password."
 msgstr "Hachage PBKDF2 du mot de passe du compte."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:695
+#: services/webservice/schemas/webservice_schema.yaml:724
 msgid "PBKDF2 hash of the emergency password."
 msgstr "Hachage PBKDF2 du mot de passe d'urgence."
 
@@ -4426,6 +4480,11 @@ msgstr "Hachage PBKDF2 du mot de passe d'urgence."
 #: services/modmanager/schemas/modmanager_schema.yaml:13
 msgid "Package name, matching the OvGME folder or zip name."
 msgstr "Nom du paquet, correspondant au nom du dossier ou du zip OvGME."
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).layout
+#: services/webservice/schemas/webservice_schema.yaml:487
+msgid "Page id -> layout, for the pages that render two ways. An absent leaf keeps the default."
+msgstr ""
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).theme
 #: services/webservice/schemas/webservice_schema.yaml:349
@@ -4616,7 +4675,7 @@ msgid "Penalty points given per event type."
 msgstr "Points de pénalité attribués par type d'événement."
 
 #. punishment_schema:schema;element_schema.punishments.[0].points
-#: plugins/punishment/schemas/punishment_schema.yaml:132
+#: plugins/punishment/schemas/punishment_schema.yaml:139
 msgid "Penalty points that trigger this punishment."
 msgstr "Points de pénalité qui déclenchent cette sanction."
 
@@ -4629,6 +4688,11 @@ msgstr "Surcharges de rôles par capacité de la console."
 #: plugins/srs/schemas/srs_schema.yaml:40
 msgid "Per-coalition ATC frequencies used when enforce_atc is on."
 msgstr "Fréquences ATC par coalition utilisées lorsque enforce_atc est activé."
+
+#. anticheat_schema:schema;element_schema.detectors
+#: plugins/anticheat/schemas/anticheat_schema.yaml:43
+msgid "Per-detector overrides. Omit a key to keep the built-in default."
+msgstr ""
 
 #. tournament_schema:schema;element_schema.events
 #: plugins/tournament/schemas/tournament_schema.yaml:89
@@ -4651,7 +4715,7 @@ msgid "Per-role messages sent when a member gets or loses a role."
 msgstr "Messages par rôle envoyés lorsqu'un membre obtient ou perd un rôle."
 
 #. restapi_schema:schema;endpoint.regex;(.+).security
-#: plugins/restapi/schemas/restapi_schema.yaml:93
+#: plugins/restapi/schemas/restapi_schema.yaml:101
 msgid "Per-scope auth rules for this endpoint."
 msgstr "Règles d'authentification par portée pour ce point de terminaison."
 
@@ -4748,7 +4812,7 @@ msgid "Players exempt from the GCI kick rule."
 msgstr "Joueurs exemptés de la règle d'expulsion GCI."
 
 #. punishment_schema:schema;element_schema.exemptions
-#: plugins/punishment/schemas/punishment_schema.yaml:202
+#: plugins/punishment/schemas/punishment_schema.yaml:216
 msgid "Players that must never be punished."
 msgstr "Joueurs qui ne doivent jamais être sanctionnés."
 
@@ -4763,12 +4827,12 @@ msgid "Point at which a player joins a match."
 msgstr "Moment auquel un joueur rejoint un match."
 
 #. punishment_schema:schema;element_schema.flightHoursWeight
-#: plugins/punishment/schemas/punishment_schema.yaml:153
+#: plugins/punishment/schemas/punishment_schema.yaml:167
 msgid "Point multiplier based on the player's total flight hours."
 msgstr "Multiplicateur de points basé sur le total d'heures de vol du joueur."
 
 #. punishment_schema:schema;element_schema.flightHoursWeight.[0].weight
-#: plugins/punishment/schemas/punishment_schema.yaml:173
+#: plugins/punishment/schemas/punishment_schema.yaml:187
 msgid "Point multiplier for players with that flight time."
 msgstr "Multiplicateur de points pour les joueurs ayant ce temps de vol."
 
@@ -5032,7 +5096,7 @@ msgid "Public URL shown to players instead of the server IP."
 msgstr "URL publique affichée aux joueurs au lieu de l'IP du serveur."
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:520
+#: services/webservice/schemas/webservice_schema.yaml:549
 msgid "Public origin the console is reachable at."
 msgstr "Origine publique à laquelle la console est accessible."
 
@@ -5277,6 +5341,11 @@ msgstr "Nombre de tentatives de connexion à la base de données au démarrage."
 msgid "Rewrite the mission file before loading it."
 msgstr "Réécrit le fichier de mission avant son chargement."
 
+#. anticheat_schema:schema;element_schema.detectors.fuel_gauge_floor
+#: plugins/anticheat/schemas/anticheat_schema.yaml:49
+msgid "Rise above the fuel gauge's own resolution, as a fraction of capacity, that counts as a finding."
+msgstr ""
+
 #. bot_schema:autorole.linked
 #: services/bot/schemas/bot_schema.yaml:65
 msgid "Role given once a member linked their DCS account."
@@ -5313,7 +5382,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "Rôle mentionné dans le message de bienvenue."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:582
+#: services/webservice/schemas/webservice_schema.yaml:611
 msgid "Role names granted to this account, validated at startup."
 msgstr "Noms de rôles accordés à ce compte, validés au démarrage."
 
@@ -5468,6 +5537,11 @@ msgstr "Fréquences SRS sur lesquelles SkyEye diffuse."
 msgid "SRS server address, set automatically (deprecated)."
 msgstr "Adresse du serveur SRS, définie automatiquement (obsolète)."
 
+#. anticheat_schema:schema;element_schema.samples_per_second
+#: plugins/anticheat/schemas/anticheat_schema.yaml:31
+msgid "Sampling rate for player aircraft. Five is the calibrated default; two is the low-cost fallback."
+msgstr ""
+
 #. tournament_schema:schema;element_schema.balance_multiplier
 #: plugins/tournament/schemas/tournament_schema.yaml:78
 msgid "Scale credit rewards by the TrueSkill rating difference."
@@ -5488,8 +5562,13 @@ msgstr "Actions planifiées et les expressions cron auxquelles elles s'exécuten
 msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Secondes pendant lesquelles un serveur PAUSE-on-start s'exécute avant de se remettre en pause."
 
+#. anticheat_schema:schema;element_schema.weapons.window_s
+#: plugins/anticheat/schemas/anticheat_schema.yaml:103
+msgid "Seconds a launch stays correlated with the impact that follows it."
+msgstr ""
+
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:657
+#: services/webservice/schemas/webservice_schema.yaml:686
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Secondes de mise en cache d'une résolution de membre sans l'intent."
 
@@ -5510,13 +5589,20 @@ msgstr ""
 msgid "Seconds a popup message stays visible."
 msgstr "Secondes pendant lesquelles un message popup reste visible."
 
+#. anticheat_schema:schema;element_schema.detectors.fuel_give_up_s
+#: plugins/anticheat/schemas/anticheat_schema.yaml:55
+msgid ""
+"Seconds a rise has to persist before it is evidence; a shorter one is treated as a gauge or "
+"script glitch."
+msgstr ""
+
 #. music_schema:schema;element_schema.radios.regex;(.+).startup_wait
 #: services/music/schemas/music_schema.yaml:111
 msgid "Seconds a track waits for SRS to be up before the attempt is given up."
 msgstr ""
 
 #. punishment_schema:schema;element_schema.forgive
-#: plugins/punishment/schemas/punishment_schema.yaml:111
+#: plugins/punishment/schemas/punishment_schema.yaml:118
 msgid "Seconds a victim can forgive the last action in-game."
 msgstr "Secondes pendant lesquelles une victime peut pardonner la dernière action en jeu."
 
@@ -5613,6 +5699,11 @@ msgstr "Secondes entre les mises à jour de l'embed de statut Pretense."
 msgid "Seconds left before the voting closes."
 msgstr "Secondes restantes avant la clôture du vote."
 
+#. anticheat_schema:schema;element_schema.detectors.flatline_window_s
+#: plugins/anticheat/schemas/anticheat_schema.yaml:61
+msgid "Seconds of constant fuel while flying that counts as a statistical finding."
+msgstr ""
+
 #. tournament_schema:schema;element_schema.delayed_start
 #: plugins/tournament/schemas/tournament_schema.yaml:56
 msgid "Seconds pilots get to prepare their planes before the start."
@@ -5681,7 +5772,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Secondes sans joueur adverse qui font gagner la partie."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:646
+#: services/webservice/schemas/webservice_schema.yaml:675
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "Clé du magasin de secrets contenant le client secret ; prioritaire sur la valeur inline."
 
@@ -5699,7 +5790,7 @@ msgid "Send anonymous usage statistics to the cloud service."
 msgstr "Envoie des statistiques d'usage anonymes au service cloud."
 
 #. webservice_schema:DEFAULT.auth.discord.auto_start
-#: services/webservice/schemas/webservice_schema.yaml:668
+#: services/webservice/schemas/webservice_schema.yaml:697
 msgid "Send anonymous visitors straight into Discord sign-in."
 msgstr ""
 
@@ -5938,7 +6029,7 @@ msgid "Side of the hero's headline the mark is drawn on."
 msgstr ""
 
 #. punishment_schema:schema;element_schema.exemptions.side
-#: plugins/punishment/schemas/punishment_schema.yaml:236
+#: plugins/punishment/schemas/punishment_schema.yaml:250
 msgid "Side that is exempt from punishments."
 msgstr "Camp exempté de sanctions."
 
@@ -5948,7 +6039,7 @@ msgid "Side this restriction applies to, 0 both, 1 red, 2 blue."
 msgstr "Camp auquel cette restriction s'applique, 0 les deux, 1 rouge, 2 bleu."
 
 #. webservice_schema:DEFAULT.auth.login_page
-#: services/webservice/schemas/webservice_schema.yaml:533
+#: services/webservice/schemas/webservice_schema.yaml:562
 msgid "Sign-in page style; fancy (animated scene) or simple (plain)."
 msgstr ""
 
@@ -6014,7 +6105,7 @@ msgid "Sound played with the warning, loaded in the mission."
 msgstr "Son joué avec l'avertissement, chargé dans la mission."
 
 #. restapi_schema:schema;security.trusted
-#: plugins/restapi/schemas/restapi_schema.yaml:36
+#: plugins/restapi/schemas/restapi_schema.yaml:44
 msgid "Source networks that are treated as trusted."
 msgstr "Réseaux sources considérés comme de confiance."
 
@@ -6212,13 +6303,18 @@ msgstr "Texte affiché au joueur sanctionné comme motif."
 msgid "Text templates for credit-related in-game messages."
 msgstr "Modèles de texte pour les messages en jeu liés aux crédits."
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).layout.squadrons
+#: services/webservice/schemas/webservice_schema.yaml:495
+msgid "The Squadrons page's presentation — a grid of cards, or one dense table."
+msgstr ""
+
 #. cron_schema:schema;element_schema.actions.[0].action
 #: services/cron/schemas/cron_schema.yaml:52
 msgid "The action to run and its parameters."
 msgstr "L'action à exécuter et ses paramètres."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.community
-#: services/webservice/schemas/webservice_schema.yaml:432
+#: services/webservice/schemas/webservice_schema.yaml:433
 msgid "The community readouts band of the overview."
 msgstr "La bande d'indicateurs de la communauté de la vue d'ensemble."
 
@@ -6238,7 +6334,7 @@ msgid "The footer's links, in declaration order."
 msgstr ""
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.when_we_fly
-#: services/webservice/schemas/webservice_schema.yaml:452
+#: services/webservice/schemas/webservice_schema.yaml:453
 msgid "The hours-flown-by-hour-of-day panel; shares its row with the aircraft panel."
 msgstr "Le panneau des heures de vol par heure du jour ; partage sa ligne avec le panneau des appareils."
 
@@ -6248,14 +6344,14 @@ msgid "The install code from your server's page in DKS."
 msgstr "Le code d'installation de la page de votre serveur dans DKS."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).character
-#: services/webservice/schemas/webservice_schema.yaml:501
+#: services/webservice/schemas/webservice_schema.yaml:530
 msgid "The kind of community the site is; decides which figures lead and which metric the board opens on."
 msgstr ""
 "Le type de communauté du site ; décide quels chiffres viennent en tête et sur quelle métrique le "
 "classement s'ouvre."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.aircraft
-#: services/webservice/schemas/webservice_schema.yaml:447
+#: services/webservice/schemas/webservice_schema.yaml:448
 msgid "The most-flown aircraft panel."
 msgstr "Le panneau des appareils les plus pilotés."
 
@@ -6265,17 +6361,17 @@ msgid "The name shown for the extension."
 msgstr "Le nom affiché pour l'extension."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.season
-#: services/webservice/schemas/webservice_schema.yaml:437
+#: services/webservice/schemas/webservice_schema.yaml:438
 msgid "The season panel (hours and sorties per week)."
 msgstr "Le panneau de la saison (heures et sorties par semaine)."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.squadrons
-#: services/webservice/schemas/webservice_schema.yaml:457
+#: services/webservice/schemas/webservice_schema.yaml:458
 msgid "The squadrons section; needs the CreditSystem plugin."
 msgstr "La section des escadrons ; nécessite le plugin CreditSystem."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.standings
-#: services/webservice/schemas/webservice_schema.yaml:442
+#: services/webservice/schemas/webservice_schema.yaml:443
 msgid "The top-pilots standings table."
 msgstr "Le tableau de classement des meilleurs pilotes."
 
@@ -6295,7 +6391,7 @@ msgid "Ticket types squadrons receive, keyed by ticket name."
 msgstr "Types de tickets reçus par les escadrons, indexés par nom de ticket."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).tiles
-#: services/webservice/schemas/webservice_schema.yaml:408
+#: services/webservice/schemas/webservice_schema.yaml:409
 msgid "Tile ids the site's overview shows, in order."
 msgstr ""
 
@@ -6390,7 +6486,7 @@ msgid "UCIDs of the players that are granted VIP status."
 msgstr "UCIDs des joueurs auxquels le statut VIP est accordé."
 
 #. punishment_schema:schema;element_schema.exemptions.ucid
-#: plugins/punishment/schemas/punishment_schema.yaml:211
+#: plugins/punishment/schemas/punishment_schema.yaml:225
 msgid "UCIDs that are exempt from punishments."
 msgstr "UCIDs exemptés de sanctions."
 
@@ -6603,7 +6699,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "Utilisateur pour se connecter au serveur NUT (facultatif)."
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:538
+#: services/webservice/schemas/webservice_schema.yaml:567
 msgid "Username and password login for the console."
 msgstr "Identifiant et mot de passe de connexion pour la console."
 
@@ -6618,7 +6714,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Nom d'utilisateur pour le proxy, s'il nécessite une authentification."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:690
+#: services/webservice/schemas/webservice_schema.yaml:719
 msgid "Username of the emergency Admin account."
 msgstr "Nom d'utilisateur du compte administrateur d'urgence."
 
@@ -6744,6 +6840,11 @@ msgstr "Texte d'avertissement ; {item}, {what} et {when} sont remplacés."
 #: extensions/loganalyser/schemas/loganalyser_schema.yaml:59
 msgid "Warning time in seconds before the restart."
 msgstr "Délai d'avertissement en secondes avant le redémarrage."
+
+#. anticheat_schema:schema;element_schema.weapons
+#: plugins/anticheat/schemas/anticheat_schema.yaml:97
+msgid "Weapon correlation overrides."
+msgstr ""
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief
@@ -6959,7 +7060,7 @@ msgid "Whether this extension is enabled on this node."
 msgstr "Si cette extension est activée sur ce nœud."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections
-#: services/webservice/schemas/webservice_schema.yaml:424
+#: services/webservice/schemas/webservice_schema.yaml:425
 msgid ""
 "Which overview sections the site shows; an absent id is on. A section that is off is neither "
 "rendered nor read, except the server board — the live band above the sections prints its figures."
@@ -7034,6 +7135,11 @@ msgstr "Vitesse du vent au niveau du sol en m/s."
 msgid "Wind stability factor between 0.0 and 1.0."
 msgstr "Facteur de stabilité du vent entre 0.0 et 1.0."
 
+#. anticheat_schema:schema;element_schema.detectors.g_window_s
+#: plugins/anticheat/schemas/anticheat_schema.yaml:79
+msgid "Window over which an over-limit load factor has to hold to count as sustained."
+msgstr ""
+
 #. bot_schema:reports.num_workers
 #: services/bot/schemas/bot_schema.yaml:125
 msgid "Worker threads used to render generated reports."
@@ -7085,18 +7191,35 @@ msgid "managed_by token this site shows; absent only for the root site."
 msgstr ""
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:598
+#: services/webservice/schemas/webservice_schema.yaml:627
 msgid "managed_by values this account may see and act on."
 msgstr "Valeurs managed_by que ce compte peut voir et sur lesquelles il peut agir."
 
+#. anticheat_schema:schema;element_schema.profile
+#: plugins/anticheat/schemas/anticheat_schema.yaml:25
+msgid "standard collects evidence; tournament additionally expects a client agent (reserved)."
+msgstr ""
+
 #~ msgid "Leaderboard metric ids the site offers."
 #~ msgstr "Ids des métriques de classement proposées par le site."
+
+#~ msgid ""
+#~ "Page id -> true/false, for the pages a site"
+#~ " has to switch on. An absent leaf leaves "
+#~ "the page OFF."
+#~ msgstr ""
+#~ "Id de page -> true/false pour les pages qu'un"
+#~ " site doit activer. Une entrée absente laisse la"
+#~ " page DÉSACTIVÉE."
 
 #~ msgid "Plain text of the site's footer, rendered escaped; empty renders none."
 #~ msgstr ""
 
 #~ msgid "Raw HTML of the site's footer; empty renders none."
 #~ msgstr ""
+
+#~ msgid "The Carrier page — the qualifications board and one pilot's trap record."
+#~ msgstr "La page porte-avions — le tableau des qualifications et le relevé d'appontages d'un pilote."
 
 #~ msgid "The holder the footer's copyright line names, printed as text."
 #~ msgstr ""

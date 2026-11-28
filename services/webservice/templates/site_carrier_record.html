@@ -1,0 +1,102 @@
+{% extends "site_base.html" %}
+{#-
+  One pilot's carrier record — the totals, the six badges and the pass list with the LSO's remark.
+
+  NO TRAP SHEET IS DRAWN HERE, AND NO LINK TO ONE. A sheet is the pass owner's own: it is served to
+  the signed-in pilot it belongs to and to nobody else, so a public page neither emits the image nor
+  names the address. The grades, the wires, the points and the remarks stay public — they are the
+  same facts the board already prints.
+
+  An unknown UCID arrives with the not-found model and answers 404, like every other page here.
+-#}
+{% block title %}{% if model.found %}{{ model.name }}{% else %}{% trans %}Carrier record not found{% endtrans %}{% endif %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+{% if not model.found %}
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}Carrier record{% endtrans %}</div>
+      <h1>{% trans %}No carrier record{% endtrans %}</h1>
+    </div>
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <p class="note">{{ _(model.sentence) }}</p>
+    <p><a class="btn" href="{{ model.back_href }}">{% trans %}Back to the carrier board{% endtrans %}</a></p>
+  </section>
+</main>
+{% else %}
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}Carrier · record{% endtrans %}</div>
+      <h1>{{ model.name }}</h1>
+      <p class="sub">{% trans %}Every trap this pilot has flown on these servers, with the LSO's grade and remark.{% endtrans %}</p>
+    </div>
+    <div class="side">
+      <div class="lbl">{% trans %}Average points{% endtrans %}</div>
+      <div class="big">{{ model.average }}</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <div class="strip four">
+      {% for readout in model.readouts %}
+      <div class="readout">
+        <div class="v">{{ readout.value }}</div>
+        <div class="k">{{ _(readout.label) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <section class="panel" style="margin-top:var(--gap)">
+      <div class="hd"><h2>{% trans %}Carrier badges{% endtrans %}</h2><span class="meta">{% trans %}earned from the trap record{% endtrans %}</span></div>
+      <div class="badges">
+        {% for badge in model.badges %}
+        <span class="badge-card{% if not badge.earned %} locked{% endif %}"><span class="mk">{{ badge.mark }}</span><span><b>{{ _(badge.label) }}</b> {% if badge.earned %}{{ badge.note }}{% else %}{% trans left=badge.progress %}{{ left }} to go{% endtrans %}{% endif %}</span></span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:var(--gap)">
+      <div class="hd"><h2>{% trans %}Traps{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
+      <table class="tbl">
+        <thead><tr>
+          <th class="hide-sm">{% trans %}Time{% endtrans %}</th>
+          <th class="hide-sm">{% trans %}Airframe{% endtrans %}</th>
+          <th>{% trans %}Grade{% endtrans %}</th>
+          <th class="r">{% trans %}Wire{% endtrans %}</th>
+          <th class="r">{% trans %}Night{% endtrans %}</th>
+          <th class="r hide-sm">{% trans %}Points{% endtrans %}</th>
+          <th>{% trans %}Remark{% endtrans %}</th>
+        </tr></thead>
+        <tbody>
+          {% for row in model.traps %}
+          <tr>
+            <td class="hide-sm"><span class="mono">{{ row.date }}{% if row.time %} {{ row.time }}{% endif %}</span></td>
+            <td class="hide-sm">{{ row.airframe }}</td>
+            <td><span class="chip" style="border-color:{{ row.grade.color }};color:{{ row.grade.color }}">{{ row.grade.legend }}</span></td>
+            <td class="r">{{ row.wire }}</td>
+            <td class="r">{% if row.night %}<span class="dot"></span>{% else %}—{% endif %}</td>
+            <td class="r hide-sm">{{ row.points }}</td>
+            <td>{{ row.comment }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if model.truncated %}<p class="note plain">{% trans %}Only the newest passes are listed.{% endtrans %}</p>{% endif %}
+    </section>
+
+    <p><a class="btn" href="{{ model.back_href }}">{% trans %}Back to the carrier board{% endtrans %}</a></p>
+  </section>
+</main>
+{% endif %}
+{% endblock %}

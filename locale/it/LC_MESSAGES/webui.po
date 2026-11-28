@@ -8702,3 +8702,275 @@ msgstr "Filtro: nome, UCID o motivo contiene %(query)s · %(filtered)s di %(tota
 #: services/webservice/readmodels/bans.py
 msgid "No ban matches that search."
 msgstr "Nessun ban corrisponde a questa ricerca."
+
+msgid "Squadron rating"
+msgstr "Valutazione dello squadrone"
+
+msgid "Members"
+msgstr "Membri"
+
+msgid "No squadron has flown here yet."
+msgstr "Nessuno squadrone ha ancora volato qui."
+
+msgid "That squadron was not found on this site."
+msgstr "Quello squadrone non è stato trovato su questo sito."
+
+msgid "One squadron"
+msgstr "Uno squadrone"
+
+msgid "All squadrons"
+msgstr "Tutti gli squadroni"
+
+msgid "Squadron · %(rank)s of %(total)s"
+msgstr "Squadrone · %(rank)s di %(total)s"
+
+msgid "Roster"
+msgstr "Organico"
+
+msgid "Where the credits come from"
+msgstr "Da dove vengono i punti"
+
+msgid "A squadron's campaign points are the sum of its pilots' credits; the bars show which pilots carried it."
+msgstr "I punti campagna di uno squadrone sono la somma dei punti dei suoi piloti; le barre mostrano chi li ha portati."
+
+msgid "No campaign credits have been recorded for this squadron yet."
+msgstr "Non sono ancora stati registrati punti campagna per questo squadrone."
+
+msgid "Every figure on this page is read from the site's own servers: sorties are flights recorded against this site, and playtime is seated time, not mission time."
+msgstr "Ogni cifra di questa pagina arriva dai server di questo sito: le sortite sono voli registrati qui, e il tempo di gioco è tempo in postazione, non tempo di missione."
+
+msgid "Standings · campaign"
+msgstr "Classifica · campagna"
+
+msgid "The squadrons that fly here, ranked by the campaign points their pilots have earned. Open one to see its roster."
+msgstr "Gli squadroni che volano qui, ordinati per i punti campagna guadagnati dai loro piloti. Aprine uno per vedere l'organico."
+
+msgid "Campaign standings"
+msgstr "Classifica della campagna"
+
+msgid "campaign points, scaled to the leader"
+msgstr "punti campagna, in scala sul primo"
+
+msgid "Rating"
+msgstr "Valutazione"
+
+msgid "Rank by"
+msgstr "Ordina per"
+
+msgid "Squadron"
+msgstr "Squadrone"
+
+msgid "A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. The rating is the squadron's combined TrueSkill figure."
+msgstr "Uno squadrone è su questo sito quando almeno uno dei suoi piloti ha volato su uno dei suoi server, e il numero di membri conta solo quei piloti. La valutazione è il valore TrueSkill combinato dello squadrone."
+
+msgid "A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. Rating reads — where the community runs no competitive ladder."
+msgstr "Uno squadrone è su questo sito quando almeno uno dei suoi piloti ha volato su uno dei suoi server, e il numero di membri conta solo quei piloti. La valutazione mostra — quando la community non ha una scala competitiva."
+
+msgid "The server scope narrows the member count and the campaign points to that server. The rating is not server-scoped: it is one figure per pilot and reads the same on every server."
+msgstr "Il filtro server limita il numero di membri e i punti campagna a quel server. La valutazione non dipende dal server: è un valore per pilota e vale ovunque."
+
+msgid "How the Squadrons page presents its standings"
+msgstr "Come la pagina Squadroni presenta la sua classifica"
+
+msgid "The same standings, drawn as one card per squadron or as one dense table. It changes no figure and no address."
+msgstr "La stessa classifica, disegnata come una scheda per squadrone o come una tabella compatta. Non cambia nessuna cifra e nessun indirizzo."
+
+msgid "Cards"
+msgstr "Schede"
+
+msgid "List"
+msgstr "Elenco"
+
+msgid "Carrier"
+msgstr "Portaerei"
+
+msgid "No carrier qualification has been recorded here yet."
+msgstr "Qui non è ancora stata registrata alcuna qualifica su portaerei."
+
+msgid "That pilot has no carrier record on this site."
+msgstr "Quel pilota non ha alcun record su portaerei in questo sito."
+
+msgid "No carrier pass has been recorded for you on this site's servers yet."
+msgstr "Non è ancora stato registrato nessun appontaggio per te sui server di questo sito."
+
+msgid "Grade"
+msgstr "Valutazione"
+
+msgid "All airframes"
+msgstr "Tutti i velivoli"
+
+msgid "Traps on these servers"
+msgstr "Appontaggi su questi server"
+
+msgid "Pilots qualified"
+msgstr "Piloti qualificati"
+
+msgid "Perfect passes"
+msgstr "Appontaggi perfetti"
+
+msgid "Night traps"
+msgstr "Appontaggi notturni"
+
+msgid "Traps"
+msgstr "Appontaggi"
+
+msgid "At night"
+msgstr "Di notte"
+
+msgid "Last trap"
+msgstr "Ultimo appontaggio"
+
+msgid "Average points"
+msgstr "Punti medi"
+
+msgid "Carrier · qualifications"
+msgstr "Portaerei · qualifiche"
+
+msgid "Who has been trapping on these servers, how the LSO graded each pass, and how the last weeks ran — one column per day."
+msgstr "Chi ha appontato su questi server, come l'LSO ha valutato ogni passaggio e come sono andate le ultime settimane: una colonna per giorno."
+
+msgid "Traps recorded"
+msgstr "Appontaggi registrati"
+
+msgid "Airframe"
+msgstr "Velivolo"
+
+msgid "The board"
+msgstr "Il tabellone"
+
+msgid "Avg points"
+msgstr "Punti medi"
+
+msgid "Perfect"
+msgstr "Perfetto"
+
+msgid "Night"
+msgstr "Notte"
+
+msgid "unranked"
+msgstr "non classificato"
+
+msgid "night pass"
+msgstr "appontaggio notturno"
+
+msgid "How a pass is graded"
+msgstr "Come viene valutato un passaggio"
+
+msgid "LSO grade"
+msgstr "Valutazione dell'LSO"
+
+msgid "Every trap carries the LSO's grade and the points it earns. A tile is one pass, oldest on the left; up to two are drawn per day and the rest are counted."
+msgstr "Ogni appontaggio porta la valutazione dell'LSO e i punti che vale. Un riquadro è un passaggio, il più vecchio a sinistra; al giorno se ne disegnano al massimo due e il resto viene contato."
+
+msgid "%(points)s pts"
+msgstr "%(points)s pt"
+
+msgid "Night pass"
+msgstr "Appontaggio notturno"
+
+msgid "The pass that counts"
+msgstr "Il passaggio che conta"
+
+msgid "A pilot is ranked from five passes on these servers; fewer than that is listed below the board, unranked, whatever the average. The average is the pilot's whole record on these servers."
+msgstr ""
+
+msgid "The server scope narrows every figure and the grid to that server."
+msgstr "Il filtro server riduce ogni cifra e il tabellone a quel server."
+
+msgid "Carrier record not found"
+msgstr "Record su portaerei non trovato"
+
+msgid "Carrier record"
+msgstr "Record su portaerei"
+
+msgid "No carrier record"
+msgstr "Nessun record su portaerei"
+
+msgid "Back to the carrier board"
+msgstr "Torna al tabellone della portaerei"
+
+msgid "Carrier · record"
+msgstr "Portaerei · record"
+
+msgid "Every trap this pilot has flown on these servers, with the LSO's grade and remark."
+msgstr "Ogni appontaggio di questo pilota su questi server, con la valutazione e l'osservazione dell'LSO."
+
+msgid "Carrier badges"
+msgstr "Distintivi della portaerei"
+
+msgid "earned from the trap record"
+msgstr "guadagnati dal registro degli appontaggi"
+
+msgid "%(left)s to go"
+msgstr "ancora %(left)s"
+
+msgid "Wire"
+msgstr "Cavo"
+
+msgid "Remark"
+msgstr "Osservazione"
+
+msgid "Only the newest passes are listed."
+msgstr "Sono elencati solo i passaggi più recenti."
+
+msgid "no pass recorded"
+msgstr "nessun passaggio registrato"
+
+msgid "%(count)s traps"
+msgstr "%(count)s appontaggi"
+
+msgid "The passes you flew on this site's servers, newest first, with the LSO's grade and remark and the trap sheet the pass was graded from. Nobody else sees these sheets — the grades and the remarks are the part the board shows."
+msgstr "I passaggi che hai volato sui server di questo sito, i più recenti per primi, con la valutazione e l'osservazione dell'LSO e il foglio su cui il passaggio è stato valutato. Nessun altro vede questi fogli: valutazioni e osservazioni sono la parte che il tabellone mostra."
+
+msgid "Your traps"
+msgstr "I tuoi appontaggi"
+
+msgid "Trap sheet"
+msgstr "Foglio di appontaggio"
+
+msgid "Newer passes"
+msgstr "Passaggi più recenti"
+
+msgid "Older passes"
+msgstr "Passaggi più vecchi"
+
+msgid "The pass"
+msgstr "Il passaggio"
+
+msgid "wire %(wire)s"
+msgstr "cavo %(wire)s"
+
+msgid "Trap sheet plot of the pass"
+msgstr "Grafico del foglio di appontaggio"
+
+msgid "Glideslope, lineup and angle of attack for that pass, as the LSO graded it."
+msgstr "Sentiero di discesa, allineamento e angolo d'attacco di quel passaggio, come li ha valutati l'LSO."
+
+msgid "%(points)s points"
+msgstr "%(points)s punti"
+
+msgid "First trap"
+msgstr "Primo appontaggio"
+
+msgid "Century"
+msgstr "Centinaio"
+
+msgid "Perfect pass"
+msgstr "Appontaggio perfetto"
+
+msgid "Night qual"
+msgstr "Qualifica notturna"
+
+msgid "Every wire"
+msgstr "Tutti i cavi"
+
+msgid "Clean fifty"
+msgstr "Cinquanta puliti"
+
+
+
+msgid "one column per trap"
+msgstr ""
+
+msgid "Trap %(number)s"
+msgstr ""

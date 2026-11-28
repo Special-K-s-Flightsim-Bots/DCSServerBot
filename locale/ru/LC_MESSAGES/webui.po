@@ -13629,3 +13629,275 @@ msgstr "Фильтр: имя, UCID или причина содержит %(quer
 #: services/webservice/readmodels/bans.py
 msgid "No ban matches that search."
 msgstr "Ни один бан не соответствует этому запросу."
+
+msgid "Squadron rating"
+msgstr "Рейтинг эскадрильи"
+
+msgid "Members"
+msgstr "Участники"
+
+msgid "No squadron has flown here yet."
+msgstr "Здесь ещё не летала ни одна эскадрилья."
+
+msgid "That squadron was not found on this site."
+msgstr "Эта эскадрилья не найдена на этом сайте."
+
+msgid "One squadron"
+msgstr "Одна эскадрилья"
+
+msgid "All squadrons"
+msgstr "Все эскадрильи"
+
+msgid "Squadron · %(rank)s of %(total)s"
+msgstr "Эскадрилья · %(rank)s из %(total)s"
+
+msgid "Roster"
+msgstr "Состав"
+
+msgid "Where the credits come from"
+msgstr "Откуда берутся очки"
+
+msgid "A squadron's campaign points are the sum of its pilots' credits; the bars show which pilots carried it."
+msgstr "Очки кампании эскадрильи — это сумма очков её пилотов; полосы показывают, кто их принёс."
+
+msgid "No campaign credits have been recorded for this squadron yet."
+msgstr "Для этой эскадрильи ещё не записано очков кампании."
+
+msgid "Every figure on this page is read from the site's own servers: sorties are flights recorded against this site, and playtime is seated time, not mission time."
+msgstr "Каждая цифра на этой странице взята с серверов этого сайта: вылеты — это полёты, записанные здесь, а наигранное время — время в кабине, а не время миссии."
+
+msgid "Standings · campaign"
+msgstr "Таблица · кампания"
+
+msgid "The squadrons that fly here, ranked by the campaign points their pilots have earned. Open one to see its roster."
+msgstr "Эскадрильи, которые здесь летают, по очкам кампании, заработанным их пилотами. Откройте одну, чтобы увидеть состав."
+
+msgid "Campaign standings"
+msgstr "Таблица кампании"
+
+msgid "campaign points, scaled to the leader"
+msgstr "очки кампании в масштабе лидера"
+
+msgid "Rating"
+msgstr "Рейтинг"
+
+msgid "Rank by"
+msgstr "Сортировать по"
+
+msgid "Squadron"
+msgstr "Эскадрилья"
+
+msgid "A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. The rating is the squadron's combined TrueSkill figure."
+msgstr "Эскадрилья присутствует на сайте, если хотя бы один её пилот летал на одном из его серверов; число участников считает только этих пилотов. Рейтинг — это совокупное значение TrueSkill эскадрильи."
+
+msgid "A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. Rating reads — where the community runs no competitive ladder."
+msgstr "Эскадрилья присутствует на сайте, если хотя бы один её пилот летал на одном из его серверов; число участников считает только этих пилотов. Рейтинг отображается как —, если в сообществе нет соревновательной лиги."
+
+msgid "The server scope narrows the member count and the campaign points to that server. The rating is not server-scoped: it is one figure per pilot and reads the same on every server."
+msgstr "Фильтр сервера сужает число участников и очки кампании до этого сервера. Рейтинг от сервера не зависит: это одно значение на пилота, одинаковое везде."
+
+msgid "How the Squadrons page presents its standings"
+msgstr "Как страница эскадрилий представляет свой рейтинг"
+
+msgid "The same standings, drawn as one card per squadron or as one dense table. It changes no figure and no address."
+msgstr "Тот же рейтинг, отрисованный как карточка на эскадрилью или как плотная таблица. Это не меняет ни одной цифры и ни одного адреса."
+
+msgid "Cards"
+msgstr "Карточки"
+
+msgid "List"
+msgstr "Список"
+
+msgid "Carrier"
+msgstr "Авианосец"
+
+msgid "No carrier qualification has been recorded here yet."
+msgstr "Здесь ещё не записано ни одной палубной квалификации."
+
+msgid "That pilot has no carrier record on this site."
+msgstr "У этого пилота нет палубной записи на этом сайте."
+
+msgid "No carrier pass has been recorded for you on this site's servers yet."
+msgstr "На серверах этого сайта у тебя ещё не записано ни одной посадки."
+
+msgid "Grade"
+msgstr "Оценка"
+
+msgid "All airframes"
+msgstr "Все типы"
+
+msgid "Traps on these servers"
+msgstr "Посадок на этих серверах"
+
+msgid "Pilots qualified"
+msgstr "Квалифицированных пилотов"
+
+msgid "Perfect passes"
+msgstr "Идеальные посадки"
+
+msgid "Night traps"
+msgstr "Ночные посадки"
+
+msgid "Traps"
+msgstr "Посадки"
+
+msgid "At night"
+msgstr "Ночью"
+
+msgid "Last trap"
+msgstr "Последняя посадка"
+
+msgid "Average points"
+msgstr "Средний балл"
+
+msgid "Carrier · qualifications"
+msgstr "Авианосец · квалификации"
+
+msgid "Who has been trapping on these servers, how the LSO graded each pass, and how the last weeks ran — one column per day."
+msgstr "Кто садился на этих серверах, как LSO оценил каждый заход и как прошли последние недели — по столбцу на день."
+
+msgid "Traps recorded"
+msgstr "Записано посадок"
+
+msgid "Airframe"
+msgstr "Тип"
+
+msgid "The board"
+msgstr "Табло"
+
+msgid "Avg points"
+msgstr "Ср. балл"
+
+msgid "Perfect"
+msgstr "Идеально"
+
+msgid "Night"
+msgstr "Ночь"
+
+msgid "unranked"
+msgstr "вне зачёта"
+
+msgid "night pass"
+msgstr "ночная посадка"
+
+msgid "How a pass is graded"
+msgstr "Как оценивается заход"
+
+msgid "LSO grade"
+msgstr "Оценка LSO"
+
+msgid "Every trap carries the LSO's grade and the points it earns. A tile is one pass, oldest on the left; up to two are drawn per day and the rest are counted."
+msgstr "Каждая посадка несёт оценку LSO и свои баллы. Клетка — это один заход, самый старый слева; в день рисуется не больше двух, остальные считаются."
+
+msgid "%(points)s pts"
+msgstr "%(points)s б."
+
+msgid "Night pass"
+msgstr "Ночная посадка"
+
+msgid "The pass that counts"
+msgstr "Заход, который считается"
+
+msgid "A pilot is ranked from five passes on these servers; fewer than that is listed below the board, unranked, whatever the average. The average is the pilot's whole record on these servers."
+msgstr ""
+
+msgid "The server scope narrows every figure and the grid to that server."
+msgstr "Фильтр по серверу сужает все цифры и табло до этого сервера."
+
+msgid "Carrier record not found"
+msgstr "Палубная запись не найдена"
+
+msgid "Carrier record"
+msgstr "Палубная запись"
+
+msgid "No carrier record"
+msgstr "Нет палубной записи"
+
+msgid "Back to the carrier board"
+msgstr "Назад к палубному табло"
+
+msgid "Carrier · record"
+msgstr "Авианосец · запись"
+
+msgid "Every trap this pilot has flown on these servers, with the LSO's grade and remark."
+msgstr "Каждая посадка этого пилота на этих серверах, с оценкой и замечанием LSO."
+
+msgid "Carrier badges"
+msgstr "Палубные знаки"
+
+msgid "earned from the trap record"
+msgstr "получены за посадки"
+
+msgid "%(left)s to go"
+msgstr "осталось %(left)s"
+
+msgid "Wire"
+msgstr "Трос"
+
+msgid "Remark"
+msgstr "Замечание"
+
+msgid "Only the newest passes are listed."
+msgstr "Показаны только самые новые заходы."
+
+msgid "no pass recorded"
+msgstr "заходов не записано"
+
+msgid "%(count)s traps"
+msgstr "%(count)s посадок"
+
+msgid "The passes you flew on this site's servers, newest first, with the LSO's grade and remark and the trap sheet the pass was graded from. Nobody else sees these sheets — the grades and the remarks are the part the board shows."
+msgstr "Твои заходы на серверах этого сайта, сначала новые, с оценкой и замечанием LSO и листом, по которому оценивался заход. Эти листы не видит никто другой — оценки и замечания и есть то, что показывает табло."
+
+msgid "Your traps"
+msgstr "Твои посадки"
+
+msgid "Trap sheet"
+msgstr "Палубный лист"
+
+msgid "Newer passes"
+msgstr "Более новые заходы"
+
+msgid "Older passes"
+msgstr "Более старые заходы"
+
+msgid "The pass"
+msgstr "Заход"
+
+msgid "wire %(wire)s"
+msgstr "трос %(wire)s"
+
+msgid "Trap sheet plot of the pass"
+msgstr "График палубного листа"
+
+msgid "Glideslope, lineup and angle of attack for that pass, as the LSO graded it."
+msgstr "Глиссада, выравнивание и угол атаки этого захода — так, как их оценил LSO."
+
+msgid "%(points)s points"
+msgstr "%(points)s баллов"
+
+msgid "First trap"
+msgstr "Первая посадка"
+
+msgid "Century"
+msgstr "Сотня"
+
+msgid "Perfect pass"
+msgstr "Идеальная посадка"
+
+msgid "Night qual"
+msgstr "Ночной допуск"
+
+msgid "Every wire"
+msgstr "Все тросы"
+
+msgid "Clean fifty"
+msgstr "Пятьдесят чистых"
+
+
+
+msgid "one column per trap"
+msgstr ""
+
+msgid "Trap %(number)s"
+msgstr ""

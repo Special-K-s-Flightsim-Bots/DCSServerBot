@@ -18,10 +18,11 @@ One block in ``config/site.yaml`` — the file the Site settings page owns, besi
         avatar: true             # written by the avatar upload route, never by hand
         branding: {title: ..., logo: ..., welcome: ..., footer_links: [...]}
         theme: {preset: ..., expert: ..., light: false}
-        nav: [overview, leaderboard, squadrons, players]
+        nav: [overview, leaderboard, players, squadrons, servers]
         tiles: [active_week, online_now, playtime_total, avg_session, peak_hour]
         sections: {squadrons: false, season: false}
         metrics: [playtime, kd_ratio]
+        layout: {squadrons: cards}  # cards | list — how a two-way page presents itself
         lang: en
         character: pvpve         # pvp | pve | pvpve — which figures a page leads with
       group1:
@@ -70,6 +71,9 @@ previous release retired (:data:`RETIRED_SECTION_IDS`) is accepted and dropped, 
 for that release keeps loading. ``metrics``
 is a LIST over :data:`~services.webservice.site_reads.LEADERBOARD_METRICS` (unlike ``sections``,
 because it is a pick from a vocabulary the operator can see); absent means every metric.
+``layout`` is a map of page id -> layout over :data:`PAGE_LAYOUTS` — the pages that render one model
+two ways, and the values each offers; an id the map does not name, and a leaf the page does not
+carry, are both refused, and an absent leaf means :data:`DEFAULT_PAGE_LAYOUT`.
 ``theme.preset``/``theme.sheet``/``theme.expert`` are three spellings of one intent and at most one
 of them may be set; ``theme.expert`` is the body of one ``:root`` rule, bounded by
 :data:`MAX_EXPERT_LENGTH`, and ``theme.sheet`` names a LEAF file in the site's asset folder
@@ -133,8 +137,12 @@ __all__ = [
     "SHEET_LEAF",
     "DEFAULT_LANG",
     "DEFAULT_NAV",
+    "DEFAULT_PAGE_LAYOUT",
     "DEFAULT_TILES",
     "NAV_PAGE_IDS",
+    "OPTIONAL_NAV_IDS",
+    "PAGE_LAYOUTS",
+    "default_nav",
     "RETIRED_SECTION_IDS",
     "ROOT_KEY",
     "SECTION_IDS",
@@ -183,7 +191,12 @@ SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 #: the nav page ids a site may offer, in the order they are offered when the block names none.
 #: A page that joins the site adds its id HERE: an id this list does not carry is refused, so a
 #: typo cannot render a nav entry that leads nowhere.
-NAV_PAGE_IDS: tuple[str, ...] = ("overview", "servers", "leaderboard", "squadrons", "players")
+NAV_PAGE_IDS: tuple[str, ...] = ("overview", "leaderboard", "carrier", "players", "squadrons",
+                                 "servers")
+
+#: The page ids a site must TURN ON are GONE: every page a site serves is a row in its menu, so the
+#: menu tick is the only control (``nav``). A ``pages:`` map left in an older file is accepted and
+#: dropped — see :data:`RETIRED_SITE_KEYS`.
 
 #: the tile ids a site may show, in the order they are shown when the block names none. Same rule
 #: as the nav: the id set is this constant, and an unknown id is a refusal.
@@ -203,6 +216,15 @@ SECTION_IDS: tuple[str, ...] = ("community", "season", "standings", "aircraft", 
 #: is not read, and the console offers no switch for it. An id in neither tuple is still refused.
 RETIRED_SECTION_IDS: tuple[str, ...] = ("servers",)
 
+#: the page ids whose presentation a site may choose, with the layouts each accepts. Only a page
+#: that renders the same model two ways is here: an id this map does not carry is refused, so a
+#: typo cannot pick a layout for a page that has none, and a layout the page does not offer is
+#: refused too.
+PAGE_LAYOUTS: dict[str, tuple[str, ...]] = {"squadrons": ("cards", "list")}
+
+#: the layout a page renders in when the block names no leaf for it (or no ``layout:`` map at all).
+DEFAULT_PAGE_LAYOUT = "cards"
+
 #: the sections a site shows when its block names none: all of them, in page order.
 DEFAULT_SECTIONS: tuple[str, ...] = SECTION_IDS
 
@@ -210,7 +232,14 @@ DEFAULT_SECTIONS: tuple[str, ...] = SECTION_IDS
 #: rank, in the order it publishes them.
 DEFAULT_METRICS: tuple[str, ...] = LEADERBOARD_METRICS
 
-DEFAULT_NAV: tuple[str, ...] = NAV_PAGE_IDS
+#: the page ids a site does NOT put in its menu until it asks for them: every served page whose menu
+#: entry is opt-in. A site that names no ``nav`` offers the rest, so a new site starts on the pages
+#: every community has and each optional entry is one tick in the console — the SAME tick that
+#: decides whether the page is served, because a page exists only where its bar entry does.
+OPTIONAL_NAV_IDS: tuple[str, ...] = ("carrier", "squadrons")
+
+DEFAULT_NAV: tuple[str, ...] = tuple(ident for ident in NAV_PAGE_IDS
+                                     if ident not in OPTIONAL_NAV_IDS)
 DEFAULT_TILES: tuple[str, ...] = TILE_IDS
 
 #: the language a site renders in when the block names none (a web UI language code).
@@ -230,7 +259,13 @@ DEFAULT_BRANDING_TITLE = "DCSServerBot"
 #: ``enabled`` are parsed but never posted by a form: an uploaded file and the page's own switch
 #: write them.
 SITE_KEYS: tuple[str, ...] = ("slug", "group_role", "enabled", "avatar", "branding", "theme", "nav",
-                              "tiles", "sections", "metrics", "lang", "character")
+                              "tiles", "sections", "metrics", "lang", "character", "layout")
+
+#: the keys a site block carried in an earlier release and the parser accepts WITHOUT reading. The
+#: value is parsed as nothing and never reaches the site: ``pages`` named the one page a site had to
+#: switch on, and the menu tick decides that now, so a file that still carries it keeps loading and
+#: the log says which site dropped it.
+RETIRED_SITE_KEYS: tuple[str, ...] = ("pages",)
 
 #: the keys a ``branding:`` block may carry, exhaustively.
 BRANDING_KEYS: tuple[str, ...] = ("title", "community_name", "logo", "welcome", "mark_side",
@@ -413,6 +448,9 @@ class Site:
     sections: tuple[str, ...] = DEFAULT_SECTIONS
     #: the leaderboard metrics the site offers, in the order the block names them.
     metrics: tuple[str, ...] = DEFAULT_METRICS
+    #: the pages whose presentation the block chooses, as ``(page id, layout)`` pairs; a page with
+    #: no pair renders in :data:`DEFAULT_PAGE_LAYOUT`.
+    layout: tuple[tuple[str, str], ...] = ()
     lang: str = DEFAULT_LANG
     #: the kind of community the site declares (one of :data:`CHARACTERS`), which decides the order
     #: the pages lead their figures in.
@@ -426,6 +464,24 @@ class Site:
     def is_root(self) -> bool:
         """Whether this is the untagged-servers site."""
         return self.group_role is None
+
+    def page_layout(self, page_id: str) -> str:
+        """The layout *page_id* renders in: the block's own choice, else :data:`DEFAULT_PAGE_LAYOUT`.
+
+        The ONE resolution of a page's presentation. A page id the block does not name — and a
+        block that declares no ``layout:`` map at all — answers the shipped default, so an install
+        that declares nothing renders what it rendered before the key existed.
+        """
+        return dict(self.layout).get(page_id, DEFAULT_PAGE_LAYOUT)
+
+    def page_enabled(self, page_id: str) -> bool:
+        """Whether this site serves *page_id*: ONE answer, its menu entry.
+
+        A page exists only where the site's bar links to it, so ``nav`` is the switch. The menu is
+        the only control an operator has, and the same tick decides both the entry and the page —
+        the optional ids (``carrier``, ``squadrons``) are the ones a site is not born with.
+        """
+        return page_id in self.nav
 
     @property
     def prefix(self) -> str:
@@ -464,6 +520,7 @@ class Site:
             tiles=self.tiles,
             sections=self.sections,
             metrics=self.metrics,
+            layout=self.layout,
             lang=self.lang,
             is_root=self.is_root,
             character=self.character,
@@ -497,9 +554,19 @@ class SiteContext:
     sections: tuple[str, ...] = DEFAULT_SECTIONS
     #: the leaderboard metrics the site offers.
     metrics: tuple[str, ...] = DEFAULT_METRICS
+    #: the pages whose presentation the block chooses, as ``(page id, layout)`` pairs.
+    layout: tuple[tuple[str, str], ...] = ()
     enabled: bool = True
     #: whether the site has an uploaded avatar; pages resolve the three files from it.
     avatar: bool = False
+
+    def page_layout(self, page_id: str) -> str:
+        """The layout *page_id* renders in: the block's own choice, else :data:`DEFAULT_PAGE_LAYOUT`."""
+        return dict(self.layout).get(page_id, DEFAULT_PAGE_LAYOUT)
+
+    def page_enabled(self, page_id: str) -> bool:
+        """Whether this site serves *page_id*: its menu entry, one answer for both."""
+        return page_id in self.nav
 
 
 # ------------------------------------------------------------------- the ``managed_by`` tokens
@@ -898,6 +965,45 @@ def _metrics(path: str, value) -> tuple[str, ...]:
                 what="leaderboard metric")
 
 
+def default_nav() -> tuple[str, ...]:
+    """The menu a site that names no ``nav`` offers: the pages every community has.
+
+    The optional ids (:data:`OPTIONAL_NAV_IDS`) are left out — a new site starts with the pages
+    every community wants, and ``carrier``/``squadrons`` are one tick each in the console. The
+    order is :data:`NAV_PAGE_IDS`, so the bar reads in page order whatever is ticked.
+    """
+    return DEFAULT_NAV
+
+
+def _layout(path: str, value) -> tuple[tuple[str, str], ...]:
+    """The pages whose presentation a site chooses: a map of page id -> layout.
+
+    A map rather than a list, like ``sections``: an absent key — and an absent leaf — keeps
+    :data:`DEFAULT_PAGE_LAYOUT`, so an install that declares nothing renders the shipped default
+    and a page added later is unaffected. An unknown page id is refused at :data:`PAGE_LAYOUTS`'
+    own vocabulary, and a value the page does not offer is refused by name, because both doors
+    (the settings form and Expert Mode) write this block.
+    """
+    if value is None:
+        return ()
+    if isinstance(value, (str, bytes)) or not isinstance(value, Mapping):
+        _fail(path, f"must be a map of page id -> layout; known page ids: "
+                    f"{', '.join(PAGE_LAYOUTS)}")
+    declared: list[tuple[str, str]] = []
+    for ident, chosen in value.items():
+        if ident not in PAGE_LAYOUTS:
+            _fail(f"{path}.{ident}", f"unknown page id; known page ids: {', '.join(PAGE_LAYOUTS)}")
+        if chosen is None:
+            continue
+        text = _text(f"{path}.{ident}", chosen)
+        allowed = PAGE_LAYOUTS[ident]
+        if text not in allowed:
+            _fail(f"{path}.{ident}", f"'{chosen}' is not a layout; accepted: {', '.join(allowed)} "
+                                     f"(absent means '{DEFAULT_PAGE_LAYOUT}')")
+        declared.append((ident, text))
+    return tuple(declared)
+
+
 #: preset ids already reported as not shipped, so a second parse of the same file stays quiet
 _WARNED_PRESETS: set[tuple[str, str]] = set()
 
@@ -1054,6 +1160,14 @@ def parse_sites(block, *, known_roles: Iterable[str] = (), config_dir=None) -> "
         if not isinstance(raw, Mapping):
             _fail(path, "must be a map (the site's own block)")
         for declared in raw:
+            if declared in RETIRED_SITE_KEYS:
+                # ACCEPTED AND DROPPED: a file that carried the key keeps loading, and the log names
+                # the site and the key so an operator who expected it to do something sees why it
+                # does nothing. Its value is never read.
+                log.warning("Sites: '%s' carries the retired key '%s', which no longer exists — the "
+                            "menu list (nav) is the only control over a page. The key was ignored.",
+                            path, declared)
+                continue
             if declared not in SITE_KEYS:
                 _fail(f"{path}.{declared}", f"unknown key; known keys: {', '.join(SITE_KEYS)}")
 
@@ -1098,7 +1212,7 @@ def parse_sites(block, *, known_roles: Iterable[str] = (), config_dir=None) -> "
 
         branding = _branding(f"{path}.branding", raw.get("branding"))
         theme = _theme(f"{path}.theme", raw.get("theme"), config_dir)
-        nav = _ids(f"{path}.nav", raw.get("nav"), default=DEFAULT_NAV, known=NAV_PAGE_IDS,
+        nav = _ids(f"{path}.nav", raw.get("nav"), default=default_nav(), known=NAV_PAGE_IDS,
                    what="nav page id")
         tiles = _ids(f"{path}.tiles", raw.get("tiles"), default=DEFAULT_TILES, known=TILE_IDS,
                      what="tile id")
@@ -1111,11 +1225,13 @@ def parse_sites(block, *, known_roles: Iterable[str] = (), config_dir=None) -> "
         character = _character(f"{path}.character", raw.get("character"))
         sections = _sections(f"{path}.sections", raw.get("sections"))
         metrics = _metrics(f"{path}.metrics", raw.get("metrics"))
+        layout = _layout(f"{path}.layout", raw.get("layout"))
         enabled = _flag(f"{path}.enabled", raw.get("enabled"), default=True)
         avatar = _flag(f"{path}.avatar", raw.get("avatar"), default=False)
         sites.append(Site(key=str(key), slug=slug, group_role=group_role, branding=branding,
                           theme=theme, nav=nav, tiles=tiles, sections=sections, metrics=metrics,
-                          lang=lang, character=character, enabled=enabled, avatar=avatar))
+                          layout=layout, lang=lang, character=character,
+                          enabled=enabled, avatar=avatar))
     return SiteCatalog(tuple(sites))
 
 
@@ -1260,9 +1376,11 @@ def sites_for(app) -> SiteCatalog:
 # ------------------------------------------- the content overlay (per request, no reload)
 
 #: the ``Site`` fields a request may see change without the console reloading. Everything else —
-#: which sites exist, their keys, slugs and switches — is installed structure.
+#: which sites exist, their keys and their slugs — is installed structure. A page SWITCH is content:
+#: every route is registered per site at install and asks its switch at request time
+#: (``page_enabled``), so turning the Carrier page on or off is served by the next page load.
 CONTENT_FIELDS: tuple[str, ...] = ("branding", "character", "avatar", "nav", "tiles", "sections",
-                                   "metrics", "lang", "theme")
+                                   "metrics", "layout", "lang", "theme")
 
 #: the ``Site`` fields a route was registered for: a difference in any of them needs a reload.
 STRUCTURAL_FIELDS: tuple[str, ...] = ("slug", "group_role", "enabled")

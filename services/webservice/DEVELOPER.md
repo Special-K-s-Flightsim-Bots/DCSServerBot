@@ -639,11 +639,16 @@ list, so a page added on an API path fails instead of answering the API's refusa
 | Overview | `GET <site>/` | `public` | `community_totals`, `activity_over_time`, `server_board`, `leaderboard` (playtime / all) and `squadrons` (`services/webservice/site_reads.py`), all bounded to the site's servers |
 | Leaderboard | `GET <site>/rankings` | `public` | `leaderboard` (metric, period, offset, sort column and sort direction from the query string; the column and direction are whitelisted in the read) |
 | Servers | `GET <site>/fleet` | `public` | `server_list` (the live roster plus `mv_serverstats`' all-time figures, bounded to the site's servers) |
+| Squadrons | `GET <site>/squads` | `public` | `squadrons`, once: the stored layout (`cards` or `list`) draws it, and the list's `?by=` / `?server=` narrow that same answer through the site context |
+| One squadron | `GET <site>/squads/{id}` | `public` | `squadron_detail` (the `squadrons` row for the `squadrons.id` primary key, its roster and its credit split, each figure bounded to the site's servers); an id this site does not carry answers its not-found page |
 | Fleet live cells | `GET <site>/fleet.json` | `public` | `fleet_live` (the roster half alone: state, players, mission, clocks — no statement and no RPC, so the page polls it). `?server=<name>` narrows it to one server of the site and adds its cached live read's state, which is what that server's own page polls |
 | One server | `GET <site>/fleet/{name}` | `public` | `server_detail` (built on `server_list`), plus the cached live read (`live_read`) for the weather and extension blocks |
 | Pilot search | `GET <site>/players` | `public` | `pilot_search` (query, offset from the query string) |
 | Pilot profile | `GET <site>/player/{ucid}` | `public` | `pilot_profile` for one UCID |
-| My statistics | `GET <site>/me` | `public` | `my_statistics` for the request's own identity; anonymous visitors get the sign-in control, never a redirect |
+| Carrier | `GET <site>/carrier` | `public` | `carrier_board` — one row per pilot and one column per UTC day; `?airframe=` and `?server=` narrow the same read. Served only when the site stores `pages.carrier: true`; switched off, the address answers the not-found page and no read runs |
+| One carrier record | `GET <site>/carrier/{ucid}` | `public` | `carrier_record` for one UCID: totals, the six badges over the whole history, one page of passes. A pilot with no trap on this site answers the not-found page |
+| One trap sheet | `GET <site>/carrier/trap/{id}` | `public` | `trap_sheet`, answered as `image/png` ONLY for the signed-in viewer's own pass on this site's servers: every other request — anonymous, another pilot, another site, a NULL sheet — answers the not-found page with `404`, so the route never confirms a trap id. No bytes are read unless the rule holds |
+| My statistics | `GET <site>/me` | `public` | `my_statistics` for the request's own identity; anonymous visitors get the sign-in control, never a redirect. The page also carries the viewer's own carrier section: `carrier_available` gates it (no `traps` table, no section), and `carrier_record` answers the list and the trap sheets of the viewer's own passes |
 
 Two asset routes exist beside the pages: `GET <site>/theme.css` serves the site's palette sheet
 (the `theme.preset` sheet, or the `theme.expert` block wrapped in one `:root` rule) and

@@ -60,6 +60,10 @@ CLOSED_SETS = {
     "tiles": '[data-sc-set="tiles"]',
 }
 
+#: the nav row the reorder probe drags: the LAST entry the site offers unasked, so the drag moves a
+#: ticked row (an unticked one posts nothing) and puts it where the counter repaints.
+DRAG_ID = "servers"
+
 
 def _sign_in(page, base: str, user: str, password: str) -> None:
     page.goto(f"{base}/auth/login", wait_until="load")
@@ -226,7 +230,7 @@ def _drag_row(page, card, selector: str, source: int, target: int) -> None:
 
 
 def _reorder(page, site: str) -> dict:
-    """Drag the squadrons row above the first row, then Alt+Down on the focused grip — then Save
+    """Drag the last default row above the first row, then Alt+Down on the focused grip — then Save
     and read the order back.
 
     A LOCAL reorder posts nothing: the rows live in the card's form, so the DOM order after the move
@@ -253,7 +257,7 @@ def _reorder(page, site: str) -> dict:
         return {
             "ids": _row_ids(card, selector),
             "ord": _ord_numbers(card, selector),
-            "ord_squadrons": _ord_shot(card, selector, "squadrons"),
+            "ord_dragged": _ord_shot(card, selector, DRAG_ID),
             "posted": card.locator(f'input[name="f.sites.{site}.nav"]:checked').evaluate_all(
                 "nodes => nodes.map((n) => n.value)"),
             "status": card.locator("[data-reorder-status]").count(),
@@ -262,7 +266,7 @@ def _reorder(page, site: str) -> dict:
 
     report = {"before": state()}
     # the row the pins name by id, wherever the site's own order has put it
-    _drag_row(page, card, selector, _row_ids(card, selector).index("squadrons"), 0)
+    _drag_row(page, card, selector, _row_ids(card, selector).index(DRAG_ID), 0)
     report["after_drag"] = state()
 
     grip = card.locator(f"{selector} [data-reorder-row]").first.locator("[data-reorder-handle]").first

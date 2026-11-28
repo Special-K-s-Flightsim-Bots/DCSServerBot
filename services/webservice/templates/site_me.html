@@ -297,6 +297,71 @@
   </section>
   {% endif %}
 
+  {% if model.carrier %}
+  <section class="sect">
+    <div class="sect-head"><span class="no">07</span><h2>{% trans %}Carrier{% endtrans %}</h2>
+      <span class="meta">{% if model.carrier.empty %}{% trans %}no pass recorded{% endtrans %}{% else %}{% trans count=model.carrier.readouts[0].value %}{{ count }} traps{% endtrans %}{% endif %}</span></div>
+    <p class="intro">{% trans %}The passes you flew on this site's servers, newest first, with the LSO's grade and remark and the trap sheet the pass was graded from. Nobody else sees these sheets — the grades and the remarks are the part the board shows.{% endtrans %}</p>
+    {% if model.carrier.empty %}
+    <section class="panel">
+      <p class="note">{{ _(model.carrier.sentence) }}</p>
+    </section>
+    {% else %}
+    <div class="strip four">
+      {% for readout in model.carrier.readouts %}
+      <div class="readout">
+        <div class="v">{{ readout.value }}</div>
+        <div class="k">{{ _(readout.label) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="grid" style="margin-top:var(--gap)">
+      <section class="panel c7">
+        <div class="hd"><h2>{% trans %}Your traps{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
+        <table class="tbl">
+          <thead><tr>
+            <th class="hide-sm">{% trans %}When{% endtrans %}</th>
+            <th class="hide-sm">{% trans %}Airframe{% endtrans %}</th>
+            <th>{% trans %}Grade{% endtrans %}</th>
+            <th class="r">{% trans %}Wire{% endtrans %}</th>
+            <th class="r hide-sm">{% trans %}Points{% endtrans %}</th>
+            <th>{% trans %}Trap sheet{% endtrans %}</th>
+          </tr></thead>
+          <tbody>
+            {% for row in model.carrier.rows %}
+            <tr>
+              <td class="hide-sm"><span class="mono">{{ row.date }}{% if row.time %} {{ row.time }}{% endif %}</span>{% if row.night %} <span class="dot"></span>{% endif %}</td>
+              <td class="hide-sm">{{ row.airframe }}</td>
+              <td><span class="chip" style="border-color:{{ row.grade.color }};color:{{ row.grade.color }}">{{ row.grade.legend }}</span></td>
+              <td class="r">{{ row.wire }}</td>
+              <td class="r hide-sm">{{ row.points }}</td>
+              <td>{% if row.sheet_href %}<span class="trapthumb"><img src="{{ row.sheet_href }}" alt="" loading="lazy"></span>{% else %}<span class="trapthumb none">—</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if model.carrier.prev_href or model.carrier.next_href %}
+        <p class="note plain">
+          {% if model.carrier.prev_href %}<a href="{{ model.carrier.prev_href }}">{% trans %}Newer passes{% endtrans %}</a>{% endif %}
+          {% if model.carrier.next_href %}<a href="{{ model.carrier.next_href }}">{% trans %}Older passes{% endtrans %}</a>{% endif %}
+        </p>
+        {% endif %}
+      </section>
+      {% if model.carrier.selected %}
+      <section class="panel c5">
+        <div class="hd"><h2>{% trans %}The pass{% endtrans %}</h2><span class="meta">{{ model.carrier.selected.date }} · {{ model.carrier.selected.airframe }}{% if model.carrier.selected.wire != "—" %} · {% trans wire=model.carrier.selected.wire %}wire {{ wire }}{% endtrans %}{% endif %}</span></div>
+        <figure class="big-shot">
+          <img src="{{ model.carrier.selected.sheet_href }}" alt="{% trans %}Trap sheet plot of the pass{% endtrans %}">
+          <figcaption>{% trans %}Glideslope, lineup and angle of attack for that pass, as the LSO graded it.{% endtrans %}</figcaption>
+        </figure>
+        <p class="note plain" style="margin-top:var(--sp-3)"><b>{{ model.carrier.selected.grade.legend }}</b>{% if model.carrier.selected.comment %} — {{ model.carrier.selected.comment }}{% endif %}{% if model.carrier.selected.points %} {% trans points=model.carrier.selected.points %}{{ points }} points{% endtrans %}{% endif %}</p>
+      </section>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <section class="sect">
     <section class="panel">
       <div class="hd"><h2>{% trans %}What others see{% endtrans %}</h2><span class="meta">{% trans %}Public profile{% endtrans %}</span></div>

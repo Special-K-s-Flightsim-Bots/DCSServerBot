@@ -439,9 +439,20 @@ def test_pressing_a_character_rewrites_the_lists_and_posts_nothing(served, live_
 #: The shipped nav order, then the two states the probe's own moves produce from it: it drags the
 #: squadrons row to the top wherever that row sits, then Alt+Downs the grip of the row that is now
 #: first. Both are derived from the product, so a page that joins the site cannot rot them.
-SHIPPED_NAV = list(sites.NAV_PAGE_IDS)
-AFTER_DRAG = ["squadrons"] + [ident for ident in SHIPPED_NAV if ident != "squadrons"]
-AFTER_KEY = [SHIPPED_NAV[0], "squadrons"] + [ident for ident in SHIPPED_NAV[1:] if ident != "squadrons"]
+#: The rows the block draws, in the order it draws them: the shipped default menu, then every id
+#: the site does not offer unasked. A page that joins the site changes it here.
+SHIPPED_NAV = list(sites.DEFAULT_NAV) + [ident for ident in sites.NAV_PAGE_IDS
+                                         if ident not in sites.DEFAULT_NAV]
+#: the rows the probe drags are TICKED ones; an unticked row posts nothing, so the order the file
+#: receives is the ticked rows in DOM order
+DRAGGED = "servers"
+AFTER_DRAG = [DRAGGED] + [ident for ident in SHIPPED_NAV if ident != DRAGGED]
+AFTER_KEY = [SHIPPED_NAV[0], DRAGGED] + [ident for ident in SHIPPED_NAV[1:] if ident != DRAGGED]
+
+
+def _ticked(ids) -> list[str]:
+    """*ids* restricted to the entries the site offers unasked — what an untouched form posts."""
+    return [ident for ident in ids if ident in sites.DEFAULT_NAV]
 
 
 def test_a_drop_reorders_posts_nothing_and_save_writes_the_order(served, live_config):
@@ -475,7 +486,7 @@ def test_a_drop_reorders_posts_nothing_and_save_writes_the_order(served, live_co
     assert moved["after_drag"]["dragging"] == 0 and moved["after_key"]["dragging"] == 0, (
         "a row was left in its dragging state")
     # the posted values follow the DOM: the order IS the payload, with no field renamed
-    assert moved["after_key"]["posted"] == AFTER_KEY, (
+    assert moved["after_key"]["posted"] == _ticked(AFTER_KEY), (
         f"the form would post {moved['after_key']['posted']}")
     # PIN 4: the number is the counter's, and the counter renumbers with the move
     for state in ("before", "after_drag", "after_key"):
@@ -484,7 +495,7 @@ def test_a_drop_reorders_posts_nothing_and_save_writes_the_order(served, live_co
                 f"the order number is written into the DOM: {cell['text']!r}")
             assert "counter(" in cell["content"], (
                 f"the order cell draws {cell['content']!r}, not a counter")
-    painted = [moved[state]["ord_squadrons"] for state in ("before", "after_drag", "after_key")]
+    painted = [moved[state]["ord_dragged"] for state in ("before", "after_drag", "after_key")]
     assert len(set(painted)) == 3, (
         f"the same row painted the same number in all three positions: {painted}")
 
@@ -492,7 +503,7 @@ def test_a_drop_reorders_posts_nothing_and_save_writes_the_order(served, live_co
     assert moved["after_save"]["ids"] == AFTER_KEY, (
         f"the reloaded page draws {moved['after_save']['ids']}, the saved order is {AFTER_KEY}")
     block = sites.load_site_block(live_config) or {}
-    assert (block.get("root") or {}).get("nav") == AFTER_KEY, (
+    assert (block.get("root") or {}).get("nav") == _ticked(AFTER_KEY), (
         f"site.yaml carries nav: {(block.get('root') or {}).get('nav')!r}")
     assert not report["errors"], report["errors"]
 

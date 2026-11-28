@@ -87,7 +87,7 @@ Server 2:
     assert root.prefix == "" and group.prefix == "/group1"
 
     # every key is optional, and the defaults are the ones the sample states
-    assert root.nav == DEFAULT_NAV == ("overview", "servers", "leaderboard", "squadrons", "players")
+    assert root.nav == DEFAULT_NAV == ("overview", "leaderboard", "players", "servers")
     assert root.tiles == DEFAULT_TILES == ("active_week", "online_now", "playtime_total",
                                            "avg_session", "peak_hour")
     assert root.lang == DEFAULT_LANG == "en"
@@ -1134,3 +1134,32 @@ def test_the_schema_refuses_a_new_key_outside_its_vocabulary(body, tmp_path):
 
     with pytest.raises(SchemaError):
         _validate("DEFAULT:\n  sites:\n    root:\n      slug: \"\"\n" + body, tmp_path)
+
+
+def test_switching_a_page_on_is_content_and_live_on_the_next_load(tmp_path):
+    """The Carrier switch needs no reload: its routes exist at install and ask the switch per request.
+
+    This is the difference an operator feels. A save writes ``pages.carrier: true``; if the overlay
+    dropped the field, the running site kept the INSTALLED (off) answer until a restart — the page
+    unanswered, its menu entry dropped, and the console drawing the switch off against a file that
+    said on.
+    """
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    sites.install_sites(app, {"sites": {"root": {}}}, config_dir=tmp_path)
+    app.state.webui_config_dir = str(tmp_path)
+    installed_root = sites.sites_for(app).root
+    assert installed_root is not None and not installed_root.page_enabled("carrier")
+
+    (tmp_path / sites.SITE_FILE).write_text(
+        "sites:\n  root:\n    nav: [overview, leaderboard, players]\n    pages:\n      carrier: true\n",
+        encoding="utf-8")
+
+    live = sites.live_catalog(app)
+
+    assert live.reload_required is False, "a page switch is not installed structure"
+    root = live.catalog.root
+    assert root is not None
+    assert root.page_enabled("carrier") is True, "the switch stayed off until a restart"
+    assert "carrier" in root.nav, "the bar kept a menu without the entry the switch turned on"

@@ -12097,3 +12097,275 @@ msgstr "过滤：名称、UCID 或原因包含 %(query)s · %(total)s 条封禁�
 #: services/webservice/readmodels/bans.py
 msgid "No ban matches that search."
 msgstr "没有封禁符合该搜索。"
+
+msgid "Squadron rating"
+msgstr "中队评分"
+
+msgid "Members"
+msgstr "成员"
+
+msgid "No squadron has flown here yet."
+msgstr "这里还没有中队飞行过。"
+
+msgid "That squadron was not found on this site."
+msgstr "在此站点上未找到该中队。"
+
+msgid "One squadron"
+msgstr "单个中队"
+
+msgid "All squadrons"
+msgstr "所有中队"
+
+msgid "Squadron · %(rank)s of %(total)s"
+msgstr "中队 · 第 %(rank)s 个，共 %(total)s 个"
+
+msgid "Roster"
+msgstr "名册"
+
+msgid "Where the credits come from"
+msgstr "积分的来源"
+
+msgid "A squadron's campaign points are the sum of its pilots' credits; the bars show which pilots carried it."
+msgstr "中队的战役积分是其飞行员积分之和；条形图显示谁贡献了这些积分。"
+
+msgid "No campaign credits have been recorded for this squadron yet."
+msgstr "该中队尚无战役积分记录。"
+
+msgid "Every figure on this page is read from the site's own servers: sorties are flights recorded against this site, and playtime is seated time, not mission time."
+msgstr "本页的每个数字都读取自本站点自己的服务器：架次是在这里记录的飞行，游戏时长是坐在座舱里的时间，而不是任务时间。"
+
+msgid "Standings · campaign"
+msgstr "排名 · 战役"
+
+msgid "The squadrons that fly here, ranked by the campaign points their pilots have earned. Open one to see its roster."
+msgstr "在这里飞行的中队，按其飞行员赢得的战役积分排名。打开一个即可查看其名册。"
+
+msgid "Campaign standings"
+msgstr "战役排名"
+
+msgid "campaign points, scaled to the leader"
+msgstr "战役积分，以领先者为基准"
+
+msgid "Rating"
+msgstr "评分"
+
+msgid "Rank by"
+msgstr "排序方式"
+
+msgid "Squadron"
+msgstr "中队"
+
+msgid "A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. The rating is the squadron's combined TrueSkill figure."
+msgstr "只要有一名飞行员在本站点的服务器上飞行过，该中队就算在本站点内，成员数只统计这些飞行员。评分是该中队的综合 TrueSkill 数值。"
+
+msgid "A squadron is on this site when at least one of its pilots has flown on one of its servers, and its member count is those pilots only. Rating reads — where the community runs no competitive ladder."
+msgstr "只要有一名飞行员在本站点的服务器上飞行过，该中队就算在本站点内，成员数只统计这些飞行员。当社区没有竞技联赛时，评分显示为 —。"
+
+msgid "The server scope narrows the member count and the campaign points to that server. The rating is not server-scoped: it is one figure per pilot and reads the same on every server."
+msgstr "服务器筛选会把成员数和战役积分限定到该服务器。评分不随服务器变化：它是每名飞行员的一个数值，在所有服务器上都相同。"
+
+msgid "How the Squadrons page presents its standings"
+msgstr "中队页面如何呈现排名"
+
+msgid "The same standings, drawn as one card per squadron or as one dense table. It changes no figure and no address."
+msgstr "相同的排名，绘制为每个中队一张卡片，或绘制为一张紧凑的表格。它不改变任何数字，也不改变任何地址。"
+
+msgid "Cards"
+msgstr "卡片"
+
+msgid "List"
+msgstr "列表"
+
+msgid "Carrier"
+msgstr "舰载机"
+
+msgid "No carrier qualification has been recorded here yet."
+msgstr "这里还没有记录任何舰载机资质。"
+
+msgid "That pilot has no carrier record on this site."
+msgstr "该飞行员在本站没有舰载机记录。"
+
+msgid "No carrier pass has been recorded for you on this site's servers yet."
+msgstr "本站服务器上还没有记录你的任何着舰。"
+
+msgid "Grade"
+msgstr "评分"
+
+msgid "All airframes"
+msgstr "全部机型"
+
+msgid "Traps on these servers"
+msgstr "这些服务器上的着舰"
+
+msgid "Pilots qualified"
+msgstr "合格飞行员"
+
+msgid "Perfect passes"
+msgstr "完美着舰"
+
+msgid "Night traps"
+msgstr "夜间着舰"
+
+msgid "Traps"
+msgstr "着舰"
+
+msgid "At night"
+msgstr "夜间"
+
+msgid "Last trap"
+msgstr "最近着舰"
+
+msgid "Average points"
+msgstr "平均分"
+
+msgid "Carrier · qualifications"
+msgstr "舰载机 · 资质"
+
+msgid "Who has been trapping on these servers, how the LSO graded each pass, and how the last weeks ran — one column per day."
+msgstr "谁在这些服务器上着舰、LSO 如何评分，以及最近几周的状况——每天一列。"
+
+msgid "Traps recorded"
+msgstr "已记录着舰"
+
+msgid "Airframe"
+msgstr "机型"
+
+msgid "The board"
+msgstr "看板"
+
+msgid "Avg points"
+msgstr "平均分"
+
+msgid "Perfect"
+msgstr "完美"
+
+msgid "Night"
+msgstr "夜间"
+
+msgid "unranked"
+msgstr "未排名"
+
+msgid "night pass"
+msgstr "夜间着舰"
+
+msgid "How a pass is graded"
+msgstr "着舰如何评分"
+
+msgid "LSO grade"
+msgstr "LSO 评分"
+
+msgid "Every trap carries the LSO's grade and the points it earns. A tile is one pass, oldest on the left; up to two are drawn per day and the rest are counted."
+msgstr "每次着舰都带有 LSO 的评分和对应分数。一个方块代表一次着舰，最旧的位于左侧；每天最多画两个，其余以数字计数。"
+
+msgid "%(points)s pts"
+msgstr "%(points)s 分"
+
+msgid "Night pass"
+msgstr "夜间着舰"
+
+msgid "The pass that counts"
+msgstr "计入的着舰"
+
+msgid "A pilot is ranked from five passes on these servers; fewer than that is listed below the board, unranked, whatever the average. The average is the pilot's whole record on these servers."
+msgstr ""
+
+msgid "The server scope narrows every figure and the grid to that server."
+msgstr "服务器筛选会把所有数字和看板限定到该服务器。"
+
+msgid "Carrier record not found"
+msgstr "未找到舰载机记录"
+
+msgid "Carrier record"
+msgstr "舰载机记录"
+
+msgid "No carrier record"
+msgstr "没有舰载机记录"
+
+msgid "Back to the carrier board"
+msgstr "返回舰载机看板"
+
+msgid "Carrier · record"
+msgstr "舰载机 · 记录"
+
+msgid "Every trap this pilot has flown on these servers, with the LSO's grade and remark."
+msgstr "该飞行员在这些服务器上的每次着舰，附 LSO 的评分和备注。"
+
+msgid "Carrier badges"
+msgstr "舰载机徽章"
+
+msgid "earned from the trap record"
+msgstr "根据着舰记录获得"
+
+msgid "%(left)s to go"
+msgstr "还差 %(left)s"
+
+msgid "Wire"
+msgstr "拦阻索"
+
+msgid "Remark"
+msgstr "备注"
+
+msgid "Only the newest passes are listed."
+msgstr "仅列出最新的着舰。"
+
+msgid "no pass recorded"
+msgstr "没有记录着舰"
+
+msgid "%(count)s traps"
+msgstr "%(count)s 次着舰"
+
+msgid "The passes you flew on this site's servers, newest first, with the LSO's grade and remark and the trap sheet the pass was graded from. Nobody else sees these sheets — the grades and the remarks are the part the board shows."
+msgstr "你在本站服务器上的着舰记录，最新的在前，附 LSO 的评分、备注以及评分的着舰图。其他人看不到这些着舰图——评分和备注才是看板展示的部分。"
+
+msgid "Your traps"
+msgstr "你的着舰"
+
+msgid "Trap sheet"
+msgstr "着舰图"
+
+msgid "Newer passes"
+msgstr "较新的着舰"
+
+msgid "Older passes"
+msgstr "较早的着舰"
+
+msgid "The pass"
+msgstr "该次着舰"
+
+msgid "wire %(wire)s"
+msgstr "%(wire)s 号索"
+
+msgid "Trap sheet plot of the pass"
+msgstr "该次着舰的着舰图"
+
+msgid "Glideslope, lineup and angle of attack for that pass, as the LSO graded it."
+msgstr "该次着舰的下滑道、对正与迎角，按 LSO 的评定。"
+
+msgid "%(points)s points"
+msgstr "%(points)s 分"
+
+msgid "First trap"
+msgstr "首次着舰"
+
+msgid "Century"
+msgstr "百次"
+
+msgid "Perfect pass"
+msgstr "完美着舰"
+
+msgid "Night qual"
+msgstr "夜间资质"
+
+msgid "Every wire"
+msgstr "全部拦阻索"
+
+msgid "Clean fifty"
+msgstr "连续五十次"
+
+
+
+msgid "one column per trap"
+msgstr ""
+
+msgid "Trap %(number)s"
+msgstr ""

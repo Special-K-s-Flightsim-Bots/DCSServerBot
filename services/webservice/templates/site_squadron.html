@@ -1,0 +1,105 @@
+{% extends "site_base.html" %}
+{#-
+  The public site's one-squadron page — the roster, the figures and the credit split.
+
+  Every figure is a value `pages/site_squads.detail_view()` composed from
+  `site_reads.squadron_detail`'s answer: the squadron's own row (the same read the list prints),
+  its roster with per-pilot figures, and the per-member credits behind its campaign points. The
+  template only reads.
+
+  A member with no recorded sortie has no K/D, and the cell prints its dash rather than a zero that
+  would read as a flown record; the credit panel states its own absence in one sentence instead of
+  drawing bars at zero.
+
+  An id this site does not carry renders this page's own not-found state, never another
+  community's squadron.
+-#}
+{% block title %}{% if model.found %}{{ model.name }} — {% endif %}{% trans %}Squadrons{% endtrans %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+{% if not model.found %}
+<div class="stage-area"><div class="in">
+  <header class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}One squadron{% endtrans %}</div>
+      <h1>{% trans %}Not found{% endtrans %}</h1>
+      <p class="sub">{{ _(model.sentence) }}</p>
+    </div>
+  </header>
+</div></div>
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+<main class="in">
+  <a class="back" href="{{ model.back_href }}">{% trans %}All squadrons{% endtrans %}</a>
+</main>
+{% else %}
+<div class="stage-area"><div class="in">
+  <header class="phead">
+    <div class="sq-page-head">
+      {% if model.image_url %}<span class="sqmark lg"><img src="{{ model.image_url }}" alt=""></span>{% else %}<span class="sqmark lg">{{ model.monogram }}</span>{% endif %}
+      <div>
+        <div class="lbl hot">{% trans rank=model.rank, total=model.total %}Squadron · {{ rank }} of {{ total }}{% endtrans %}</div>
+        <h1>{{ model.name }}</h1>
+        {% if model.description %}<p class="sub">{{ model.description }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="side">
+      <div class="lbl">{% trans %}Campaign points{% endtrans %}</div>
+      <div class="big">{{ model.points }}</div>
+    </div>
+  </header>
+</div></div>
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  <a class="back" href="{{ model.back_href }}">{% trans %}All squadrons{% endtrans %}</a>
+  <section class="sect">
+    <div class="strip four">
+      <div class="readout"><span class="v">{{ model.members }}</span><span class="lbl">{% trans %}Members{% endtrans %}</span></div>
+      <div class="readout"><span class="v">{{ model.playtime }}<small>{% trans %}h{% endtrans %}</small></span><span class="lbl">{% trans %}Playtime{% endtrans %}</span></div>
+      <div class="readout"><span class="v">{{ model.rating or "—" }}</span><span class="lbl">{% trans %}Squadron rating{% endtrans %}</span></div>
+      <div class="readout"><span class="v">{{ model.sorties }}</span><span class="lbl">{% trans %}Sorties{% endtrans %}</span></div>
+    </div>
+
+    <div class="grid" style="margin-top:var(--gap)">
+      <section class="panel c8">
+        <div class="hd"><h2>{% trans %}Roster{% endtrans %}</h2><span class="meta">{% trans count=model.roster|length %}{{ count }} pilots{% endtrans %}</span></div>
+        <table class="tbl roster">
+          <thead><tr><th>{% trans %}Pilot{% endtrans %}</th><th class="r hide-sm">{% trans %}Sorties{% endtrans %}</th>
+            <th class="r">{% trans %}Playtime{% endtrans %}</th><th class="r">{% trans %}K/D{% endtrans %}</th>
+            <th class="r hide-sm">{% trans %}Last seen{% endtrans %}</th></tr></thead>
+          <tbody>
+            {% for pilot in model.roster %}
+            <tr>
+              <td>{% if pilot.href %}<a class="nm" href="{{ pilot.href }}">{{ pilot.name }}</a>{% else %}<span class="nm">{{ pilot.name }}</span>{% endif %}</td>
+              <td class="r hide-sm">{{ pilot.sorties }}</td>
+              <td class="r">{{ pilot.playtime }} {% trans %}h{% endtrans %}</td>
+              <td class="r">{% if pilot.kd %}{{ pilot.kd }}{% else %}—{% endif %}</td>
+              <td class="r hide-sm">{% if pilot.last_seen %}{{ pilot.last_seen }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="panel c4">
+        <div class="hd"><h2>{% trans %}Where the credits come from{% endtrans %}</h2><span class="meta">{% trans %}campaign points{% endtrans %}</span></div>
+        {% if model.has_credits %}
+        <ul class="hbars creditbars">
+          {% for bar in model.credits %}
+          <li>
+            <div class="row"><span class="nm">{{ bar.name }}</span><span class="vv">{{ bar.points }}</span></div>
+            <div class="track"><b style="width:{{ bar.share }}%"></b></div>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="note plain">{% trans %}A squadron's campaign points are the sum of its pilots' credits; the bars show which pilots carried it.{% endtrans %}</p>
+        {% else %}
+        <p class="note plain">{% trans %}No campaign credits have been recorded for this squadron yet.{% endtrans %}</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <p class="note">{% trans %}Every figure on this page is read from the site's own servers: sorties are flights recorded against this site, and playtime is seated time, not mission time.{% endtrans %}</p>
+  </section>
+</main>
+{% endif %}
+{% endblock %}

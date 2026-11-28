@@ -45,6 +45,9 @@ __all__ = [
     "NAV_LABELS",
     "NAV_PATHS",
     "SERVED_NAV_IDS",
+    "PLUGIN_PAGES",
+    "page_offered",
+    "set_loaded_plugins",
     "LOGO_PATH",
     "AVATAR_PATH",
     "AVATAR_MARK_SIZE",
@@ -76,9 +79,13 @@ __all__ = [
     "ME_PATH",
     "PLAYER_PATH",
     "SERVER_PATH",
+    "SQUADRON_PATH",
+    "CARRIER_PATH",
+    "CARRIER_TRAP_PATH",
     "SEARCH_PATH",
     "SEARCH_JSON_PATH",
     "FLEET_LIVE_PATH",
+    "carrier_url",
     "catalog_from_file",
     "chip",
     "community_name",
@@ -107,6 +114,7 @@ __all__ = [
     "signed_in",
     "site_url",
     "theme_sheet_url",
+    "trap_sheet_url",
 ]
 
 log = logging.getLogger(__name__)
@@ -132,6 +140,8 @@ NAV_PATHS: dict[str, str] = {
     # the fleet page's label reads "Servers"; its ADDRESS cannot be ``/servers`` because the legacy
     # REST surface claims that path on the same application (see the note above)
     "servers": "/fleet",
+    # the carrier board; the trap sheet route and one pilot's record live below this prefix
+    "carrier": "/carrier",
     "players": "/players",
 }
 
@@ -142,16 +152,30 @@ NAV_LABELS: dict[str, str] = {
     "leaderboard": i18n._("Leaderboard"),
     "squadrons": i18n._("Squadrons"),
     "servers": i18n._("Servers"),
+    "carrier": i18n._("Carrier"),
     "players": i18n._("Pilots"),
 }
 
 #: the nav page ids whose page THIS build serves. An id absent here is not offered, whatever the
 #: site's ``nav:`` list says.
-SERVED_NAV_IDS: tuple[str, ...] = ("overview", "leaderboard", "servers", "players")
+SERVED_NAV_IDS: tuple[str, ...] = ("overview", "leaderboard", "carrier", "players", "squadrons",
+                                   "servers")
+
+#: the path (inside the site) of the squadron list — the ``squadrons`` nav entry's own address, and
+#: the prefix the per-squadron page appends the ``squadrons.id`` primary key to.
+SQUADRON_PATH: str = NAV_PATHS["squadrons"]
 
 #: the path (inside the site) of the server list — the ``servers`` nav entry's own address, and the
 #: prefix the per-server page appends one encoded name segment to.
 SERVER_PATH: str = NAV_PATHS["servers"]
+
+#: the path (inside the site) of the carrier board — the ``carrier`` nav entry's own address, and
+#: the prefix one pilot's carrier record and one pass's trap sheet hang below.
+CARRIER_PATH: str = NAV_PATHS["carrier"]
+
+#: the path (inside the site) of one pass's trap sheet image, below :data:`CARRIER_PATH`; the trap's
+#: id is appended as one integer segment. It answers ONLY the signed-in pilot the pass belongs to.
+CARRIER_TRAP_PATH: str = f"{CARRIER_PATH}/trap"
 
 #: the path (inside the site) of one pilot's profile; its UCID is appended as one path segment.
 PLAYER_PATH = "/player"
@@ -177,6 +201,43 @@ SEARCH_JSON_PATH = "/search.json"
 #: (``pages/site_servers.live_route``). Its own address, not the page's — the page answers HTML and
 #: this one answers the figures that move within seconds.
 FLEET_LIVE_PATH = "/fleet.json"
+
+#: page id -> the plugin whose data the page renders. A page named here is offered only while that
+#: plugin is loaded: no menu entry, no row in the console's list and no page switch. An id absent
+#: from this map is part of the site itself and is always offered.
+PLUGIN_PAGES: dict[str, str] = {"carrier": "greenieboard"}
+
+#: The plugins this installation runs, as the bot last reported them. ``None`` means no caller has
+#: said — a web process with no bot in it, a test, a standalone render — and every page is offered
+#: exactly as before, so an unreadable plugin list can never blank a site's menu.
+_loaded_plugins: frozenset[str] | None = None
+
+
+def set_loaded_plugins(names) -> None:
+    """Record the plugin list this installation runs, so a plugin's pages are offered or not.
+
+    Named ``loaded`` on purpose: the answer decides whether a page EXISTS on this installation, not
+    whether its data has arrived. ``None`` states nothing — the list is unread — and every page is
+    then offered, which is the answer of a web process with no bot in it. Called by the bot when the
+    plugins load; the shell never calls it, so a console that starts first does not state a list it
+    has not read.
+    """
+    global _loaded_plugins
+    _loaded_plugins = None if names is None else frozenset(str(name).lower() for name in names)
+
+
+def page_offered(page_id: str) -> bool:
+    """Whether this installation offers *page_id* at all.
+
+    A page with no plugin behind it is always offered. A plugin page is offered while its plugin is
+    loaded, and — when nothing has reported the plugin list — offered as well, because an unknown
+    answer must not remove a page a site is showing.
+    """
+    plugin = PLUGIN_PAGES.get(page_id)
+    if plugin is None or _loaded_plugins is None:
+        return True
+    return plugin in _loaded_plugins
+
 
 #: the path (inside the site) of the site's palette sheet, served as CSS.
 THEME_SHEET_PATH = "/theme.css"
@@ -249,6 +310,23 @@ def player_url(site: Any, ucid: Any) -> str:
     return site_url(site, f"{PLAYER_PATH}/{quote(str(ucid or ''), safe='')}")
 
 
+def carrier_url(site: Any, ucid: Any) -> str:
+    """The address of one pilot's carrier record: :data:`CARRIER_PATH` plus the encoded UCID.
+
+    The SAME encoding the profile's own link uses — one segment, every reserved character escaped —
+    so a UCID that carries a slash or a ``#`` round-trips instead of truncating the path.
+    """
+    return site_url(site, f"{CARRIER_PATH}/{quote(str(ucid or ''), safe='')}")
+
+
+def trap_sheet_url(site: Any, trap_id: Any) -> str:
+    """The address of one pass's trap sheet image, or ``\'\'`` for an id that is not an integer."""
+    try:
+        return site_url(site, f"{CARRIER_TRAP_PATH}/{int(trap_id)}")
+    except (TypeError, ValueError):
+        return ""
+
+
 def server_url(site: Any, name: Any) -> str:
     """The address of one server's page: :data:`SERVER_PATH` with its name as one encoded segment.
 
@@ -270,6 +348,10 @@ def nav_items(context: Any, active: str = "") -> list[dict]:
     entries: list[dict] = []
     for page_id in getattr(context, "nav", ()) or ():
         if page_id not in SERVED_NAV_IDS or page_id not in NAV_PATHS:
+            continue
+        if not page_offered(page_id):
+            # the page's own data comes from a plugin this installation does not run, so there is
+            # nothing to link to: no entry, whatever the site's ``nav`` list still says
             continue
         entries.append({
             "page": page_id,
@@ -776,10 +858,12 @@ def page_modules() -> tuple[Any, ...]:
     ``add_route(router, site) -> str`` (the path it registered). Imported inside the call because a
     page module imports this module for :func:`site_url` and :func:`render_site_page`.
     """
-    from .pages import site_leaderboard, site_me, site_overview, site_player, site_players
-    from .pages import site_servers
+    from .pages import (site_carrier, site_leaderboard, site_me, site_overview, site_player,
+                        site_players)
+    from .pages import site_servers, site_squads
 
-    return (site_overview, site_leaderboard, site_servers, site_player, site_players, site_me)
+    return (site_overview, site_leaderboard, site_squads, site_carrier, site_servers, site_player,
+            site_players, site_me)
 
 
 #: the template the preview route renders: ``site_base.html``'s shell with the overview's hero for
@@ -1230,7 +1314,7 @@ def _build_router(catalog) -> tuple[APIRouter, dict[str, str]] | None:
     """
     if not catalog:
         return None
-    from .pages import site_me, site_players, site_servers
+    from .pages import site_carrier, site_me, site_players, site_servers, site_squads
 
     modules = page_modules()
     router = APIRouter()
@@ -1248,6 +1332,15 @@ def _build_router(catalog) -> tuple[APIRouter, dict[str, str]] | None:
             # ``public`` exactly like the page whose row links it
             detail_path = site_servers.detail_route(router, site)
             capabilities[detail_path] = permissions.PUBLIC
+            # the per-squadron page: the list's own path plus the squadron's id, declared
+            # ``public`` exactly like the page whose row links it
+            squadron_path = site_squads.detail_route(router, site)
+            capabilities[squadron_path] = permissions.PUBLIC
+            # the carrier routes: one pilot's record and one pass's trap sheet, declared ``public``
+            # exactly like the board that links them — each answers the site's not-found page for a
+            # request it will not serve, and the sheet route refuses before it reads any bytes
+            capabilities[site_carrier.detail_route(router, site)] = permissions.PUBLIC
+            capabilities[site_carrier.sheet_route(router, site)] = permissions.PUBLIC
             # the fleet's live cells: the JSON the list page polls, declared ``public`` exactly like
             # the page whose figures it republishes
             live_path = site_servers.live_route(router, site)

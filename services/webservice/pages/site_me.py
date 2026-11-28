@@ -27,10 +27,12 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 
 from .. import i18n, site_reads
-from ..site_pages import (ME_AAR_PATH, ME_PATH, NAV_PATHS, SEARCH_PATH, identity, player_url, pool,
+from ..site_pages import (ME_AAR_PATH, ME_PATH, NAV_PATHS, SEARCH_PATH, identity, page_offered,
+                          player_url, pool,
                           render_site_page, resolve_site, sign_in_href, sign_out_context, site_url)
 
 
+from . import site_carrier
 from .site_overview import bars_chart
 from .site_player import (DAY_MONTH, MONTH_YEAR, _record, airframes, count, discipline, hours,
                           last_flown, ratio, rating_view, recent, sentence, servers, sortie_count,
@@ -47,6 +49,7 @@ __all__ = [
     "standing_view",
     "progress_view",
     "view",
+    "carrier_section",
     "anonymous",
     "add_route",
 ]
@@ -355,6 +358,88 @@ def view(resolved: Any, who: Any, stats: dict, href: str = "") -> dict:
     }
 
 
+#: The most pass pages a request may name. A record of more than half a million passes does not
+#: exist, so a larger number is read as this one and then clamped to the record's own last page.
+CARRIER_PAGE_CEILING = 10_000
+
+
+def _page_number(value: Any) -> int:
+    """The pass page an address names: a positive whole number, else the first page.
+
+    A value that is not a whole number, a zero and a negative number all mean page 1 — this site
+    parses its query values forgivingly by house rule, so a hand-edited address renders the page
+    instead of answering a refusal. The ceiling keeps an absurd number off the statement's OFFSET.
+    """
+    try:
+        number = int(str(value if value is not None else "").strip())
+    except (TypeError, ValueError):
+        return 1
+    return min(number, CARRIER_PAGE_CEILING) if number > 0 else 1
+
+
+def _page_offset(page: int) -> int:
+    """The row offset of pass page *page*, counting from 1."""
+    return max(page - 1, 0) * site_reads.CARRIER_TRAP_PAGE_SIZE
+
+
+def _last_page(answer: dict) -> int:
+    """The last pass page a record has: its trap count at the read's own page size, at least one."""
+    total = int((answer.get("totals") or {}).get("traps") or 0)
+    size = site_reads.CARRIER_TRAP_PAGE_SIZE
+    return max((total + size - 1) // size, 1)
+
+
+def _own_ucids(stats: dict) -> list[str]:
+    """The UCIDs the request's identity owns, off the answer the page already read."""
+    return [str(entry.get("ucid")) for entry in (stats.get("ucids") or ()) if entry.get("ucid")]
+
+
+async def carrier_section(resolved: Any, db: Any, page: Any = 1,
+                          ucids: list[str] | None = None) -> dict | None:
+    """The viewer's own Carrier section, or ``None`` when this database carries no carrier data.
+
+    THE PROBE IS THE GATE, and it is the same ``to_regclass`` check every plugin-gated read uses: a
+    community without the GreenieBoard plugin sees its own page unchanged — no heading, no empty
+    list, no sentence about carrier data; and an installation that does not LOAD the plugin draws no
+    section either, even when an earlier install left the table behind. The site's ``pages.carrier``
+    switch is NOT consulted here: a site that hides the board can still show its pilots the passes
+    they flew.
+
+    A viewer whose Discord link owns no pilot here, or one who has not trapped yet, gets the section
+    with its own empty sentence — the plugin is active, so the page says so instead of hiding a band
+    the reader is looking for.
+
+    *ucids* is the identity the page already resolved for this request (``my_statistics``' answer),
+    so a signed-in visitor's own page does not look the same pilots up twice; the probe rides on the
+    record read, which answers ``None`` only when the table is absent. One connection in the
+    ordinary case.
+
+    *page* is the ``?carrier_page=`` value as the address typed it: anything that is not a positive
+    whole number means page 1, and a page past the record's last one answers the last one — the page
+    renders, never a refusal.
+    """
+    if db is None or not page_offered("carrier"):
+        # no pool, or no GreenieBoard plugin on this installation: there is no pass to show, and the
+        # table a previous install left behind is not evidence that a page should be drawn
+        return None
+    wanted = _page_number(page)
+    owners = [str(entry) for entry in (ucids or ()) if str(entry or "").strip()]
+    if not owners:
+        # nobody of this visitor's on the site: the band is drawn only where the plugin's table is,
+        # and it holds no pass either way
+        if not await site_reads.carrier_available(resolved, db):
+            return None
+        return site_carrier.section({}, resolved, page=wanted)
+    answer = await site_reads.carrier_record(resolved, db, owners, offset=_page_offset(wanted))
+    if answer is None:
+        return None
+    last = _last_page(answer)
+    if wanted > last:
+        wanted = last
+        answer = await site_reads.carrier_record(resolved, db, owners, offset=_page_offset(wanted))
+    return site_carrier.section(answer, resolved, page=wanted)
+
+
 def anonymous(resolved: Any, href: str | None) -> dict:
     """The model of the signed-out page: the door and nothing else."""
     return {"signed_in": False, "sign_in_href": href}
@@ -379,7 +464,8 @@ def add_route(router: APIRouter, site: Any) -> str:
     """Serve the viewer's own statistics at ``<site>/me`` and return the registered path."""
     path = site_url(site, ME_PATH)
 
-    async def site_me(request: Request, next: str = "", period: str = "") -> HTMLResponse:
+    async def site_me(request: Request, next: str = "", period: str = "",
+                      carrier_page: str = "") -> HTMLResponse:
         resolved = resolve_site(request, site)
         # ONE identity read for the whole request: the shell's chip and this page's model are the
         # same answer, so a visitor cannot be signed in for the chip and anonymous for the figures
@@ -391,10 +477,15 @@ def add_route(router: APIRouter, site: Any) -> str:
         db = pool()
         if db is None:
             model = _unavailable(resolved, who)
+            model["carrier"] = None
         else:
             stats = await site_reads.my_statistics(resolved, db, getattr(who, "subject", ""),
                                                    _period(period))
             model = view(resolved, who, stats, path)
+            # the identity's UCIDs are already in this answer, so the carrier band does not look
+            # the same pilots up a second time
+            model["carrier"] = await carrier_section(resolved, db, page=carrier_page,
+                                                     ucids=_own_ucids(stats))
         model["sign_out"] = sign_out_context(request)
         return render_site_page(request, site, TEMPLATE, resolved=resolved, who=who,
                                 model=model)

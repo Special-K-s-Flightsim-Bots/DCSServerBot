@@ -277,6 +277,17 @@ class PluginManager:
         from services.webservice import contributors as webui_contributors
 
         webui_contributors.set_contributors(self._webui_contributors())
+        # WHICH PAGES THE SITE MAY OFFER: a page whose data comes from a plugin exists only while
+        # that plugin is loaded, so the site's menu and the console's page list are told here — in
+        # the same pass that records the plugin's own console pages. Never fatal: an unreadable list
+        # leaves the site offering every page, which is the behaviour before this fact existed.
+        try:
+            from services.webservice import site_pages as webui_site_pages
+
+            webui_site_pages.set_loaded_plugins(self.plugins)
+        except Exception:
+            self.log.exception("PluginManager: the site's plugin-backed pages could not be updated; "
+                               "every such page stays offered on the public site.")
 
         registrar = self._get_webui_registrar()
         if registrar is None:
